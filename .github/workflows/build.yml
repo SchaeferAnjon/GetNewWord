@@ -1,0 +1,67 @@
+# 推到 main、打 v* tag、开 PR 时：跑单元测试（make test），编一份不签名的正式版（Apple 芯片 + Intel），
+# 核对两种架构都在，再让两种架构各启动一次自测（--selftest：写一个 JSON 就退出）。
+# 发版脚本（scripts/require-ci.sh）要求要发的那个提交在这里通过过。
+# 私有仓库的 macOS runner 按 10 倍扣免费额度：仓库公开前推送和 PR 都自动跳过，在 Actions 页手动 Run workflow 才跑。
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  mac:
+    if: github.event_name == 'workflow_dispatch' || !github.event.repository.private
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      APP: build/DerivedData/Build/Products/Release/GetNewWord.app
+    steps:
+      - uses: actions/checkout@v4
+
+      # 代码是 Swift 6，要 Xcode 16 或更新：用 runner 上最新的正式版
+      - name: Xcode
+        run: |
+          XCODE=$(printf '%s\n' /Applications/Xcode_*.app | grep -viE 'beta|_rc|release_candidate' | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: XcodeGen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Unit tests
+        run: make test
+
+      - name: Release build (arm64 + x86_64, unsigned)
+        run: |
+          xcodebuild -project GetNewWord.xcodeproj -scheme GetNewWord -configuration Release \
+            -derivedDataPath build/DerivedData ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build
+
+      - name: Both architectures
+        run: |
+          for bin in "$APP/Contents/MacOS/GetNewWord" "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle"; do
+            lipo -info "$bin"
+            lipo "$bin" -verify_arch arm64 x86_64
+          done
+
+      - name: Launch self-test
+        run: |
+          arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+          for a in arm64 x86_64; do
+            arch -$a "$APP/Contents/MacOS/GetNewWord" --selftest "selftest-$a.json"
+            cat "selftest-$a.json"
+            [ "$(plutil -extract ok raw -o - "selftest-$a.json")" = true ]
+            [ "$(plutil -extract arch raw -o - "selftest-$a.json")" = "$a" ]
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selftest
+          path: selftest-*.json
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,104 @@
+name: GetNewWord
+options:
+  bundleIdPrefix: com.getnewword
+  xcodeVersion: "15.0"
+  deploymentTarget:
+    macOS: "14.0"
+  generateEmptyDirectories: true
+  developmentLanguage: zh-Hans
+
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
+
+targets:
+  GetNewWord:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: GetNewWord
+        excludes:
+          - "*.md"
+      # 第三方版权声明（Sparkle 的 MIT 许可证、各家 AI 的商标）随应用分发
+      - path: NOTICE
+        buildPhase: resources
+    dependencies:
+      - package: Sparkle
+    scheme:
+      testTargets:
+        - GetNewWordTests
+    settings:
+      base:
+        INFOPLIST_FILE: GetNewWord/Info.plist
+        CODE_SIGN_ENTITLEMENTS: GetNewWord/GetNewWord.entitlements
+        SWIFT_VERSION: "6.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        # 开发版的产品名是 GetNewWord Dev，模块名默认会变成 GetNewWord_Dev；定死成 GetNewWord，测试里 @testable import GetNewWord 两种配置都能用
+        PRODUCT_MODULE_NAME: GetNewWord
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: 3H5S5NXPXS
+        ENABLE_HARDENED_RUNTIME: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+        LOCALIZATION_PREFERS_STRING_CATALOGS: "YES"
+        MARKETING_VERSION: "1.2.0"
+        CURRENT_PROJECT_VERSION: "10"
+      # 开发版：独立 bundle id、名字和数据，和正式版可以同时装着
+      configs:
+        Debug:
+          PRODUCT_NAME: GetNewWord Dev
+          PRODUCT_BUNDLE_IDENTIFIER: com.getnewword.app.dev
+          CODE_SIGN_IDENTITY: "Apple Development"
+        Release:
+          PRODUCT_NAME: GetNewWord
+          PRODUCT_BUNDLE_IDENTIFIER: com.getnewword.app
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          OTHER_CODE_SIGN_FLAGS: "--timestamp"
+    info:
+      path: GetNewWord/Info.plist
+      properties:
+        CFBundleName: $(PRODUCT_NAME)
+        CFBundleDisplayName: $(PRODUCT_NAME)
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundlePackageType: APPL
+        CFBundleExecutable: $(EXECUTABLE_NAME)
+        CFBundleDevelopmentRegion: zh-Hans
+        CFBundleLocalizations: [zh-Hans, en, de]
+        SUFeedURL: https://github.com/SchaeferAnjon/GetNewWord/releases/latest/download/appcast.xml
+        SUEnableAutomaticChecks: true
+        SUPublicEDKey: G9bmMaRpjgTpXB7+9NkXAc9KxC2F1W3fEQy51QIDGbE=
+        LSMinimumSystemVersion: "14.0"
+        NSHumanReadableCopyright: "Copyright © 2026 SchaeferAnjon. GPL-3.0-or-later."
+        LSUIElement: true
+        NSScreenCaptureUsageDescription: "GetNewWord 需要屏幕录制权限来截取屏幕内容，以便从屏幕上的任意位置提取单词。"
+
+  # 单元测试（make test）：注入开发版里跑，测不碰界面的逻辑；应用在测试时只起一个空进程，数据目录换成临时文件夹（AppVariant.isUnitTesting）
+  GetNewWordTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: GetNewWordTests
+    dependencies:
+      - target: GetNewWord
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: true
+        PRODUCT_BUNDLE_IDENTIFIER: com.getnewword.tests
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: 3H5S5NXPXS
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: "Apple Development"
+          TEST_HOST: "$(BUILT_PRODUCTS_DIR)/GetNewWord Dev.app/Contents/MacOS/GetNewWord Dev"
+          BUNDLE_LOADER: "$(TEST_HOST)"
+        Release:
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          TEST_HOST: "$(BUILT_PRODUCTS_DIR)/GetNewWord.app/Contents/MacOS/GetNewWord"
+          BUNDLE_LOADER: "$(TEST_HOST)"

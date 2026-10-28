@@ -1,0 +1,1422 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>GetNewWord：框一下生词，AI 讲清它在这句里的意思</title><meta name="description" content="开源的 Mac 菜单栏查词工具：框住或指着屏幕上的外语生词，AI 读完整句给出语境释义和地道译文，存进词库、同步到 Anki。自带 API Key 永久免费。"><meta property="og:title" content="GetNewWord"><meta property="og:description" content="看到生词，框一下就懂。开源的 Mac AI 语境查词，同步到 Anki。"><meta property="og:image" content="https://getnewword.us-cloud.uk/og.png"><meta property="og:url" content="https://getnewword.us-cloud.uk/"><link rel="icon" href="icon.png"><link rel="canonical" href="https://getnewword.us-cloud.uk/"><style>
+:root {
+  color-scheme: light;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", "Microsoft YaHei UI", "Noto Sans CJK SC", system-ui, sans-serif;
+  --serif: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", "Noto Serif SC", Georgia, serif;
+  --mono: "SF Mono", ui-monospace, Menlo, monospace;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f3f3f5;
+  --text: #111113;
+  --text-2: #6b6b71;
+  --text-3: #a3a3a9;
+  --line: rgba(0, 0, 0, .08);
+  --line-2: rgba(0, 0, 0, .14);
+  --accent: #5460d2;
+  --accent-text: #4b56c8;
+  --accent-soft: rgba(84, 96, 210, .12);
+  --mark: rgba(84, 96, 210, .16);
+  --ok: #2f9e5b;
+  --warn: #d0812a;
+  --btn: #111113;
+  --btn-text: #ffffff;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px rgba(0,0,0,.08);
+  --shadow-lg: 0 2px 6px rgba(0,0,0,.06), 0 30px 80px rgba(0,0,0,.16);
+  --stage-bg: #ececf0;
+  --ink: #0d0d10;
+  --ink-2: #18181c;
+  --ink-line: rgba(255,255,255,.09);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111113;
+  --surface: #19191c;
+  --surface-2: #222226;
+  --text: #ececef;
+  --text-2: #9b9ba3;
+  --text-3: #66666d;
+  --line: rgba(255, 255, 255, .08);
+  --line-2: rgba(255, 255, 255, .15);
+  --accent: #8790ee;
+  --accent-text: #a3aaf5;
+  --accent-soft: rgba(135, 144, 238, .16);
+  --mark: rgba(135, 144, 238, .22);
+  --ok: #4cc27c;
+  --warn: #e39a4a;
+  --btn: #f1f1f3;
+  --btn-text: #111113;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35);
+  --shadow-lg: 0 2px 6px rgba(0,0,0,.4), 0 30px 80px rgba(0,0,0,.55);
+  --stage-bg: #1c1c20;
+  --ink: #0a0a0c;
+  --ink-2: #151518;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; text-autospace: normal; font-kerning: normal; }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 40px; }
+.serif { font-family: var(--serif); font-weight: 700; }
+.kbd { display: inline-flex; align-items: center; gap: 2px; padding: 0 6px; border-radius: 5px; border: 1px solid var(--line-2); background: var(--surface); font: 500 12px/20px var(--sans); color: var(--text); box-shadow: 0 1px 0 var(--line-2); white-space: nowrap; }
+.ico { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.nav { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: saturate(1.4) blur(14px); }
+.nav .wrap { display: flex; align-items: center; height: 64px; gap: 28px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; cursor: pointer; text-decoration: none; }
+.brand img { width: 28px; height: 28px; border-radius: 7px; }
+.nav .links { display: flex; gap: 22px; font-size: 14px; color: var(--text-2); }
+.nav .links a { text-decoration: none; cursor: pointer; }
+.nav .links a:hover, .nav .links a.on { color: var(--text); }
+.nav .right { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 14px; }
+.lang { display: flex; border: 1px solid var(--line-2); border-radius: 999px; padding: 2px; }
+.lang button { border: 0; background: none; padding: 2px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; color: var(--text-2); }
+.lang button.on { background: var(--btn); color: var(--btn-text); }
+.gh { display: flex; align-items: center; gap: 6px; color: var(--text-2); text-decoration: none; cursor: pointer; }
+.gh:hover { color: var(--text); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid transparent; font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.btn.dark { background: var(--btn); color: var(--btn-text); }
+.btn.dark:hover { opacity: .88; }
+.btn.light { background: var(--surface); border-color: var(--line-2); color: var(--text); }
+.btn.light:hover { background: var(--surface-2); }
+.btn.big { height: 54px; padding: 0 28px; font-size: 16px; }
+.btn.sm { height: 34px; padding: 0 14px; font-size: 13px; }
+.btn[disabled] { opacity: .4; cursor: default; }
+.page { display: none; }
+.page.on { display: block; }
+
+.hero { text-align: center; padding: 64px 0 28px; }
+.eyebrow { font-size: 13px; color: var(--text-2); }
+.hero-desc { max-width: 580px; margin: 0 auto; color: var(--text-2); font-size: 17px; line-height: 1.75; }
+.hero-cta { display: flex; justify-content: center; gap: 14px; margin-top: 30px; }
+.hero-meta { margin-top: 18px; font-size: 13px; color: var(--text-3); }
+.hero-meta b { color: var(--text); font-weight: 600; }
+.hero-meta2 { margin-top: 8px; font-size: 12px; color: var(--text-3); }
+.hero-meta2 a { color: var(--text-2); text-underline-offset: 3px; cursor: pointer; }
+
+/* 方向 A */
+.heroA { position: relative; margin: 26px auto 0; width: 1040px; max-width: 100%; }
+.heroA .line { display: flex; justify-content: center; align-items: baseline; gap: 22px; height: 112px; }
+.heroA .big { font-family: var(--serif); font-weight: 700; font-size: 84px; line-height: 104px; color: var(--text); white-space: nowrap; }
+.heroA .fw { position: relative; font-size: 30px; font-weight: 400; color: var(--text-3); white-space: nowrap; display: inline-block; transition: color .35s, transform .45s cubic-bezier(.2,.8,.2,1), opacity .45s; }
+.heroA .fw .g { position: absolute; left: 50%; top: calc(100% + 6px); transform: translate(-50%, 4px); white-space: nowrap; font-size: 15px; font-weight: 500; color: var(--accent-text); opacity: 0; transition: opacity .3s, transform .3s; }
+.heroA .fw.on { color: var(--accent-text); transform: none !important; }
+.heroA .fw.on .g { opacity: 1; transform: translate(-50%, 0); }
+.heroA .fw.fly { transition: transform .75s cubic-bezier(.5,0,.75,0), opacity .75s; opacity: 0; }
+.heroA .fw.gone { opacity: 0; transition: none; }
+.heroA .caret { width: 3px; height: 74px; background: var(--text); align-self: center; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.vf { position: absolute; pointer-events: none; opacity: 0; transition: left .45s cubic-bezier(.2,.8,.2,1), top .45s cubic-bezier(.2,.8,.2,1), width .45s cubic-bezier(.2,.8,.2,1), height .45s cubic-bezier(.2,.8,.2,1), opacity .25s; z-index: 2; }
+.vf.on { opacity: 1; }
+.vf i { position: absolute; width: 14px; height: 14px; border: 0 solid var(--accent); }
+.vf i:nth-child(1) { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; border-top-left-radius: 5px; }
+.vf i:nth-child(2) { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; border-top-right-radius: 5px; }
+.vf i:nth-child(3) { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; border-bottom-right-radius: 5px; }
+.vf i:nth-child(4) { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; border-bottom-left-radius: 5px; }
+.deck { font-weight: 400; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px 0 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; color: var(--text-2); box-shadow: var(--shadow); transition: transform .2s; }
+.deck .stack { position: relative; width: 18px; height: 14px; }
+.deck .stack i { position: absolute; inset: 0; border-radius: 3px; border: 1.5px solid var(--accent); background: var(--surface); }
+.deck .stack i:nth-child(1) { transform: translate(3px, -3px); opacity: .45; }
+.deck .stack i:nth-child(2) { transform: translate(1.5px, -1.5px); opacity: .7; }
+.deck b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.deck.bump { transform: scale(1.1); }
+.deck-row { height: 32px; margin: 30px 0 24px; }
+
+/* 方向 B */
+.heroB { position: relative; margin: 30px auto 0; width: 1060px; max-width: 100%; height: 300px; }
+.heroB .src { position: relative; font-weight: 400; height: 52px; font-size: 32px; line-height: 52px; color: var(--text-2); white-space: nowrap; }
+.heroB .src .ph { position: relative; display: inline-block; transition: color .3s; }
+.heroB .src .ph.on { color: var(--accent-text); }
+.heroB .caret { display: inline-block; width: 2px; height: .9em; background: currentColor; vertical-align: -0.08em; margin-left: 3px; animation: blink 1s steps(2) infinite; }
+.heroB .gloss { font-weight: 400; position: absolute; top: 62px; left: 0; transform: translate(-50%, 4px); opacity: 0; transition: opacity .3s, transform .3s; font-size: 14px; color: var(--text-2); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; white-space: nowrap; box-shadow: var(--shadow); z-index: 3; }
+.heroB .gloss b { color: var(--accent-text); font-weight: 500; }
+.heroB .gloss.on { opacity: 1; transform: translate(-50%, 0); }
+.heroB .dst { position: absolute; left: 0; right: 0; top: 112px; height: 112px; font-family: var(--serif); font-weight: 700; font-size: 76px; line-height: 112px; color: var(--text); white-space: nowrap; }
+.heroB .dst .k { color: var(--accent-text); background: linear-gradient(var(--mark), var(--mark)) 0 88% / 100% 22% no-repeat; }
+.heroB .beats { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; }
+.heroB .beats .deck { margin-left: 8px; height: 32px; box-shadow: none; }
+.heroB .beat { font-weight: 400; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px 0 8px; border-radius: 999px; font-size: 13px; color: var(--text-3); border: 1px solid var(--line); background: var(--surface); white-space: nowrap; transition: color .3s, border-color .3s; }
+.heroB .beat .n { width: 18px; height: 18px; border-radius: 999px; display: grid; place-items: center; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--text-2); transition: background .3s, color .3s; }
+.heroB .beat.on { color: var(--text); border-color: var(--line-2); }
+.heroB .beat.on .n, .heroB .beat.done .n { background: var(--accent); color: #fff; }
+.heroB .beat.done { color: var(--text-2); }
+.heroB .bdeck { position: absolute; right: 0; bottom: 0; }
+.heroB .acard { position: absolute; left: 0; top: 0; width: 210px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow); padding: 10px 12px; text-align: left; font-size: 12px; color: var(--text-2); opacity: 0; pointer-events: none; transition: transform .8s cubic-bezier(.6,0,.3,1), opacity .4s; z-index: 4; }
+.heroB .acard b { display: block; font-size: 14px; color: var(--text); font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.heroB .acard.on { opacity: 1; }
+
+/* 舞台 */
+.stage-wrap { margin-top: 56px; }
+.stage { position: relative; border-radius: 18px; background: var(--stage-bg); border: 1px solid var(--line); height: 600px; overflow: hidden; }
+.menubar { height: 28px; display: flex; align-items: center; gap: 18px; padding: 0 18px; font-size: 12.5px; background: color-mix(in srgb, var(--surface) 70%, transparent); border-bottom: 1px solid var(--line); }
+.menubar .sp { flex: 1; }
+.menubar .mbl { width: 16px; height: 16px; color: var(--text); }
+.scene { position: absolute; inset: 28px 0 0 0; opacity: 0; pointer-events: none; transition: opacity .4s; }
+.scene.on { opacity: 1; pointer-events: auto; }
+.win { position: absolute; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); overflow: hidden; border: 1px solid var(--line); }
+.win .tb { height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--text-2); }
+.dots { display: flex; gap: 6px; margin-right: 6px; }
+.dots i { width: 11px; height: 11px; border-radius: 999px; background: var(--line-2); }
+.toast { position: absolute; left: 50%; bottom: 22px; transform: translate(-50%, 8px); opacity: 0; transition: opacity .25s, transform .25s; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 16px; border-radius: 10px; background: rgba(20,20,24,.88); color: #fff; font-size: 13px; z-index: 6; white-space: nowrap; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.toast .kbd { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.2); box-shadow: none; }
+.player { left: 36px; top: 40px; width: 620px; height: 440px; background: #0e0f12; border-color: rgba(255,255,255,.06); }
+.player .tb { background: #17181c; color: #aaa; border-color: rgba(255,255,255,.06); }
+.player .tb .dots i { background: #3a3b40; }
+.vid { position: absolute; left: 0; right: 0; top: 36px; bottom: 44px; background: radial-gradient(120% 90% at 30% 30%, #3a4256 0%, #1d2230 55%, #111318 100%); overflow: hidden; }
+.vid .person { position: absolute; left: 50%; top: 16%; transform: translateX(-50%); width: 150px; height: 240px; }
+.vid .person i { position: absolute; left: 50%; transform: translateX(-50%); }
+.vid .person i:nth-child(1) { top: 0; width: 86px; height: 96px; border-radius: 999px; background: #c9a184; }
+.vid .person i:nth-child(2) { top: 92px; width: 160px; height: 150px; border-radius: 70px 70px 10px 10px; background: #4b5a7a; }
+.vid .person.play i:nth-child(1) { animation: nod 2.4s ease-in-out infinite; }
+@keyframes nod { 50% { transform: translateX(-50%) translateY(4px) rotate(-3deg); } }
+.vsub { position: absolute; left: 0; right: 0; bottom: 20px; text-align: center; }
+.vsub > span { display: inline-block; padding: 4px 12px; border-radius: 4px; background: rgba(0,0,0,.62); color: #fff; font-size: 21px; line-height: 1.4; }
+.ctrl { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: #17181c; color: #ddd; font-size: 12px; }
+.ctrl .bar { flex: 1; height: 4px; border-radius: 2px; background: #3a3b40; position: relative; }
+.ctrl .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: #e5484d; width: 30%; }
+.ctrl .pp { width: 18px; text-align: center; font-size: 13px; }
+.ctrl .t { font-variant-numeric: tabular-nums; color: #999; }
+.vdim { position: absolute; inset: 0; background: rgba(0,0,0,.3); opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 3; }
+.vdim.on { opacity: 1; }
+.sel { position: absolute; border: 2px solid #ff453a; border-radius: 3px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 4; }
+.sel.on { opacity: 1; }
+.sel.drag { transition: opacity .2s, width .7s ease-out, height .7s ease-out; background: rgba(255,255,255,.1); }
+.panel { position: absolute; width: 372px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-lg); border: 1px solid var(--line-2); padding: 18px 20px 14px; font-size: 13px; opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .3s; text-align: left; z-index: 5; }
+.panel.on { opacity: 1; transform: none; }
+.panel .hd { display: flex; align-items: baseline; gap: 10px; }
+.panel .w { font-size: 26px; font-weight: 600; line-height: 1.2; }
+.panel .ph { color: var(--text-2); font-size: 13px; }
+.panel .spk { margin-left: auto; color: var(--text-2); display: flex; gap: 10px; }
+.chips { display: flex; gap: 6px; margin: 8px 0 6px; flex-wrap: wrap; }
+.chip { height: 22px; padding: 0 8px; border-radius: 5px; border: 1px solid var(--line-2); font-size: 12px; line-height: 20px; color: var(--text-2); white-space: nowrap; }
+.chip.acc { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent-text); }
+.sl { font-size: 12px; color: var(--text-3); margin: 12px 0 4px; font-weight: 500; }
+.panel .mean { font-size: 15px; line-height: 1.55; }
+.quote { border-left: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); padding-left: 10px; line-height: 1.55; }
+.quote .z { color: var(--text-2); margin-top: 2px; }
+.hl { color: var(--accent-text); font-weight: 600; }
+.panel .ft { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.panel .ft .ok { color: var(--ok); font-weight: 500; }
+.panel .ft .sp { flex: 1; }
+.panel .ft a { color: var(--text); }
+.skel { height: 10px; border-radius: 4px; background: var(--surface-2); margin: 8px 0; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .5; } }
+.sw { width: 30px; height: 18px; border-radius: 5px; background: var(--line-2); position: relative; transition: background .2s; flex: none; }
+.sw::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 3px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+.sw.on { background: var(--accent); }
+.sw.on::after { transform: translateX(12px); }
+.browser { left: 64px; top: 36px; width: 760px; height: 480px; }
+.browser .url { flex: 1; height: 24px; margin: 0 60px; border-radius: 6px; background: var(--surface-2); display: grid; place-items: center; font-size: 12px; color: var(--text-2); }
+.article { padding: 28px 56px; font-family: Georgia, "Times New Roman", serif; color: var(--text); text-align: left; }
+.article .kick { font: 600 11px/1 var(--sans); color: #c0392b; }
+.article h4 { font-size: 30px; line-height: 1.2; margin: 10px 0 14px; font-weight: 700; }
+.article p { font-size: 17px; line-height: 1.7; margin: 0 0 14px; }
+.article .w { position: relative; }
+.cursor { position: absolute; left: 600px; top: 420px; width: 18px; height: 24px; transition: left .9s cubic-bezier(.3,.7,.2,1), top .9s cubic-bezier(.3,.7,.2,1); z-index: 7; pointer-events: none; }
+.mainwin { left: 48px; top: 40px; width: 580px; height: 450px; }
+.mw { display: flex; height: calc(100% - 36px); text-align: left; }
+.mw .side { width: 160px; border-right: 1px solid var(--line); padding: 10px 8px; font-size: 12.5px; background: var(--surface-2); }
+.mw .side div { display: flex; justify-content: space-between; padding: 5px 8px; border-radius: 6px; color: var(--text-2); }
+.mw .side div.on { background: var(--line); color: var(--text); }
+.mw .side .h { font-size: 11.5px; color: var(--text-3); padding-top: 10px; }
+.mw .list { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mw .lt { display: flex; align-items: center; height: 46px; padding: 0 14px; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 600; gap: 8px; }
+.mw .lt .sp { flex: 1; }
+.mw .syncb { height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: background .2s; }
+.mw .syncb.press { background: var(--surface-2); transform: scale(.97); }
+.row { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.row b { font-weight: 500; white-space: nowrap; }
+.row .m { color: var(--text-2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dot { width: 7px; height: 7px; border-radius: 999px; background: var(--warn); transition: background .3s; flex: none; }
+.dot.ok { background: var(--ok); }
+.anki { right: 56px; top: 70px; width: 390px; height: 410px; }
+.flip { position: absolute; inset: 36px 0 0 0; perspective: 1000px; }
+.flip .in { position: absolute; inset: 0; transition: transform .8s; transform-style: preserve-3d; }
+.flip.back .in { transform: rotateY(180deg); }
+.face { position: absolute; inset: 0; backface-visibility: hidden; padding: 22px 26px; text-align: center; background: var(--surface); }
+.face.b { transform: rotateY(180deg); }
+.face .w { font-size: 28px; font-weight: 600; }
+.deckname { font-size: 11.5px; color: var(--text-3); margin-bottom: 16px; }
+.shot { height: 54px; border-radius: 6px; margin-top: 12px; background: linear-gradient(90deg, #1d2230, #3a4256); color: #fff; font-size: 12px; display: flex; align-items: center; padding: 0 10px; white-space: nowrap; overflow: hidden; }
+.shot span { border: 1.5px solid #ff453a; padding: 0 3px; margin: 0 4px; }
+/* 浮签：和 App 里默认的查词面板一样，先给这句里的意思和整句译文 */
+.panel.tag { width: 396px; padding: 16px 18px 0; }
+.tag .skw { padding-bottom: 18px; }
+.tag .hd { display: flex; align-items: baseline; gap: 10px; }
+.tag .w { font-size: 22px; font-weight: 600; }
+.tag .ph { font-family: var(--mono); font-size: 12.5px; color: var(--text-2); }
+.tag .hd .ico { width: 16px; height: 16px; color: var(--text-2); align-self: center; }
+.tag .lv { margin-left: auto; align-self: center; height: 22px; padding: 0 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; line-height: 22px; font-weight: 500; }
+.tag .big { font-size: 27px; font-weight: 600; color: var(--accent-text); margin: 6px 0 4px; line-height: 1.3; }
+.tag .gram { color: var(--text-3); font-size: 13px; }
+.tag .tr { font-size: 15px; line-height: 1.6; margin: 8px 0 14px; }
+.tag .ft { margin: 0 -18px; padding: 9px 12px 9px 16px; border-top: 1px solid var(--line); background: var(--surface-2); display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-2); border-radius: 0 0 12px 12px; }
+.tag .ft .st { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tag .ft .st.ok { color: var(--ok); font-weight: 500; }
+.tag .ft .b { flex: none; height: 26px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); line-height: 24px; white-space: nowrap; transition: transform .15s; }
+.tag .ft .b.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tag .ft .b.press { transform: scale(.94); }
+.tag .ft .ico { flex: none; width: 15px; height: 15px; }
+.tag .ft .x { flex: none; color: var(--text-3); font-size: 16px; }
+/* 主窗口三栏：侧栏、列表，右边让给 Anki */
+.mw .side { display: flex; flex-direction: column; }
+.mw .side .anks { margin-top: auto; font-size: 12px; }
+.mw .side .anks span:last-child { color: var(--warn); }
+.mw .side .anks.ok span:last-child { color: var(--ok); }
+.mw-tb .tbb { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line-2); color: var(--text); font-size: 12px; }
+.mw-tb .ttl { color: var(--text); font-weight: 600; margin-left: 12px; }
+.mw-tb .sp { flex: 1; }
+.row .ph2 { color: var(--text-3); font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+.row .lv { flex: none; height: 20px; padding: 0 6px; border-radius: 5px; background: var(--surface-2); color: var(--text-2); font-size: 11px; line-height: 20px; }
+/* Anki 卡照应用建的卡画（AnkiService.createModel）：正面是词、音标、词形、语言和难度；
+   背面先给这句里的意思，再是遇到它的那句话和译文 */
+.face.f { padding-top: 96px; }
+.face .cp { font-family: var(--mono); font-size: 13px; color: var(--text-3); margin-top: 8px; }
+.face .cg { font-size: 13px; color: var(--accent-text); margin-top: 6px; }
+.face .dk { font-size: 12px; color: var(--text-3); margin-top: 10px; }
+.face .ctxb { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); }
+.face .ctxb .sent { font-style: italic; }
+.face .sent { font-size: 21px; line-height: 1.55; }
+.face .sent.sm { font-size: 15px; color: var(--text-2); }
+.vfw { position: relative; padding: 0 4px; }
+.vfw::before { content: ""; position: absolute; inset: -3px -1px; border: 2px solid var(--accent); border-radius: 5px; -webkit-mask: linear-gradient(#000 0 0) top left / 7px 7px no-repeat, linear-gradient(#000 0 0) top right / 7px 7px no-repeat, linear-gradient(#000 0 0) bottom left / 7px 7px no-repeat, linear-gradient(#000 0 0) bottom right / 7px 7px no-repeat; mask: linear-gradient(#000 0 0) top left / 7px 7px no-repeat, linear-gradient(#000 0 0) top right / 7px 7px no-repeat, linear-gradient(#000 0 0) bottom left / 7px 7px no-repeat, linear-gradient(#000 0 0) bottom right / 7px 7px no-repeat; }
+.face .zh { font-size: 14px; color: var(--text-2); margin-top: 6px; }
+.face .zh u { text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.face hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0 12px; }
+.face .ans { font-size: 26px; font-weight: 600; color: var(--accent-text); }
+.face .wl { font-size: 13.5px; color: var(--text-2); margin-top: 6px; }
+.face .wl b { color: var(--text); font-weight: 600; }
+.face .more { margin-top: 14px; font-size: 12.5px; color: var(--text-3); }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.tab { position: relative; text-align: left; padding: 16px 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; overflow: hidden; }
+.tab b { display: block; font-size: 15px; font-weight: 600; }
+.tab span { font-size: 13px; color: var(--text-2); }
+.tab .pg { position: absolute; left: 0; top: 0; height: 2px; background: var(--text); width: 0; }
+.tab.on { box-shadow: var(--shadow); border-color: var(--line-2); }
+.tab:not(.on) { opacity: .7; }
+.cap { text-align: center; font-size: 12px; color: var(--text-3); margin-top: 12px; }
+
+.sec { padding: 110px 0 0; }
+.sec-h { text-align: center; margin-bottom: 44px; }
+.sec-h .eyebrow { margin-bottom: 14px; }
+.sec-h h2 { font-family: var(--serif); font-weight: 700; font-size: 46px; line-height: 1.3; margin: 0; }
+.sec-h p { color: var(--text-2); margin: 14px auto 0; max-width: 620px; }
+.facts { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-top: 72px; text-align: left; }
+.facts > div { padding: 26px 20px; border-left: 1px solid var(--line); }
+.facts > div:first-child { border-left: 0; }
+#pricePlans { margin-top: 44px; }
+#p-pricing .cmp { margin-bottom: 96px; }
+.facts .k { font-size: 12px; color: var(--text-2); }
+.facts .v { font-family: var(--serif); font-weight: 700; font-size: 26px; margin: 6px 0; }
+.facts .d { font-size: 13px; color: var(--text-2); }
+.cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.card3 { border-radius: 16px; background: var(--surface); border: 1px solid var(--line); padding: 22px; text-align: left; }
+.card3 .src { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); margin-bottom: 14px; }
+.card3 .s { font-size: 16px; line-height: 1.6; }
+.card3 .k { background: var(--mark); border-radius: 3px; padding: 0 2px; }
+.card3 .lbl { margin-top: 16px; font-size: 12px; color: var(--text-3); }
+.card3 .lit { font-size: 14px; color: var(--text-3); text-decoration: line-through; }
+.card3 .tr { font-size: 16px; }
+.card3 .tr .hl { font-weight: 500; }
+.card3 .note { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-2); }
+.feat { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 16px; background: var(--surface); overflow: hidden; text-align: left; }
+.feat > div { padding: 26px 24px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.feat > div:nth-child(3n) { border-right: 0; }
+.feat > div:nth-last-child(-n+3) { border-bottom: 0; }
+.feat .fi { width: 38px; height: 38px; border-radius: 9px; background: var(--surface-2); display: grid; place-items: center; margin-bottom: 14px; }
+.feat .fi .ico { width: 18px; height: 18px; }
+.feat h3 { font-size: 16px; margin: 0 0 6px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.feat p { margin: 0; font-size: 14px; color: var(--text-2); line-height: 1.65; }
+.prov { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.prov > div { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: 14px; white-space: nowrap; }
+.plogo { width: 22px; height: 22px; flex: none; display: grid; place-items: center; color: var(--text); }
+.plogo svg, .plogo img { width: 20px; height: 20px; fill: currentColor; }
+.prov small { margin-left: auto; font-size: 11px; color: var(--text-3); white-space: normal; text-align: right; line-height: 1.3; }
+.dark-sec { margin-top: 120px; background: var(--ink); color: #ececef; padding: 100px 0; text-align: left; }
+.dark-sec .eyebrow { color: #8d8d95; }
+.dark-sec h2 { font-family: var(--serif); font-weight: 700; font-size: 46px; line-height: 1.3; margin: 12px 0 14px; }
+.dark-sec .lead { color: #9b9ba3; max-width: 660px; margin: 0; }
+.flow { display: grid; grid-template-columns: 1fr 190px 1fr; align-items: center; margin-top: 44px; }
+.box { border-radius: 16px; background: var(--ink-2); border: 1px solid var(--ink-line); padding: 22px 24px; min-height: 196px; }
+.box h4 { margin: 0 0 12px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.box ul { margin: 0; padding: 0; list-style: none; font-size: 14px; color: #c9c9cf; }
+.box li { display: flex; gap: 10px; padding: 5px 0; }
+.box li .ico { color: #4cc27c; margin-top: 4px; }
+.arrow { text-align: center; font-size: 12px; color: #8d8d95; line-height: 1.6; }
+.arrow i { display: block; height: 2px; margin: 10px 18px; background: linear-gradient(90deg, transparent, #8790ee); position: relative; }
+.arrow i::after { content: ""; position: absolute; right: -2px; top: -4px; border: 5px solid transparent; border-left-color: #8790ee; }
+.mini3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 18px; }
+.mini3 > div { border-radius: 14px; background: var(--ink-2); border: 1px solid var(--ink-line); padding: 18px 20px; }
+.mini3 b { display: block; margin-bottom: 6px; }
+.mini3 span { font-size: 14px; color: #9b9ba3; }
+.steps3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; text-align: left; }
+.steps3 > div { border-radius: 16px; background: var(--surface); border: 1px solid var(--line); padding: 24px; }
+.steps3 .n { font-family: var(--serif); font-size: 30px; color: var(--text-3); }
+.steps3 h3 { margin: 10px 0 6px; font-size: 16px; }
+.steps3 p { margin: 0; font-size: 14px; color: var(--text-2); }
+.center-link { text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-2); }
+.center-link a { color: var(--text); cursor: pointer; text-underline-offset: 3px; }
+.plans { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; max-width: 880px; margin: 0 auto; }
+.plan { border-radius: 18px; background: var(--surface); border: 1px solid var(--line); padding: 28px; text-align: left; transition: opacity .3s, box-shadow .3s; }
+.plan.pro { background: #111113; color: #f1f1f3; border-color: #111113; }
+:root[data-theme="dark"] .plan.pro { background: #26262c; border-color: #34343b; }
+.plan .k { font-size: 12px; color: var(--text-2); }
+.plan.pro .k { color: #9b9ba3; }
+.plan .price { display: flex; align-items: baseline; gap: 10px; margin: 10px 0 4px; }
+.plan .price .serif { font-size: 48px; line-height: 1.1; }
+.plan .price span:not(.serif) { color: var(--text-2); font-size: 14px; }
+.plan.pro .price span:not(.serif) { color: #9b9ba3; }
+.plan .sub { color: var(--text-2); font-size: 14px; }
+.plan.pro .sub { color: #a9a9b0; }
+.plan ul { list-style: none; padding: 18px 0 0; margin: 18px 0 0; border-top: 1px solid var(--line); font-size: 14px; }
+.plan.pro ul { border-color: rgba(255,255,255,.1); }
+.plan li { display: flex; gap: 10px; padding: 6px 0; }
+.plan li .ico { margin-top: 4px; }
+.plan .btn { width: 100%; margin-top: 22px; }
+.plan.pro .btn.dark { background: #f1f1f3; color: #111; }
+.plan.dim { opacity: .42; }
+.plan.pick { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+.seg { display: inline-flex; padding: 3px; border-radius: 8px; background: rgba(255,255,255,.08); margin-top: 12px; }
+.seg button { border: 0; background: none; color: #a9a9b0; font-size: 12px; padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+.seg button.on { background: rgba(255,255,255,.16); color: #fff; }
+.faq { max-width: 820px; margin: 0 auto; text-align: left; }
+.faq details { border-bottom: 1px solid var(--line); }
+.faq summary { list-style: none; display: flex; justify-content: space-between; align-items: center; padding: 18px 4px; font-size: 15px; font-weight: 500; cursor: pointer; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; color: var(--text-3); font-size: 18px; }
+.faq details[open] summary::after { content: "−"; }
+.faq details p { margin: 0 4px 18px; color: var(--text-2); font-size: 14px; max-width: 64ch; }
+.endcta { text-align: center; padding: 120px 0 110px; }
+.endcta h2 { font-family: var(--serif); font-weight: 700; font-size: 46px; line-height: 1.3; margin: 0 0 30px; }
+footer { border-top: 1px solid var(--line); padding: 48px 0 36px; font-size: 13px; }
+.fgrid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 24px; }
+.fgrid p { color: var(--text-2); margin: 12px 0 0; max-width: 300px; }
+.fgrid h5 { margin: 0 0 12px; font-size: 13px; }
+.fgrid a { display: block; color: var(--text-2); text-decoration: none; padding: 3px 0; cursor: pointer; }
+.fgrid a:hover { color: var(--text); }
+.fbot { display: flex; justify-content: space-between; margin-top: 36px; color: var(--text-3); font-size: 12px; }
+/* 页尾回总站的小条（照 MeetCaption 的 .xstrip）：谁做的、三个软件的图标、全部软件 */
+.xstrip { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; font-size: 13px; color: var(--text-2); }
+.xstrip .by { text-decoration: none; }
+.xstrip .by u { text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+.xstrip .by:hover u { text-decoration-color: currentColor; color: var(--text); }
+.xstrip .sep { color: var(--text-3); }
+.xstrip .icons { display: flex; gap: 8px; }
+.xstrip .icons a { position: relative; display: block; width: 22px; height: 22px; cursor: pointer; }
+.xstrip .icons img { display: block; width: 22px; height: 22px; border-radius: 5px; box-shadow: 0 0 0 1px var(--line); transition: transform .15s; }
+.xstrip .icons a:hover img { transform: translateY(-1px); }
+.xstrip .icons a.cur::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--text-3); }
+.xstrip .icons .xtip { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); padding: 3px 8px; border-radius: 6px; background: var(--btn); color: var(--btn-text); font-size: 11.5px; line-height: 1.5; white-space: nowrap; pointer-events: none; display: none; }
+.xstrip .icons a:hover .xtip, .xstrip .icons a:focus-visible .xtip { display: block; }
+/* 最后一个图标贴着右边时，提示往左展开，不撑出横向滚动 */
+.xstrip .icons a:last-child .xtip { left: auto; right: 0; transform: none; }
+.xstrip + .fbot { margin-top: 12px; }
+
+.ph-page { padding: 64px 0 0; text-align: center; }
+.ph-page h1 { font-family: var(--serif); font-weight: 700; font-size: 56px; line-height: 1.25; margin: 14px 0 12px; }
+.chooser { display: flex; justify-content: center; gap: 10px; margin: 30px 0 40px; flex-wrap: wrap; }
+.chooser .q { width: 100%; font-size: 13px; color: var(--text-2); margin-bottom: 4px; }
+.chooser button { height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; font-size: 14px; }
+.chooser button.on { background: var(--btn); color: var(--btn-text); border-color: var(--btn); }
+.note3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 40px auto 0; max-width: 1080px; text-align: left; }
+.note3 > div { border-radius: 14px; border: 1px solid var(--line); background: var(--surface); padding: 20px; font-size: 14px; color: var(--text-2); }
+.note3 b { display: block; color: var(--text); margin-bottom: 6px; font-size: 15px; }
+table.cmp { width: 100%; max-width: 880px; margin: 60px auto 0; border-collapse: collapse; font-size: 14px; text-align: left; }
+.cmp th, .cmp td { padding: 13px 14px; border-bottom: 1px solid var(--line); }
+.cmp th { font-weight: 600; font-size: 13px; color: var(--text-2); }
+.cmp td:not(:first-child), .cmp th:not(:first-child) { text-align: center; width: 30%; }
+.yes { color: var(--ok); }
+.no { color: var(--text-3); }
+
+.ov { position: fixed; inset: 0; z-index: 60; background: rgba(10,10,14,.45); display: none; align-items: center; justify-content: center; }
+.ov.on { display: flex; }
+.co { width: 880px; max-width: calc(100% - 40px); border-radius: 16px; overflow: hidden; display: grid; grid-template-columns: 1fr 1.15fr; background: var(--surface); box-shadow: var(--shadow-lg); position: relative; text-align: left; }
+.co .l { background: var(--surface-2); padding: 30px; }
+.co .r { padding: 30px; }
+.xbtn { position: absolute; right: 12px; top: 10px; width: 30px; height: 30px; border: 0; border-radius: 6px; background: none; cursor: pointer; color: var(--text-2); font-size: 20px; line-height: 1; }
+.xbtn:hover { background: var(--surface-2); }
+.co .item { display: flex; gap: 12px; align-items: center; margin: 18px 0; }
+.co .item img { width: 44px; height: 44px; border-radius: 10px; }
+.co .sum { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; font-size: 14px; }
+.co .sum div { display: flex; justify-content: space-between; padding: 4px 0; }
+.co .sum .tot { font-weight: 600; font-size: 16px; padding-top: 10px; }
+.fld { display: block; margin-bottom: 14px; font-size: 13px; color: var(--text-2); }
+.fld input, .fld select { display: block; width: 100%; height: 38px; margin-top: 6px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); color: var(--text); padding: 0 10px; font: inherit; font-size: 14px; }
+.fld input:focus, .fld select:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+.fld .err { color: #e5484d; font-size: 12px; display: none; margin-top: 4px; }
+.fld.bad .err { display: block; }
+.fld.bad input { border-color: #e5484d; }
+.pm { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
+.pm button { height: 52px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.pm button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.fine { font-size: 12px; color: var(--text-3); margin-top: 12px; }
+.spin { width: 16px; height: 16px; border-radius: 999px; border: 2px solid currentColor; border-right-color: transparent; animation: rot .8s linear infinite; }
+@keyframes rot { to { transform: rotate(360deg); } }
+.sheet { width: 470px; max-width: calc(100% - 40px); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-lg); padding: 26px 26px 22px; position: relative; text-align: left; }
+.sheet h3 { margin: 0 0 16px; font-size: 18px; }
+.file { display: flex; gap: 14px; align-items: center; padding: 14px; border-radius: 12px; background: var(--surface-2); }
+.file img { width: 48px; height: 48px; border-radius: 11px; }
+.file b { display: block; font-size: 15px; }
+.file span { font-size: 12.5px; color: var(--text-2); }
+.sheet ol { margin: 18px 0 0; padding: 0; list-style: none; counter-reset: s; }
+.sheet li { counter-increment: s; display: flex; gap: 12px; padding: 7px 0; font-size: 14px; }
+.sheet li::before { content: counter(s); flex: none; width: 22px; height: 22px; border-radius: 999px; background: var(--surface-2); display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.sheet li small { display: block; color: var(--text-2); font-size: 12.5px; }
+.sheet .act { display: flex; gap: 10px; margin-top: 18px; }
+.sheet .act .btn { flex: 1; }
+.sheet .foot { margin-top: 14px; font-size: 12px; color: var(--text-3); display: flex; justify-content: space-between; gap: 10px; }
+.sheet .foot a { color: var(--text-2); cursor: pointer; }
+.sheet .done { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); font-size: 13px; }
+.sheet .done.on { display: block; }
+.thanks { max-width: 640px; margin: 0 auto; padding: 84px 0 40px; text-align: center; }
+.thanks .badge { width: 64px; height: 64px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; margin: 0 auto 18px; }
+.thanks .badge .ico { width: 28px; height: 28px; }
+.thanks h1 { font-family: var(--serif); font-size: 46px; margin: 0 0 10px; }
+.tsteps { text-align: left; margin: 36px 0 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.tsteps > div { display: flex; gap: 14px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.tsteps > div:last-child { border-bottom: 0; }
+.tsteps .n { width: 26px; height: 26px; border-radius: 999px; background: var(--surface-2); display: grid; place-items: center; font-weight: 600; font-size: 13px; flex: none; }
+.tsteps b { display: block; }
+.tsteps span { color: var(--text-2); font-size: 14px; }
+.code { font-family: var(--mono); font-size: 13px; background: var(--surface-2); padding: 2px 8px; border-radius: 5px; color: var(--text); }
+.doc { display: grid; grid-template-columns: 220px 1fr; gap: 56px; padding: 56px 0 40px; text-align: left; }
+.toc { position: sticky; top: 88px; align-self: start; font-size: 14px; }
+.toc .t { font-size: 12px; color: var(--text-3); margin-bottom: 10px; padding-left: 10px; }
+.toc a { display: block; padding: 6px 10px; border-radius: 6px; color: var(--text-2); text-decoration: none; cursor: pointer; }
+.toc a.on { background: var(--surface-2); color: var(--text); }
+.prose { max-width: 780px; }
+.prose h1 { font-family: var(--serif); font-size: 44px; line-height: 1.3; margin: 0 0 12px; }
+.prose h2 { font-size: 22px; margin: 52px 0 12px; padding-top: 8px; scroll-margin-top: 80px; }
+.prose h3 { font-size: 16px; margin: 24px 0 8px; }
+.prose p, .prose li { color: var(--text-2); font-size: 15px; line-height: 1.75; }
+.prose p b, .prose li b { color: var(--text); font-weight: 500; }
+.prose .sum1 { border-radius: 14px; background: var(--surface); border: 1px solid var(--line); padding: 18px 22px; color: var(--text); margin-top: 24px; }
+.pgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 16px 0; }
+.pgrid button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 6px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 13px; }
+.pgrid button small { font-size: 11px; color: var(--text-3); }
+.pgrid button.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.gsteps { counter-reset: g; list-style: none; padding: 0; margin: 16px 0; }
+.gsteps > li { counter-increment: g; position: relative; padding: 0 0 22px 44px; }
+.gsteps > li::before { content: counter(g); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 999px; background: var(--btn); color: var(--btn-text); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.gsteps > li b.t { display: block; color: var(--text); font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+/* 教程里的后台示意图（照 MeetCaption 的 .shotmock）：地址栏 + 一小块界面，红圈标出要点的地方 */
+.gnote { font-size: 13px !important; color: var(--text-3) !important; margin: 4px 0 0; }
+.shotmock { margin-top: 10px; max-width: 540px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); overflow: hidden; font-size: 13px; line-height: 1.4; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.shotmock .bb { height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--surface-2); border-bottom: 1px solid var(--line); color: var(--text-2); font-size: 12px; }
+.shotmock .bb i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-2); flex: none; }
+.shotmock .bb span { margin-left: 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: 11.5px; }
+.shotmock .bd { padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+.shotmock .row2 { flex-basis: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); }
+.shotmock .sp { flex: 1; }
+.shotmock .mut { color: var(--text-2); font-size: 12px; }
+.shotmock .mono { font-family: var(--mono); font-size: 12px; }
+.shotmock .mb { flex: none; height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); font-size: 12px; line-height: 24px; white-space: nowrap; }
+.shotmock .mb.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.shotmock .inp { min-width: 0; flex: 1; height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shotmock .keybox { min-width: 0; padding: 4px 10px; border-radius: 6px; background: var(--surface-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shotmock .plogo { width: 18px; height: 18px; }
+.shotmock .plogo svg, .shotmock .plogo img { width: 16px; height: 16px; }
+.shotmock .ring { outline: 2px solid #e5484d; outline-offset: 3px; border-radius: 6px; }
+/* 菜单栏下拉 */
+.shotmock .mbar { height: 26px; display: flex; align-items: center; justify-content: flex-end; gap: 14px; padding: 0 12px; background: color-mix(in srgb, var(--surface-2) 80%, transparent); border-bottom: 1px solid var(--line); font-size: 12px; }
+.shotmock .mbar .ico { width: 15px; height: 15px; }
+.shotmock.mm { max-width: 340px; }
+.shotmock .menu { width: 236px; max-width: calc(100% - 24px); margin: 6px 12px 12px auto; padding: 5px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); box-shadow: var(--shadow); font-size: 12.5px; }
+.shotmock .menu div { display: flex; justify-content: space-between; padding: 3px 8px; border-radius: 4px; }
+.shotmock .menu div span { color: var(--text-3); }
+.shotmock .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
+/* 设置窗口的 AI 服务页 */
+.shotmock.set { max-width: 620px; }
+.shotmock .sw2 { display: flex; min-height: 0; }
+.shotmock .side { flex: none; width: 146px; padding: 8px 6px; background: var(--surface-2); border-right: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.shotmock .side div { padding: 3px 8px; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shotmock .side div.on { background: var(--line); color: var(--text); }
+.shotmock .pv { flex: 1; min-width: 0; }
+.shotmock .pv .ph2 { padding: 9px 14px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.shotmock .plist { margin: 12px 14px 14px; border-radius: 8px; border: 1px solid var(--line-2); overflow: hidden; }
+.shotmock .ghd { padding: 4px 10px; font-size: 11px; color: var(--text-3); font-weight: 500; }
+.shotmock .prow { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-top: 1px solid var(--line); white-space: nowrap; overflow: hidden; }
+.shotmock .prow b { font-weight: 500; }
+.shotmock .prow .mut { overflow: hidden; text-overflow: ellipsis; }
+.shotmock .rad { flex: none; width: 13px; height: 13px; border-radius: 50%; border: 1.2px solid var(--line-2); }
+.shotmock .rad.on { border: 4px solid var(--accent); }
+.shotmock .pon { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.shotmock .kf { padding: 2px 10px 10px 31px; display: grid; gap: 7px; }
+.shotmock .kl { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.shotmock .kl .lab { flex: none; width: 52px; font-size: 11.5px; color: var(--text-2); }
+.shotmock .okl { color: var(--ok); font-size: 12px; }
+.shotmock .lnk { color: var(--accent-text); font-size: 12px; white-space: nowrap; }
+.copy { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; }
+.copy button { height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); font-size: 12px; cursor: pointer; }
+.callout { border-radius: 12px; background: var(--accent-soft); color: var(--text); padding: 14px 18px; font-size: 14px; margin: 16px 0; }
+dl.terms { display: grid; grid-template-columns: 140px 1fr; gap: 10px 20px; font-size: 14px; }
+dl.terms dt { font-weight: 600; }
+dl.terms dd { margin: 0; color: var(--text-2); }
+.ptoast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 10px); opacity: 0; transition: .25s; background: var(--btn); color: var(--btn-text); padding: 10px 16px; border-radius: 10px; font-size: 13px; z-index: 90; pointer-events: none; }
+.ptoast.on { opacity: 1; transform: translate(-50%, 0); }
+@media (max-width: 900px) {
+  .wrap { padding: 0 20px; }
+  .nav .links, .gh span { display: none; }
+  .heroA .big { font-size: 46px; line-height: 64px; }
+  .heroA .line { height: 74px; gap: 10px; }
+  .heroA .fw { font-size: 16px; }
+  .heroA .caret { height: 44px; }
+  .heroB { height: 260px; }
+  .heroB .dst { font-size: 44px; top: 100px; }
+  .heroB .src { font-size: 19px; }
+  .heroB .bdeck { display: none; }
+  .facts, .cards3, .feat, .steps3, .plans, .note3, .mini3, .tabs { grid-template-columns: 1fr; }
+  .feat > div { border-right: 0; }
+  .facts > div { border-left: 0; }
+  .facts > div + div { border-top: 1px solid var(--line); }
+  .flow { grid-template-columns: 1fr; }
+  .doc { grid-template-columns: 1fr; }
+  .doc > * { min-width: 0; }
+  .pgrid { grid-template-columns: repeat(3, 1fr); }
+  .pgrid button small { text-align: center; }
+  .toc { display: none; }
+  .stage { height: 560px; }
+  .fgrid { grid-template-columns: 1fr 1fr; }
+  .co { grid-template-columns: 1fr; }
+  .sec-h h2, .dark-sec h2, .endcta h2 { font-size: 32px; }
+}
+@media (max-width: 600px) {
+  .hero { padding-top: 36px; }
+  .heroA .big { font-size: 32px; line-height: 46px; }
+  .heroA .line { height: 64px; gap: 6px; }
+  .heroA .fw { font-size: 11px; }
+  .heroA .fw .g { font-size: 11px; }
+  .heroA .line:nth-child(2) .fw:first-child { display: none; }
+  .heroA .caret { height: 34px; width: 2px; }
+  .heroB { height: 250px; }
+  .heroB .src { font-size: 15px; height: 40px; line-height: 40px; }
+  .heroB .gloss { top: 46px; font-size: 12px; }
+  .heroB .dst { font-size: 34px; top: 92px; height: 60px; line-height: 60px; }
+  .heroB .beats { left: 0; right: 0; transform: none; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .heroB .beat { font-size: 12px; height: 28px; }
+  .heroB .beats .deck { display: none; }
+  .hero-cta { flex-direction: column; align-items: stretch; }
+  .hero-desc { font-size: 15px; }
+  .stage-wrap { overflow: hidden; }
+  .nav .wrap { gap: 12px; }
+  .nav .right { gap: 8px; }
+  .gh { display: none; }
+  .lang button { padding: 2px 8px; }
+  .heroA .line:nth-child(2) .fw { display: none; }
+  .prov { grid-template-columns: 1fr; }
+  .pgrid { grid-template-columns: repeat(2, 1fr); }
+  .prose h1 { font-size: 34px; }
+  .gsteps > li { padding-left: 38px; }
+  .shotmock .side { display: none; }
+  .shotmock .kf { padding-left: 10px; }
+}
+
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m7 10 5 5 5-5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></symbol>
+  <symbol id="i-pointer" viewBox="0 0 24 24"><path d="M4.04 4.6a.5.5 0 0 1 .56-.56l15 6a.5.5 0 0 1-.05.94l-5.9 1.83a1 1 0 0 0-.66.66l-1.83 5.9a.5.5 0 0 1-.94.05z"/></symbol>
+  <symbol id="i-split" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h6"/><path d="m16 15 3 3-3 3"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.7"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><rect x="3" y="7" width="14" height="14" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="11" rx="2"/><path d="M2 20h20"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-party" viewBox="0 0 24 24"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect width="20" height="15" x="2" y="7" rx="2"/><path d="m17 2-5 5-5-5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24"><path d="M3 8V6a3 3 0 0 1 3-3h2"/><path d="M16 3h2a3 3 0 0 1 3 3v2"/><path d="M21 16v2a3 3 0 0 1-3 3h-2"/><path d="M8 21H6a3 3 0 0 1-3-3v-2"/><path d="m8.5 16 3.5-9 3.5 9"/><path d="M9.8 13h4.4"/></symbol>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" data-go="home"><img src="icon.png" alt="">GetNewWord</a>
+    <nav class="links">
+      <a data-go="home#how" data-en="How it works">怎么用</a>
+      <a data-go="home#real" data-en="Examples">真实效果</a>
+      <a data-go="home#privacy" data-en="Open source &amp; privacy">开源与隐私</a>
+      <a data-go="pricing" data-en="Pricing">价格</a>
+      <a data-go="guide" data-en="Setup guide">配置教程</a>
+    </nav>
+    <div class="right">
+      <div class="lang"><button class="on" data-lang="zh">简</button><button data-lang="en">EN</button><button data-lang="de">DE</button></div>
+      <a class="gh" href="https://github.com/SchaeferAnjon/GetNewWord" target="_blank" rel="noopener"><svg class="ico"><use href="#i-github"/></svg><span>GitHub</span></a>
+      <button class="btn dark sm" data-dl data-en="Download">下载</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 首页 ============ -->
+<main class="page on" id="p-home">
+  <section class="hero wrap">
+    
+    <div class="eyebrow" data-en="Open source · AI word lookup in context, for videos, web pages and PDFs">开源 · 看视频、读网页、读 PDF 时的 AI 语境查词</div>
+    <h1 class="heroA" id="heroA" aria-label="看到生词，框一下就懂。">
+      <div class="line">
+        <span class="fw" style="transform:rotate(-6deg) translateY(-6px)" data-g="无处不在的" data-g-en="everywhere at once" data-g-de="allgegenwärtig">ubiquitous</span>
+        <span class="big" data-en="See">看到</span>
+        <span class="fw" style="transform:rotate(4deg)" data-g="可持续性" data-g-en="sustainability" data-w-de="aprovechar" data-g-de="ausnutzen">Nachhaltigkeit</span>
+        <span class="big" data-en="a new word,">生词，</span>
+      </div>
+      <div class="line">
+        <span class="fw" style="transform:rotate(5deg) translateY(4px)" data-g="相反地" data-g-en="on the other hand" data-g-de="dagegen">en revanche</span>
+        <span class="big" data-en="frame it,">框一下</span>
+        <span class="fw" style="transform:rotate(-4deg) translateY(-4px)" data-g="弄明白" data-g-en="make sense of" data-g-de="kapieren">wrap my head around</span>
+        <span class="big" data-en="get it.">就懂。</span>
+        <span class="caret"></span>
+      </div>
+      <div class="vf" id="vfA"><i></i><i></i><i></i><i></i></div>
+    </h1>
+    <div class="deck-row"><span class="deck" id="deckA"><span class="stack"><i></i><i></i><i></i></span><span data-en="Anki · today">Anki · 今天</span> <b id="deckAn">+0</b></span></div>
+    
+    
+    <p class="hero-desc" data-en="Press a shortcut and frame a word on screen, or rest the pointer on it. The AI reads the whole sentence and tells you what the word means right here, translates the sentence the way a person would say it, then files it in your word book and Anki.">按一下快捷键框住屏幕上的词，或者把鼠标停在词上。AI 读完整句，告诉你这个词在这里是什么意思，把整句译成人话，然后存进词库、同步到 Anki。</p>
+    <div class="hero-cta">
+      <button class="btn dark big" data-dl><svg class="ico"><use href="#i-download"/></svg><span data-en="Download for Mac, free">免费下载 Mac 版</span></button>
+      <a class="btn light big" href="https://github.com/SchaeferAnjon/GetNewWord" target="_blank" rel="noopener"><svg class="ico"><use href="#i-github"/></svg><span data-en="View source on GitHub">在 GitHub 看源码</span></a>
+    </div>
+    <div class="hero-meta"><b data-en="No sign-up, no login">不用注册，不用登录</b> · <span data-en="Free forever with your own API key · macOS 14+ · Open source GPL-3.0-or-later">自带 Key 永久免费 · macOS 14+ · 开源 GPL-3.0-or-later</span></div>
+    <div class="hero-meta2"><span data-en="One download for Apple silicon and Intel">一个安装包，Apple 芯片和 Intel 通用</span><span id="verline"></span></div>
+  </section>
+
+  <!-- 演示舞台 -->
+  <section class="wrap stage-wrap" id="how">
+    <div class="stage" id="stage">
+      <div class="menubar">
+        <b></b><span data-en="Browser" data-de="Browser">浏览器</span><span data-en="File">文件</span><span data-en="Edit">编辑</span><span data-en="View">显示</span>
+        <span class="sp"></span><svg class="ico mbl"><use href="#i-logo"/></svg><span style="font-variant-numeric:tabular-nums">9:41</span>
+      </div>
+
+      <!-- 场景 1：看视频 -->
+      <div class="scene on" id="sc1">
+        <div class="win player">
+          <div class="tb"><span class="dots"><i></i><i></i><i></i></span><span data-de="Tech Talks · Supply chains">Deutsch im Alltag · Folge 12</span></div>
+          <div class="vid"><div class="person play" id="s1person"><i></i><i></i></div>
+            <div class="vsub"><span data-de="We need supply chains that are far more &lt;span class=&quot;w&quot; id=&quot;s1word&quot;&gt;resilient&lt;/span&gt;.">Die <span class="w" id="s1word">Nachhaltigkeit</span> der Lieferketten hat deutlich zugenommen.</span></div>
+          </div>
+          <div class="ctrl"><span class="pp" id="s1pp">❚❚</span><span class="t" id="s1t">03:12</span><span class="bar"><i id="s1bar"></i></span><span class="t">10:48</span></div>
+          <div class="vdim" id="s1dim"></div>
+          <div class="sel" id="s1sel"></div>
+        </div>
+        <div class="panel tag" id="s1panel" style="left:668px; top:150px">
+          <div id="s1skel" class="skw"><div class="skel" style="width:46%;height:20px"></div><div class="skel" style="width:40%;height:26px"></div><div class="skel" style="width:80%"></div><div class="skel" style="width:64%"></div></div>
+          <div id="s1body" style="display:none">
+            <div class="hd" data-de="&lt;span class=&quot;w&quot;&gt;resilient&lt;/span&gt;&lt;span class=&quot;ph&quot;&gt;/rɪˈzɪliənt/&lt;/span&gt;&lt;svg class=&quot;ico&quot;&gt;&lt;use href=&quot;#i-volume&quot;/&gt;&lt;/svg&gt;&lt;span class=&quot;lv&quot;&gt;C1&lt;/span&gt;"><span class="w">Nachhaltigkeit</span><span class="ph">/ˈnaːxhaltɪçkaɪ̯t/</span><svg class="ico"><use href="#i-volume"/></svg><span class="lv">B2</span></div>
+            <div class="big" data-en="sustainability" data-de="widerstandsfähig">可持续性</div>
+            <div class="gram" data-de="adj. · resilience n.">n. die Nachhaltigkeit, die Nachhaltigkeiten</div>
+            <div class="tr" data-en="Supply chains have become far more &lt;span class=hl&gt;sustainable&lt;/span&gt;." data-de="Wir brauchen Lieferketten, die deutlich &lt;span class=hl&gt;widerstandsfähiger&lt;/span&gt; sind.">供应链的<span class="hl">可持续性</span>明显提高了。</div>
+            <div class="ft"><span class="st" data-en="Saved to German · Anki…" data-de="Gesichert in Englisch · Anki…">已存进 德语 · Anki…</span><span class="sp" style="flex:1"></span><span class="b" data-en="Undo">撤销</span><svg class="ico"><use href="#i-pin"/></svg><span class="b" data-en="Expand">展开讲解</span><span class="x">×</span></div>
+          </div>
+        </div>
+        <div class="toast" id="s1toast"></div>
+      </div>
+
+      <!-- 场景 2：读网页（指词查词） -->
+      <div class="scene" id="sc2">
+        <div class="win browser">
+          <div class="tb"><span class="dots"><i></i><i></i><i></i></span><span class="url">fieldnotes.example/technology</span></div>
+          <div class="article" id="s2art">
+            <div class="kick">TECHNOLOGY</div>
+            <h4>How the smartphone quietly rewired our attention</h4>
+            <p>A decade ago, checking email on a train felt novel. Today the phone is <span class="w" id="s2word">ubiquitous</span>, and we barely notice how often we reach for it.</p>
+            <p>Researchers say the habit is less about information than about relief from a moment of boredom.</p>
+          </div>
+          <div class="sel" id="s2sel"></div>
+        </div>
+        <svg class="cursor" id="s2cur" viewBox="0 0 18 24"><path d="M1 1v19l5-5 3.5 7.5 3-1.4L9 13.6h7z" fill="#111" stroke="#fff" stroke-width="1.4"/></svg>
+        <div class="panel tag" id="s2panel">
+          <div class="hd"><span class="w">ubiquitous</span><span class="ph">/juːˈbɪkwɪtəs/</span><svg class="ico"><use href="#i-volume"/></svg><span class="lv">C1</span></div>
+          <div class="big" data-en="found everywhere">无处不在的</div>
+          <div class="gram">adj. · ubiquity n.</div>
+          <div class="tr" data-en="Today phones are &lt;span class=hl&gt;everywhere&lt;/span&gt;, and we hardly notice how often we reach for one.">如今手机<span class="hl">随处可见</span>，我们都没留意自己多常去摸它。</div>
+          <div class="ft"><span class="st" id="s2state"></span><span class="sp" style="flex:1"></span><span class="b pri" id="s2save" data-en="Save to library">存进词库</span><span class="b" data-en="Expand">展开讲解</span><span class="x">×</span></div>
+        </div>
+        <div class="toast" id="s2toast"></div>
+      </div>
+
+      <!-- 场景 3：进 Anki -->
+      <div class="scene" id="sc3">
+        <div class="win mainwin">
+          <div class="tb mw-tb"><span class="dots"><i></i><i></i><i></i></span><span class="ttl" data-en="Words">单词</span><span class="sp"></span><span class="tbb"><svg class="ico" style="width:13px;height:13px"><use href="#i-scan"/></svg><span data-en="Capture">截图取词</span></span></div>
+          <div class="mw">
+            <div class="side">
+              <div class="on"><span data-en="Words">单词</span><span>52</span></div>
+              <div><span data-en="Notes">知识片段</span><span>7</span></div>
+              <div><span data-en="Stats">统计</span><span></span></div>
+              <div class="h" data-en="Categories">分类</div>
+              <div><span data-en="German">德语</span><span>12</span></div>
+              <div><span data-en="English">英语</span><span>34</span></div>
+              <div><span data-en="French">法语</span><span>6</span></div>
+              <div class="anks" id="s3st"><span>Anki</span><span id="s3stt"></span></div>
+            </div>
+            <div class="list">
+              <div class="lt"><span data-en="Today">今天</span><span class="sp"></span><span class="syncb" id="s3btn"><svg class="ico" style="width:13px;height:13px"><use href="#i-layers"/></svg><span data-en="Sync to Anki">同步 Anki</span></span></div>
+              <div class="row" data-de="&lt;span class=&quot;dot s3d&quot;&gt;&lt;/span&gt;&lt;b&gt;resilient&lt;/b&gt;&lt;span class=&quot;m&quot;&gt;Adj. widerstandsfähig&lt;/span&gt;&lt;span class=&quot;lv&quot;&gt;C1&lt;/span&gt;"><span class="dot s3d"></span><b>Nachhaltigkeit</b><span class="m" data-en="n. sustainability">n. 可持续性</span><span class="lv">B2</span></div>
+              <div class="row" data-de="&lt;span class=&quot;dot s3d&quot;&gt;&lt;/span&gt;&lt;b&gt;supply chain&lt;/b&gt;&lt;span class=&quot;m&quot;&gt;Subst. Lieferkette&lt;/span&gt;&lt;span class=&quot;lv&quot;&gt;B1&lt;/span&gt;"><span class="dot s3d"></span><b>Lieferkette</b><span class="m" data-en="n. supply chain">n. 供应链</span><span class="lv">B1</span></div>
+              <div class="row" data-de="&lt;span class=&quot;dot s3d&quot;&gt;&lt;/span&gt;&lt;b&gt;get on someone&#x27;s nerves&lt;/b&gt;&lt;span class=&quot;m&quot;&gt;jemandem auf den Keks gehen&lt;/span&gt;&lt;span class=&quot;lv&quot;&gt;B2&lt;/span&gt;"><span class="dot s3d"></span><b>auf den Keks gehen</b><span class="m" data-en="to get on someone's nerves">让人心烦（口语）</span><span class="lv">B2</span></div>
+              <div class="row" data-de="&lt;span class=&quot;dot ok&quot;&gt;&lt;/span&gt;&lt;b&gt;increase&lt;/b&gt;&lt;span class=&quot;m&quot;&gt;Verb zunehmen, steigen&lt;/span&gt;&lt;span class=&quot;lv&quot;&gt;A2&lt;/span&gt;"><span class="dot ok"></span><b>zunehmen</b><span class="m" data-en="v. to increase">v. 增加、上升</span><span class="lv">A2</span></div>
+              <div class="row" data-de="&lt;span class=&quot;dot ok&quot;&gt;&lt;/span&gt;&lt;b&gt;job application&lt;/b&gt;&lt;span class=&quot;m&quot;&gt;Subst. Bewerbung&lt;/span&gt;&lt;span class=&quot;lv&quot;&gt;B1&lt;/span&gt;"><span class="dot ok"></span><b>Bewerbung</b><span class="m" data-en="n. job application">n. 求职申请</span><span class="lv">B1</span></div>
+              <div class="row" data-de="&lt;span class=&quot;dot ok&quot;&gt;&lt;/span&gt;&lt;b&gt;weekday&lt;/b&gt;&lt;span class=&quot;m&quot;&gt;Subst. Werktag&lt;/span&gt;&lt;span class=&quot;lv&quot;&gt;A2&lt;/span&gt;"><span class="dot ok"></span><b>Feierabend</b><span class="m" data-en="n. end of the working day">n. 下班（以后的时间）</span><span class="lv">A2</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="win anki" id="s3anki">
+          <div class="tb"><span class="dots"><i></i><i></i><i></i></span>Anki</div>
+          <div class="flip" id="s3flip"><div class="in">
+            <div class="face f"><div class="w" data-de="resilient">Nachhaltigkeit</div><div class="cp" data-de="/rɪˈzɪliənt/ 🔊">/ˈnaːxhaltɪçkaɪ̯t/ 🔊</div><div class="cg" data-de="Adj. · resilience n.">n. die Nachhaltigkeit</div><div class="dk" data-en="German · B2" data-de="Englisch · C1">德语 · B2</div></div>
+            <div class="face b"><div class="wl" data-en="&lt;b&gt;Nachhaltigkeit&lt;/b&gt; /ˈnaːxhaltɪçkaɪ̯t/ · German · B2" data-de="&lt;b&gt;resilient&lt;/b&gt; /rɪˈzɪliənt/ · Englisch · C1"><b>Nachhaltigkeit</b> /ˈnaːxhaltɪçkaɪ̯t/ · 德语 · B2</div><hr><div class="ans" data-en="sustainability" data-de="widerstandsfähig">可持续性</div><div class="ctxb"><div class="sent sm" data-de="We need supply chains that are far more &lt;span class=&quot;vfw&quot;&gt;resilient&lt;/span&gt;.">Die <span class="vfw">Nachhaltigkeit</span> der Lieferketten hat deutlich zugenommen.</div><div class="zh" data-en="Supply chains have become far more &lt;u&gt;sustainable&lt;/u&gt;." data-de="Wir brauchen Lieferketten, die deutlich &lt;u&gt;widerstandsfähiger&lt;/u&gt; sind.">供应链的<u>可持续性</u>明显提高了。</div></div><div class="more" data-en="▸ Usage, collocations, examples　▸ The screenshot from that moment">▸ 用法、搭配、例句　▸ 当时的截图</div></div>
+          </div></div>
+        </div>
+        <div class="toast" id="s3toast"></div>
+      </div>
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-sc="1"><i class="pg"></i><b data-en="Watching a video">看视频</b><span data-en="Frame a word in the subtitles; space still pauses the video">框住字幕里的词，空格照样控制视频</span></button>
+      <button class="tab" data-sc="2"><i class="pg"></i><b data-en="Reading a web page">读网页</b><span data-en="Rest the pointer on a word and press a key">鼠标停在词上，按一下就查</span></button>
+      <button class="tab" data-sc="3"><i class="pg"></i><b data-en="Into Anki">进 Anki</b><span data-en="The back keeps the sentence you met it in">卡片背面带着你遇到它的那句话</span></button>
+    </div>
+    <div class="cap" data-en="Interface demo animation">界面演示动画</div>
+  </section>
+
+  <section class="wrap">
+    <div class="facts">
+      <div><div class="k" data-en="Open source">开源</div><div class="v">GPL-3.0-or-later</div><div class="d" data-en="All code is public; build it yourself">代码全部公开，可以自己编译</div></div>
+      <div><div class="k" data-en="Account">账号</div><div class="v" data-en="Not needed">不需要</div><div class="d" data-en="Log in only for members' sync between Macs">只有会员在多台电脑同步词库才登录</div></div>
+      <div><div class="k">AI</div><div class="v" data-en="10 providers">10 家任选</div><div class="d" data-en="Zhipu, DeepSeek, OpenAI, Claude and more">智谱、DeepSeek、OpenAI、Claude 等</div></div>
+      <div><div class="k" data-en="Review">复习</div><div class="v" data-en="Into Anki">进 Anki</div><div class="d" data-en="One click; decks follow your categories">一键同步，牌组跟着分类走</div></div>
+    </div>
+  </section>
+
+  <section class="sec wrap" id="real">
+    <div class="sec-h"><div class="eyebrow" data-en="Real examples">真实效果</div><h2 data-en="Not a dictionary entry.&lt;br&gt;What it means right here.">不是词典里那一长串，<br>是它在这句里的意思。</h2></div>
+    <div class="cards3">
+      <div class="card3">
+        <div class="src"><svg class="ico"><use href="#i-tv"/></svg><span data-en="Series subtitles · English">美剧字幕 · 英语</span></div>
+        <div class="s">I just can't <span class="k">wrap my head around</span> it.</div>
+        <div class="lbl" data-en="Word for word">逐词直译</div><div class="lit" data-en="I can't wrap my head around it (literally)">我就是不能把我的头包在它周围。</div>
+        <div class="lbl">GetNewWord</div><div class="tr" data-en="I just can't &lt;span class=hl&gt;make sense of&lt;/span&gt; it.">我就是<span class="hl">想不明白</span>。</div>
+        <div class="note" data-en="wrap one's head around: to understand something hard (spoken)">wrap one's head around：弄明白、想通（口语）</div>
+      </div>
+      <div class="card3">
+        <div style="display:contents" data-de="&lt;div class=&quot;src&quot;&gt;&lt;svg class=&quot;ico&quot;&gt;&lt;use href=&quot;#i-file&quot;/&gt;&lt;/svg&gt;&lt;span&gt;Podcast · Spanisch&lt;/span&gt;&lt;/div&gt;
+        &lt;div class=&quot;s&quot;&gt;Ese horario &lt;span class=&quot;k&quot;&gt;me viene de perlas&lt;/span&gt;.&lt;/div&gt;
+        &lt;div class=&quot;lbl&quot;&gt;Wort für Wort&lt;/div&gt;&lt;div class=&quot;lit&quot;&gt;Dieser Zeitplan kommt mir von Perlen.&lt;/div&gt;
+        &lt;div class=&quot;lbl&quot;&gt;GetNewWord&lt;/div&gt;&lt;div class=&quot;tr&quot;&gt;Der Zeitplan &lt;span class=&quot;hl&quot;&gt;passt mir perfekt&lt;/span&gt;.&lt;/div&gt;
+        &lt;div class=&quot;note&quot;&gt;venir de perlas: genau richtig kommen · umgangssprachlich&lt;/div&gt;
+      "><div class="src"><svg class="ico"><use href="#i-file"/></svg><span data-en="Paper PDF · German">论文 PDF · 德语</span></div>
+        <div class="s">Die <span class="k">Nachhaltigkeit</span> der Lieferketten hat deutlich zugenommen.</div>
+        <div class="lbl" data-en="Word for word">逐词直译</div><div class="lit" data-en="The sustainability of the supply chains has clearly increased (stiff)">供应链的持续能力性已经清楚地增加了。</div>
+        <div class="lbl">GetNewWord</div><div class="tr" data-en="Supply chains have become far more &lt;span class=hl&gt;sustainable&lt;/span&gt;.">供应链的<span class="hl">可持续性</span>明显提高了。</div>
+        <div class="note" data-en="die Nachhaltigkeit: sustainability · noun · B2">die Nachhaltigkeit：可持续性 · 名词 · B2</div>
+      </div></div>
+      <div class="card3">
+        <div class="src"><svg class="ico"><use href="#i-globe"/></svg><span data-en="News site · French">新闻网页 · 法语</span></div>
+        <div class="s">Le centre-ville se vide ; <span class="k">en revanche</span>, les banlieues grandissent.</div>
+        <div class="lbl" data-en="Word for word">逐词直译</div><div class="lit" data-en="The centre empties; in revenge, the suburbs grow">市中心在变空；在报复中，郊区在长大。</div>
+        <div class="lbl">GetNewWord</div><div class="tr" data-en="The city centre is emptying; the suburbs, &lt;span class=hl&gt;on the other hand&lt;/span&gt;, keep growing.">市中心越来越空，郊区<span class="hl">反倒</span>越来越大。</div>
+        <div class="note" data-en="en revanche: on the other hand · not 'in revenge'">en revanche：相反、反倒 · 不是「报复」</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-h"><div class="eyebrow" data-en="More than a lookup">不止查词</div><h2 data-en="Look it up, understand it,&lt;br&gt;and remember it next week.">查得到，看得懂，<br>下周还记得。</h2></div>
+    <div class="feat">
+      <div><div class="fi"><svg class="ico"><use href="#i-scan"/></svg></div><h3><span data-en="Frame to look up">截图取词</span> <span class="kbd">⌘⇧A</span></h3><p data-en="Frame any text on screen: video subtitles, PDFs, images, apps that won't let you copy.">框住屏幕上任何文字：视频字幕、PDF、图片、不让复制的软件都行。</p></div>
+      <div><div class="fi"><svg class="ico"><use href="#i-pointer"/></svg></div><h3><span data-en="Point to look up">指词查词</span> <span class="kbd">⌃⌘A</span></h3><p data-en="Rest the pointer on a word and press the key. No framing; quick looks are not saved unless you say so.">鼠标停在词上按一下，不用框；默认只查不存，想留下再点「加入词库」。</p></div>
+      <div><div class="fi"><svg class="ico"><use href="#i-split"/></svg></div><h3 data-en="Grammar breakdown">语法拆解</h3><p data-en="One click takes the whole sentence apart: subject, clauses, tenses, why this word form.">一键把整句从头到尾拆开讲：主干、从句、时态、这里为什么用这个词形。</p></div>
+      <div><div class="fi"><svg class="ico"><use href="#i-volume"/></svg></div><h3 data-en="Real pronunciation">真人发音</h3><p data-en="Real dictionary recordings first; if there are none, your Mac's own voice for that language.">优先用词典里的真人录音，找不到就用 Mac 自带的该语言语音。</p></div>
+      <div><div class="fi"><svg class="ico"><use href="#i-chart"/></svg></div><h3 data-en="Word book and stats">词库与统计</h3><p data-en="Words sorted by language, knowledge snippets for whole passages, and a weekly dashboard.">单词按语言分类，整段内容存成知识片段，统计看板看每周学了多少。</p></div>
+      <div><div class="fi"><svg class="ico"><use href="#i-layers"/></svg></div><h3 data-en="Anki sync">同步到 Anki</h3><p data-en="Cards carry the sentence, screenshot and audio. Delete a word here and its card goes too.">卡片带原句、截图和发音；在 GetNewWord 里删词，Anki 里的卡也跟着删。</p></div>
+    </div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-h"><div class="eyebrow" data-en="Your own AI">接你自己的 AI</div><h2 data-en="Ten providers, pick one.">十家 AI，挑一家就行。</h2><p data-en="Paste a key from any of them and it is free forever. Membership, coming soon, will need no key at all.">填任意一家的 Key 就永久免费；会员即将开放，到时不用 Key 也能用。</p></div>
+    <div class="prov" id="provStrip"></div>
+    <div class="center-link"><span data-en="Never made an API key?">没拿过 API Key？</span> <a data-go="guide" data-en="Follow the picture guide, 5 minutes →">跟着图文教程，5 分钟搞定 →</a></div>
+  </section>
+
+  <section class="dark-sec" id="privacy">
+    <div class="wrap">
+      <div class="eyebrow" data-en="Open source &amp; privacy">开源与隐私</div>
+      <h2 data-en="Where the words you frame go,&lt;br&gt;step by step.">你框住的字去了哪里，<br>每一步都查得到。</h2>
+      <p class="lead" data-en="Your word book lives on your Mac. Only the framed bit of screen and its sentence go to an AI, and you choose which one.">词库在你自己的电脑上。只有框住的那一小块和它所在的句子会发给 AI，发给谁由你选。</p>
+      <div class="flow">
+        <div class="box"><h4><svg class="ico"><use href="#i-laptop"/></svg><span data-en="Stays on your Mac">留在你的电脑上</span></h4><ul>
+          <li><svg class="ico"><use href="#i-check"/></svg><span data-en="Word book, snippets, screenshots">词库、知识片段、截图</span></li>
+          <li><svg class="ico"><use href="#i-check"/></svg><span data-en="Your API keys, in the macOS Keychain">你填的 Key，存在系统钥匙串里</span></li>
+          <li><svg class="ico"><use href="#i-check"/></svg><span data-en="Stats and settings">统计和设置</span></li>
+          <li><svg class="ico"><use href="#i-check"/></svg><span data-en="Anki, through the local AnkiConnect plug-in">Anki，经本机的 AnkiConnect 插件</span></li></ul></div>
+        <div class="arrow"><span data-en="Framed area + its sentence">框住的那一块 + 整句</span><i></i><span data-en="No full screen, no history">不传整屏，不传历史</span></div>
+        <div class="box"><h4><svg class="ico"><use href="#i-sparkles"/></svg><span data-en="AI service">AI 服务</span></h4><ul>
+          <li><svg class="ico"><use href="#i-check"/></svg><span data-en="Own key: sent straight to the provider you picked, never through us">自带 Key：直接发给你选的服务商，不经过我们</span></li>
+          <li><svg class="ico"><use href="#i-check"/></svg><span data-en="Membership (coming soon): relayed by our server to the model, not stored">会员（即将开放）：经我们的服务器转给模型，不保存</span></li></ul></div>
+      </div>
+      <div class="mini3">
+        <div><b data-en="No account needed">不需要账号</b><span data-en="Log in only if you want the same word book on several Macs.">只有想让几台电脑用同一个词库时才登录。</span></div>
+        <div><b data-en="Keys stay in the Keychain">Key 只在钥匙串里</b><span data-en="Never written to a file, never uploaded.">不写进文件，不上传。</span></div>
+        <div><b data-en="Code is public">代码公开</b><span data-en="GPL-3.0-or-later. Check every request yourself, or build it yourself.">GPL-3.0-or-later，每个请求发去哪都能自己核对，也能自己编译。</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-h"><div class="eyebrow" data-en="Get started">开始使用</div><h2 data-en="Install, paste a key,&lt;br&gt;frame your first word.">装好，填一个 Key，<br>就能框第一个词。</h2></div>
+    <div class="steps3">
+      <div><div class="n">1</div><h3 data-en="Download and install">下载安装</h3><p data-en="Drag it into Applications. It isn't notarized by Apple, so macOS blocks it the first time: open System Settings › Privacy &amp; Security, scroll down and click Open Anyway. It lives in the menu bar; you can add a Dock icon in Settings.">拖进「应用程序」。没有经过苹果公证，第一次打开会被系统拦下：去「系统设置 › 隐私与安全性」拉到最下面，点「仍要打开」。它默认住在右上角菜单栏，想在 Dock 里也看到，设置里能打开。</p></div>
+      <div><div class="n">2</div><h3 data-en="Pick an AI">选一家 AI</h3><p data-en="Paste a key from one provider; it is checked as soon as you paste it. Free forever.">填一家 AI 的 Key，粘贴后自动验证，永久免费。</p></div>
+      <div><div class="n">3</div><h3 data-en="Frame a word">框一个词</h3><p data-en="Press ⌘⇧A anywhere and frame a word. Screen Recording is asked once: drag the icon into the list in System Settings.">在任何地方按 ⌘⇧A 框一个词。屏幕录制权限只要给一次：把图标拖进系统设置的列表就行。</p></div>
+    </div>
+    <div class="center-link"><a data-go="guide" data-en="Picture guide: get a key in 5 minutes →">图文教程：5 分钟拿到 Key →</a></div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-h"><div class="eyebrow" data-en="Pricing">价格</div><h2 data-en="The app is free.&lt;br&gt;Membership buys you no setup.">软件免费，会员买的是省事。</h2></div>
+    <div class="plans" id="homePlans"></div>
+    <div class="center-link"><a data-go="pricing" data-en="Pricing details →">看价格详情 →</a></div>
+  </section>
+
+  <section class="sec wrap">
+    <div class="sec-h"><div class="eyebrow">FAQ</div><h2 data-en="Questions">常见问题</h2></div>
+    <div class="faq">
+      <details><summary data-en="Which languages work?">支持哪些语言？</summary><p data-en="Anything the AI can read: English, German, French, Spanish, Japanese and more. Translations go into Chinese by default; you can pick another target language in Settings.">AI 认得的文字都行：英语、德语、法语、西语、日语等。译文默认是中文，设置里可以换成别的语言。</p></details>
+      <details><summary data-en="Will it interrupt my video?">查词会打断我看视频吗？</summary><p data-en="No. The panel does not take the keyboard, so space still pauses and plays the video. Click outside and the panel goes away.">不会。查词面板不抢键盘，空格照样暂停、播放视频；点面板外面它就消失，想留着可以钉住。</p></details>
+      <details><summary data-en="Does it work offline?">不联网能用吗？</summary><p data-en="Looking up needs the AI, so it needs a connection. Your word book and Anki cards are on your Mac and open offline.">查词要用 AI，需要联网。词库和 Anki 卡片都在你电脑上，断网也能看。</p></details>
+      <details><summary data-en="How much does it cost?">怎么收费？</summary><p data-en="With your own API key it is free forever. Membership, for people who don't want to set up a key, is coming soon and will use our AI: $1.99 a month or $19.90 a year, up to 200 lookups a day, and the first 100 new users get 30 lookups free.">填自己的 API Key 永久免费。会员给不想配 Key 的人，用我们的 AI，即将开放：每月 ¥9.9 或每年 ¥99（也可以用微信一次买 1 个月或 1 年），每天最多 200 次；前 100 位新用户免费 30 次。</p></details>
+      <details><summary data-en="How does it connect to Anki?">怎么连 Anki？</summary><p data-en="Keep Anki desktop open. GetNewWord installs the free AnkiConnect plug-in for you in Settings › Anki, then makes the cards itself.">开着 Anki 桌面版就行。GetNewWord 在设置 › Anki 里一键装好免费插件 AnkiConnect，之后自己建卡、同步。</p></details>
+      <details><summary data-en="Why is there no Dock icon?">为什么 Dock 里没有图标？</summary><p data-en="It lives in the menu bar (the viewfinder with an A). Settings and your word book open from there. Want a Dock icon too? Settings › General › Show in Dock.">它默认常驻在右上角菜单栏（取景框里一个 A），设置和词库都从那里打开。想在 Dock 里也看到，打开设置 › 通用 ›「Dock 里显示图标」。</p></details>
+      <details><summary data-en="Intel Macs?">Intel 芯片的 Mac 能用吗？</summary><p data-en="Yes. One download runs on both Apple silicon and Intel, macOS 14 or later.">能。同一个安装包 Apple 芯片和 Intel 都能用，需要 macOS 14 或更新。</p></details>
+    </div>
+  </section>
+
+  <section class="endcta wrap">
+    <h2 data-en="Next time a word stops you,&lt;br&gt;frame it.">下次遇到生词，<br>框一下试试。</h2>
+    <div class="hero-cta"><button class="btn dark big" data-dl><svg class="ico"><use href="#i-download"/></svg><span data-en="Download for Mac, free">免费下载 Mac 版</span></button><button class="btn light big" data-go="pricing" data-en="See pricing">看价格</button></div>
+  </section>
+</main>
+
+<!-- ============ 价格 ============ -->
+<main class="page" id="p-pricing">
+  <section class="ph-page wrap">
+    <div class="eyebrow" data-en="Pricing">价格</div>
+    <h1 data-en="Free with your own key.&lt;br&gt;Membership is coming.">自带 Key 永久免费，<br>会员即将开放。</h1>
+    <p class="muted" style="color:var(--text-2)" data-en="Every feature is in both. The only difference is whose AI answers.">两种用法功能完全一样，差别只在用谁的 AI。</p>
+    <div class="plans" id="pricePlans"></div>
+    <div class="note3">
+      <div><b data-en="Open source either way">开源，哪种都一样</b><span data-en="The code is GPL-3.0-or-later. Membership pays for AI calls and keeps the project going.">代码是 GPL-3.0-or-later。会员的钱付的是 AI 调用，也让这个项目能一直做下去。</span></div>
+      <div><b data-en="Membership is on its way">会员正在做</b><span data-en="It opens here and in the app at the same time. Until then, your own key costs a fraction of a cent per word.">开放时这里和应用里同时上线。在那之前用自己的 Key，查一个词只要几厘钱。</span></div>
+      <div><b data-en="Your key stays yours">Key 只在你的电脑上</b><span data-en="Saved in the macOS Keychain, sent only to the provider you picked.">存在系统钥匙串里，只发给你选的那家服务商。</span></div>
+    </div>
+    <table class="cmp">
+      <tr><th></th><th data-en="Own key">自带 Key</th><th data-en="Membership">会员</th></tr>
+      <tr><td data-en="Frame and point lookup">截图取词、指词查词</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td data-en="Meaning in context, natural translation, grammar">语境释义、地道译文、语法拆解</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td data-en="Word book, stats, Anki sync">词库、统计、Anki 同步</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+      <tr><td data-en="Sync between Macs (log in)">多台电脑同步（需登录）</td><td class="no">—</td><td class="yes">✓</td></tr>
+      <tr><td data-en="Need to get an API key">需要自己申请 API Key</td><td data-en="Yes, about 5 minutes">要，约 5 分钟</td><td class="no" data-en="No">不用</td></tr>
+      <tr><td data-en="Who pays the AI">AI 费用谁出</td><td data-en="You, to the provider">你，直接付给服务商</td><td data-en="Included">已包含</td></tr>
+    </table>
+  </section>
+</main>
+
+
+<!-- ============ 配置教程 ============ -->
+<main class="page" id="p-guide">
+  <div class="wrap doc">
+    <aside class="toc" id="gtoc">
+      <div class="t" data-en="Setup guide">配置教程</div>
+      <a data-to="g1" class="on" data-en="1. Pick a provider">1. 先选一家</a>
+      <a data-to="g2" data-en="2. Get the key">2. 拿到 Key</a>
+      <a data-to="g3" data-en="3. Paste it in the app">3. 填进应用</a>
+      <a data-to="g4" data-en="4. Connect Anki">4. 连接 Anki（可选）</a>
+      <a data-to="g5" data-en="Problems">常见问题</a>
+      <a data-to="g6" data-en="Glossary">看不懂的词</a>
+    </aside>
+    <article class="prose">
+      <div class="eyebrow" data-en="Setup guide · about 5 minutes">配置教程 · 大约 5 分钟</div>
+      <h1 data-en="Get an API key&lt;br&gt;and paste it in.">拿一个 API Key，<br>填进 GetNewWord。</h1>
+      <p data-en="An API key is a password that lets GetNewWord use an AI service under your account. You pay the provider directly for what you use; a word costs a tiny fraction of a cent.">API Key 是一串密码，让 GetNewWord 用你的账户调用 AI。用多少由服务商直接按量收你的钱，查一个词只要几厘钱。</p>
+      <div class="callout" data-en="Membership, coming soon, will skip this whole page.">会员即将开放，开放后可以跳过这整页。</div>
+      <h2 id="g1" data-en="1. Pick a provider">1. 先选一家</h2>
+      <p data-en="In mainland China, Zhipu, DeepSeek, Qwen, Kimi and Doubao connect directly. OpenAI, Gemini, Claude and OpenRouter need an overseas network.">在国内，智谱、DeepSeek、通义千问、Kimi、豆包都能直连；OpenAI、Gemini、Claude、OpenRouter 需要海外网络。</p>
+      <div class="pgrid" id="pgrid"></div>
+      <h2 id="g2"><span data-en="2. Get the key from ">2. 去</span><span class="pname"></span><span data-en=""> 拿 Key</span></h2>
+      <p class="gnote" data-en="The pictures below are sketches. Consoles get redesigned, so look for the button with the same name.">下面的图是示意，各家后台改版后样子会变，认准同名的按钮就行。</p>
+      <ol class="gsteps" id="gsteps"></ol>
+      <h2 id="g3" data-en="3. Paste it in the app">3. 填进应用</h2>
+      <ol class="gsteps">
+        <li><b class="t" data-en="Open Settings from the menu bar">从菜单栏打开设置</b><span data-en="Click the viewfinder icon at the top right of the screen and choose “Settings…”. First launch? The welcome window asks for the key itself.">点屏幕右上角的取景框图标，选「偏好设置…」。第一次打开时，欢迎页里就有这一步。</span><div id="gmMenu"></div></li>
+        <li><b class="t"><span data-en="In AI service, choose ">在「AI 服务」里选 </span><span class="pname"></span></b><span data-en="Paste the key into its box. The model is filled in; you can pick another from the list.">把 Key 粘贴到它的框里。模型已经填好，也可以从列表里换一个。</span><div id="gmSet"></div></li>
+        <li><b class="t" data-en="Wait for the green tick">等它自动验证</b><span data-en="A green “Ready to use” means you are done. Press ⌘⇧A and frame a word.">粘贴后自己会验证，出现绿色「可以用了」就好了。按 ⌘⇧A 框一个词试试。</span></li>
+      </ol>
+      <h2 id="g4" data-en="4. Connect Anki (optional)">4. 连接 Anki（可选）</h2>
+      <ol class="gsteps">
+        <li><b class="t" data-en="Install Anki desktop">装 Anki 桌面版</b><span data-en="Free from apps.ankiweb.net.">在 apps.ankiweb.net 免费下载。</span></li>
+        <li><b class="t" data-en="Install the AnkiConnect plug-in">装 AnkiConnect 插件</b><span data-en="GetNewWord › Settings › Anki › Install. To do it by hand: Anki › Tools › Add-ons › Get Add-ons, enter this code, restart Anki:">GetNewWord › 设置 › Anki，点「一键安装」。想自己装：Anki › 工具 › 插件 › 获取插件，填这串代码，重启 Anki：</span><div class="copy"><span class="code">2055492159</span><button data-copy="2055492159" data-en="Copy">复制</button></div></li>
+        <li><b class="t" data-en="Connect">连上</b><span data-en="Press Restart Anki or Check until it says Connected. Cards are then made for you; decks follow your categories.">点「重启 Anki」或「检测」，显示「已连接」就行。之后会自动建卡，牌组跟着分类走。</span></li>
+      </ol>
+      <h2 id="g5" data-en="Problems">常见问题</h2>
+      <div class="faq" style="margin:0">
+        <details><summary data-en="Verify says the key is invalid">验证说 Key 无效</summary><p data-en="Copy the whole key again with no space at either end. Some providers show it only once; if lost, make a new one.">重新复制完整的 Key，两头不要带空格。有些服务商只显示一次，找不到就新建一个。</p></details>
+        <details><summary data-en="It says the balance is used up">提示余额或额度用完</summary><p data-en="Top up a little in the provider's console. A few yuan lasts most people months.">去服务商后台充一点，几块钱够大多数人用好几个月。</p></details>
+        <details><summary data-en="OpenAI / Claude / Gemini time out">OpenAI、Claude、Gemini 一直超时</summary><p data-en="From mainland China they need an overseas network. Switch to a provider that connects directly.">在国内需要海外网络。换一家能直连的就好。</p></details>
+      </div>
+      <h2 id="g6" data-en="Glossary">看不懂的词</h2>
+      <dl class="terms">
+        <dt>API Key</dt><dd data-en="A password for using an AI from another app. Keep it to yourself.">让别的软件用你账户调 AI 的密码，别发给别人。</dd>
+        <dt data-en="Model">模型</dt><dd data-en="Which AI brain answers. The default is chosen for word lookup; leave it unless you know why.">具体用哪个 AI 回答。默认已经挑好适合查词的，不确定就别改。</dd>
+        <dt data-en="Balance">额度、余额</dt><dd data-en="Prepaid money at the provider, used up a little with each lookup.">在服务商那里预存的钱，每查一次扣一点。</dd>
+        <dt>AnkiConnect</dt><dd data-en="A free Anki plug-in that lets other apps create cards.">Anki 的免费插件，让别的软件能往 Anki 里建卡。</dd>
+        <dt data-en="Deck">牌组</dt><dd data-en="A folder of cards in Anki. GetNewWord names them after your categories, like Languages::German.">Anki 里放卡片的文件夹。GetNewWord 按你的分类建，比如「语言学习::德语」。</dd>
+      </dl>
+    </article>
+  </div>
+</main>
+
+<!-- ============ 隐私政策 ============ -->
+<main class="page" id="p-privacy">
+  <div class="wrap doc">
+    <aside class="toc" id="ptoc">
+      <div class="t" data-en="Privacy policy">隐私政策</div>
+      <a data-to="v1" class="on" data-en="In one sentence">一句话总结</a>
+      <a data-to="v2" data-en="Who we are">我们是谁</a>
+      <a data-to="v3" data-en="Screen and text">截图和文字</a>
+      <a data-to="v4" data-en="AI services">AI 服务</a>
+      <a data-to="v5" data-en="Anonymous usage statistics">匿名使用统计</a>
+      <a data-to="v6" data-en="Pronunciation">发音</a>
+      <a data-to="v7" data-en="Account and sync">账号与同步</a>
+      <a data-to="v8" data-en="Anki">Anki</a>
+      <a data-to="v9" data-en="Updates">自动更新</a>
+      <a data-to="v10" data-en="This website">本网站</a>
+      <a data-to="v11" data-en="Your rights">你的权利</a>
+      <a data-to="v12" data-en="Changes to this policy">政策变更</a>
+    </aside>
+    <article class="prose">
+      <div class="eyebrow" data-en="Last updated: 28 October 2026">最后更新：2026 年 10 月 28 日</div>
+      <h1 data-en="Privacy policy">隐私政策</h1>
+      <div class="callout" data-en="We give the first 100 users free credit, so we need to count how many people use the app. The count is anonymous.">我们会给前 100 位用户免费额度，所以需要统计有多少人在用。统计是匿名的。</div>
+      <div class="sum1" id="v1" data-en="GetNewWord keeps your word book on your Mac. When you look a word up, only the framed area and its sentence go to the AI you chose. No account is needed; only Macs logged in to sync have the text of their word book stored in the cloud. If you agree, the app sends an anonymous count once a day, only to know how many people use it. We sell nothing.">GetNewWord 把词库存在你的电脑上。查词时只有框住的那一块和它所在的句子发给你选的 AI。不需要账号；只有登录了同步的电脑，词库里的文字才会存到云端。你同意的话，应用每天发一次匿名统计，只用来数有多少人在用。我们不卖任何数据。</div>
+      <h2 id="v2" data-en="Who we are">我们是谁</h2>
+      <p data-en="GetNewWord is open-source software (GPL-3.0-or-later) made and maintained by SchaeferAnjon; the source code is on GitHub. This policy explains what the app and this website send, and where. Questions: &lt;a href=&#x27;mailto:infoschaeferanjon@gmail.com&#x27;&gt;infoschaeferanjon@gmail.com&lt;/a&gt;.">GetNewWord 是 SchaeferAnjon 开发和维护的开源软件（GPL-3.0-or-later），源码在 GitHub。这份政策说明应用和本网站会把哪些数据发到哪里。有问题请写信到 <a href="mailto:infoschaeferanjon@gmail.com">infoschaeferanjon@gmail.com</a>。</p>
+      <h2 id="v3" data-en="Screen and text">截图和文字</h2>
+      <p data-en="The app captures the screen only when you look a word up (with a shortcut, the floating button or the menu bar menu), and keeps only the area around the word. Screenshots are stored with the word on your Mac and, if you use Anki, on the card.">只有你取词时（按快捷键、点悬浮按钮或菜单栏里的取词）才截屏，而且只留词附近那一块。截图和单词一起存在你电脑上；用了 Anki 的话也会放进卡片。</p>
+      <h2 id="v4" data-en="AI services">AI 服务</h2>
+      <p data-en="&lt;b&gt;Own key:&lt;/b&gt; the framed area (as an image, or text read on your Mac) and its sentence go directly from your Mac to the provider you picked, under that provider's privacy policy. We never see them. &lt;b&gt;Membership (coming soon):&lt;/b&gt; the request will go through our server to the model; we will keep only the count of requests for billing, not the content.">「自带 Key」：框住的那一块（截图，或在你电脑上先认出的文字）和它所在的句子，从你的电脑直接发给你选的服务商，受该服务商的隐私政策约束，我们看不到。「会员」（即将开放）：请求经我们的服务器转给模型，只记次数用于计费，不保存内容。</p>
+      <h2 id="v5" data-en="Anonymous usage statistics">匿名使用统计</h2>
+      <p data-en="Since 1.2.0, if you agree, the app sends an anonymous count to our server (api.us-cloud.uk) once a day. It contains only a random ID (generated when you install the app, not a hardware ID), the version, the system and chip type, whether you use membership or your own key, and the interface language. It contains no words you looked up, no word book, screenshots, keys, names or email addresses, and the count stores no IP address. We use it to count how many people use the app each day: we give the first 100 users free credit, so we need to know how many there are. If you don&#x27;t agree, nothing is sent. New users are asked during setup, people updating from an older version the first time they open the main window; after that, turn it on or off any time under Settings › Updates &amp; about › Anonymous usage statistics.">从 1.2.0 起，你同意以后，应用每天向我们的服务器（api.us-cloud.uk）发一次匿名统计，只有：一个随机编号（装软件时随机生成，不是硬件编号）、版本号、系统和芯片类型、用会员还是自带 Key、界面语言。不含你查的词、词库、截图、Key、名字或邮箱，统计里也不存 IP 地址。用来数每天有多少人在用：我们会给前 100 位用户免费额度，所以需要知道人数。没同意就什么都不发。新装的在欢迎引导里问，从旧版升级的第一次打开主窗口时问；之后在应用的 设置 › 更新与关于 › 匿名使用统计 里随时打开或关掉。</p>
+      <h2 id="v6" data-en="Pronunciation">发音</h2>
+      <p data-en="To play a word, the app asks these sources for its audio: Youdao&#x27;s public dictionary, real recordings on Wikimedia Commons, and Google Translate&#x27;s speech service. Only the word or phrase is sent. If none has it, your Mac&#x27;s own voice reads it, offline. Audio it has fetched stays on your Mac, so the same word is not fetched again.">朗读时，应用向这几处要这个词的音频：有道词典的公开发音接口、维基共享资源（Wikimedia Commons）里的真人录音、Google 翻译的朗读接口，发过去的只有这个词或短语。都没有时，用 Mac 自带的语音在本机朗读。下载过的发音存在你电脑上，同一个词不再联网取。</p>
+      <h2 id="v7" data-en="Account and sync">账号与同步</h2>
+      <p data-en="For members, once membership opens; Macs that were already logged in keep syncing. To use one word book on several Macs, members log in with Google under Settings › Account &amp; sync. Login and sync run on Supabase (a US company), which stores the account details Google passes on (email and name) and the text of your word book: words, meanings, sentences and their translations, categories and snippets. Audio and screenshots are not synced. Once you are logged in, the app reports a “login” event when you log in and an “open” event the first time you open it each day. Each event carries only the product and event name and is filed under your account, so these events are not anonymous; they tell us how many people use the app. To have your account and data deleted, write from your login email to &lt;a href=&#x27;mailto:infoschaeferanjon@gmail.com&#x27;&gt;infoschaeferanjon@gmail.com&lt;/a&gt;.">会员功能，会员开放后可用；之前已经登录的电脑照常同步。想让几台 Mac 用同一个词库时，会员在设置 › 账号与同步里用 Google 账号登录。登录和同步用的是 Supabase（美国公司）的登录和数据库服务：它保存 Google 给的账号信息（邮箱和名字），以及你词库里的文字：单词、释义、原句和译文、分类、知识片段。发音和截图文件不同步。登录以后，应用在你登录时报一次「登录」，之后每天第一次打开时报一次「打开」；这两个事件里只有产品名和事件名，记在你的账户下，不是匿名的，用来知道有多少人在用。想删除服务器上的账户和数据，用登录的邮箱写信到 <a href="mailto:infoschaeferanjon@gmail.com">infoschaeferanjon@gmail.com</a>。</p>
+      <h2 id="v8" data-en="Anki">Anki</h2>
+      <p data-en="Anki sync stays on your Mac: the app makes cards through the AnkiConnect plug-in running locally (127.0.0.1), not over the internet. If you use the one-click install in Settings › Anki, the app downloads the AnkiConnect plug-in from AnkiWeb, and Anki itself from Anki&#x27;s official releases on GitHub.">Anki 同步只在你的电脑里进行：应用通过本机的 AnkiConnect 插件（127.0.0.1）建卡，不经过网络。在设置 › Anki 里点「一键安装」时，应用从 AnkiWeb 下载 AnkiConnect 插件；装 Anki 本身时，从 GitHub 下载 Anki 官方的安装包。</p>
+      <h2 id="v9" data-en="Updates">自动更新</h2>
+      <p data-en="Once a day the app downloads the release list from GitHub to look for a new version. It sends nothing about you.">应用每天去 GitHub 下载一次版本列表，看有没有新版本，不发送任何关于你的信息。</p>
+      <h2 id="v10" data-en="This website">本网站</h2>
+      <p data-en="This website uses no cookies and no analytics or tracking code. The page asks GitHub once for the latest version number, and your browser remembers the language you picked. The app's anonymous usage statistics are described above.">本网站不用 Cookie，不放统计或跟踪代码。页面会向 GitHub 问一次最新版本号；你选的语言记在你自己的浏览器里。应用里的匿名使用统计见上面「匿名使用统计」一节。</p>
+      <h2 id="v11" data-en="Your rights">你的权利</h2>
+      <p data-en="Your word book is yours: delete words in the app at any time, or export them as CSV or JSON. For anything else, write to &lt;a href=&#x27;mailto:infoschaeferanjon@gmail.com&#x27;&gt;infoschaeferanjon@gmail.com&lt;/a&gt;.">词库是你的：随时可以在应用里删除，也能导出成 CSV 或 JSON。其它问题请写信到 <a href="mailto:infoschaeferanjon@gmail.com">infoschaeferanjon@gmail.com</a>。</p>
+      <h2 id="v12" data-en="Changes to this policy">政策变更</h2>
+      <p data-en="If this policy changes, this page is updated and so is the date at the top.">政策有变化时会更新这一页，并改上面的日期。</p>
+    </article>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="fgrid">
+      <div><a class="brand" data-go="home" style="display:flex"><img src="icon.png" alt="">GetNewWord</a><p data-en="Open source AI word lookup in context. Frame a word, understand the sentence, keep it in Anki.">开源的 AI 语境查词。框一个词，懂整句，记进 Anki。</p></div>
+      <div><h5 data-en="Product">产品</h5><a data-go="home#how" data-en="How it works">怎么用</a><a data-go="pricing" data-en="Pricing">价格</a><a data-dl data-en="Download">下载</a><a href="https://github.com/SchaeferAnjon/GetNewWord/releases" target="_blank" rel="noopener" data-en="Changelog">更新记录</a></div>
+      <div><h5 data-en="Help">帮助</h5><a data-go="guide" data-en="Setup guide">配置教程</a><a href="mailto:infoschaeferanjon@gmail.com" data-en="Contact">联系我们</a></div>
+      <div><h5 data-en="Open source">开源</h5><a href="https://github.com/SchaeferAnjon/GetNewWord" target="_blank" rel="noopener" data-en="Source on GitHub">GitHub 源码</a><a href="https://github.com/SchaeferAnjon/GetNewWord/issues/new" target="_blank" rel="noopener" data-en="Report a problem">提问题</a><a href="https://github.com/SchaeferAnjon/GetNewWord/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0-or-later</a></div>
+      <div><h5 data-en="Legal">条款</h5><a data-go="privacy" data-en="Privacy">隐私政策</a></div>
+    </div>
+    <div class="xstrip"><a class="by" href="https://apps.us-cloud.uk"><span data-en="Made by SchaeferAnjon">SchaeferAnjon 出品</span> <span class="sep">·</span> <u data-en="All apps">全部软件</u></a><span class="icons"><a href="https://meetcaption.us-cloud.uk" aria-label="MeetCaption"><img src="meetcaption.png" alt=""><span class="xtip">MeetCaption</span></a><a href="https://askfree.us-cloud.uk" aria-label="Ask Free"><img src="askfree.png" alt=""><span class="xtip">Ask Free</span></a><a class="cur" data-go="home" aria-label="GetNewWord"><img src="icon.png" alt=""><span class="xtip">GetNewWord · <span data-en="You are here">你在这里</span></span></a></span></div>
+    <div class="fbot"><span>© 2026 GetNewWord</span><span><span data-en="macOS 14+ · Apple silicon and Intel">macOS 14+ · Apple 芯片和 Intel 通用</span><span id="footver"> · v1.2.0</span></span></div>
+  </div>
+</footer>
+
+<!-- 下载小卡 -->
+<div class="ov" id="dlov">
+  <div class="sheet">
+    <button class="xbtn" data-close aria-label="关闭">×</button>
+    <h3 data-en="Download GetNewWord">下载 GetNewWord</h3>
+    <div class="file"><img src="icon.png" alt=""><div><b id="dlname">GetNewWord</b><span><span id="dlver"></span><span data-en="Apple silicon and Intel · macOS 14+">Apple 芯片和 Intel 通用 · macOS 14+</span></span></div></div>
+    <ol>
+      <li><div><span data-en="Open the DMG and drag GetNewWord into Applications">打开 DMG，把 GetNewWord 拖进「应用程序」</span><small data-en="It isn't notarized by Apple, so macOS blocks it the first time: open System Settings › Privacy &amp; Security, scroll down and click Open Anyway.">没有经过苹果公证，第一次打开会被系统拦下：打开「系统设置 › 隐私与安全性」，拉到最下面，点「仍要打开」。</small></div></li>
+      <li><div><span data-en="Find it in the menu bar, top right">在右上角菜单栏找到它</span><small data-en="A viewfinder with an A. A Dock icon can be turned on in Settings.">取景框里一个 A；想在 Dock 里也看到，设置里能打开。</small></div></li>
+      <li><div><span data-en="Allow Screen Recording once">给一次「屏幕录制」权限</span><small data-en="The welcome window shows the way: drag the icon into the list in System Settings, then reopen the app.">欢迎页会带你做：把图标拖进系统设置的列表，再重开一次应用。</small></div></li>
+    </ol>
+    <div class="act"><a class="btn dark" id="dlgo" href="https://github.com/SchaeferAnjon/GetNewWord/releases/latest" target="_blank" rel="noopener"><svg class="ico"><use href="#i-download"/></svg><span id="dlgot"></span></a><button class="btn light" data-go="guide" data-close data-en="Setup guide">配置教程</button></div>
+    <div class="done" id="dldone"></div>
+    <div class="foot"><span data-en="Updates install themselves from inside the app.">以后的更新在应用里自动完成。</span><a href="https://github.com/SchaeferAnjon/GetNewWord/releases" target="_blank" rel="noopener" data-en="All versions">所有版本</a></div>
+  </div>
+</div>
+
+
+<div class="ptoast" id="ptoast"></div>
+
+<script src="i18n/de.js"></script>
+<script>
+const LOGOS = {"zhipu": "<svg fill=\"currentColor\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M11.991 23.503a.24.24 0 00-.244.248.24.24 0 00.244.249.24.24 0 00.245-.249.24.24 0 00-.22-.247l-.025-.001zM9.671 5.365a1.697 1.697 0 011.099 2.132l-.071.172-.016.04-.018.054c-.07.16-.104.32-.104.498-.035.71.47 1.279 1.186 1.314h.366c1.309.053 2.338 1.173 2.286 2.523-.052 1.332-1.152 2.38-2.478 2.327h-.174c-.715.018-1.274.64-1.239 1.368 0 .124.018.23.053.337.209.373.54.658.96.8.75.23 1.517-.125 1.9-.782l.018-.035c.402-.64 1.17-.96 1.92-.711.854.284 1.378 1.226 1.099 2.167a1.661 1.661 0 01-2.077 1.102 1.711 1.711 0 01-.907-.711l-.017-.035c-.2-.323-.463-.58-.851-.711l-.056-.018a1.646 1.646 0 00-1.954.746 1.66 1.66 0 01-1.065.764 1.677 1.677 0 01-1.989-1.279c-.209-.906.332-1.83 1.257-2.043a1.51 1.51 0 01.296-.035h.018c.68-.071 1.151-.622 1.116-1.333a1.307 1.307 0 00-.227-.693 2.515 2.515 0 01-.366-1.403 2.39 2.39 0 01.366-1.208c.14-.195.21-.444.227-.693.018-.71-.506-1.261-1.186-1.332l-.07-.018a1.43 1.43 0 01-.299-.07l-.05-.019a1.7 1.7 0 01-1.047-2.114 1.68 1.68 0 012.094-1.101zm-5.575 10.11c.26-.264.639-.367.994-.27.355.096.633.379.728.74.095.362-.007.748-.267 1.013-.402.41-1.053.41-1.455 0a1.062 1.062 0 010-1.482zm14.845-.294c.359-.09.738.024.992.297.254.274.344.665.237 1.025-.107.36-.396.634-.756.718-.551.128-1.1-.22-1.23-.781a1.05 1.05 0 01.757-1.26zm-.064-4.39c.314.32.49.753.49 1.206 0 .452-.176.886-.49 1.206-.315.32-.74.5-1.185.5-.444 0-.87-.18-1.184-.5a1.727 1.727 0 010-2.412 1.654 1.654 0 012.369 0zm-11.243.163c.364.484.447 1.128.218 1.691a1.665 1.665 0 01-2.188.923c-.855-.36-1.26-1.358-.907-2.228a1.68 1.68 0 011.33-1.038c.593-.08 1.183.169 1.547.652zm11.545-4.221c.368 0 .708.2.892.524.184.324.184.724 0 1.048a1.026 1.026 0 01-.892.524c-.568 0-1.03-.47-1.03-1.048 0-.579.462-1.048 1.03-1.048zm-14.358 0c.368 0 .707.2.891.524.184.324.184.724 0 1.048a1.026 1.026 0 01-.891.524c-.569 0-1.03-.47-1.03-1.048 0-.579.461-1.048 1.03-1.048zm10.031-1.475c.925 0 1.675.764 1.675 1.706s-.75 1.705-1.675 1.705-1.674-.763-1.674-1.705c0-.942.75-1.706 1.674-1.706zm-2.626-.684c.362-.082.653-.356.761-.718a1.062 1.062 0 00-.238-1.028 1.017 1.017 0 00-.996-.294c-.547.14-.881.7-.752 1.257.13.558.675.907 1.225.783zm0 16.876c.359-.087.644-.36.75-.72a1.062 1.062 0 00-.237-1.019 1.018 1.018 0 00-.985-.301 1.037 1.037 0 00-.762.717c-.108.361-.017.754.239 1.028.245.263.606.377.953.305l.043-.01zM17.19 3.5a.631.631 0 00.628-.64c0-.355-.279-.64-.628-.64a.631.631 0 00-.628.64c0 .355.28.64.628.64zm-10.38 0a.631.631 0 00.628-.64c0-.355-.28-.64-.628-.64a.631.631 0 00-.628.64c0 .355.279.64.628.64zm-5.182 7.852a.631.631 0 00-.628.64c0 .354.28.639.628.639a.63.63 0 00.627-.606l.001-.034a.62.62 0 00-.628-.64zm5.182 9.13a.631.631 0 00-.628.64c0 .355.279.64.628.64a.631.631 0 00.628-.64c0-.355-.28-.64-.628-.64zm10.38.018a.631.631 0 00-.628.64c0 .355.28.64.628.64a.631.631 0 00.628-.64c0-.355-.279-.64-.628-.64zm5.182-9.148a.631.631 0 00-.628.64c0 .354.279.639.628.639a.631.631 0 00.628-.64c0-.355-.28-.64-.628-.64zm-.384-4.992a.24.24 0 00.244-.249.24.24 0 00-.244-.249.24.24 0 00-.244.249c0 .142.122.249.244.249zM11.991.497a.24.24 0 00.245-.248A.24.24 0 0011.99 0a.24.24 0 00-.244.249c0 .133.108.236.223.247l.021.001zM2.011 6.36a.24.24 0 00.245-.249.24.24 0 00-.244-.249.24.24 0 00-.244.249.24.24 0 00.244.249zm0 11.263a.24.24 0 00-.243.248.24.24 0 00.244.249.24.24 0 00.244-.249.252.252 0 00-.244-.248zm19.995-.018a.24.24 0 00-.245.248.24.24 0 00.245.25.24.24 0 00.244-.25.252.252 0 00-.244-.248z\" fill=\"#3859FF\" fill-rule=\"nonzero\"></path></svg>", "deepseek": "<svg fill=\"currentColor\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 01-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 00-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 01-.465.137 9.597 9.597 0 00-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 001.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 011.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306 0 01.415-.287.302.302 0 01.2.288.306.306 0 01-.31.307.303.303 0 01-.304-.308zm3.11 1.596c-.2.081-.399.151-.59.16a1.245 1.245 0 01-.798-.254c-.274-.23-.47-.358-.552-.758a1.73 1.73 0 01.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559 0 01-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136 1.146.016.352.144.618.408 1.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z\" fill=\"#4D6BFE\"></path></svg>", "qwen": "<svg fill=\"currentColor\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M12.604 1.34c.393.69.784 1.382 1.174 2.075a.18.18 0 00.157.091h5.552c.174 0 .322.11.446.327l1.454 2.57c.19.337.24.478.024.837-.26.43-.513.864-.76 1.3l-.367.658c-.106.196-.223.28-.04.512l2.652 4.637c.172.301.111.494-.043.77-.437.785-.882 1.564-1.335 2.34-.159.272-.352.375-.68.37-.777-.016-1.552-.01-2.327.016a.099.099 0 00-.081.05 575.097 575.097 0 01-2.705 4.74c-.169.293-.38.363-.725.364-.997.003-2.002.004-3.017.002a.537.537 0 01-.465-.271l-1.335-2.323a.09.09 0 00-.083-.049H4.982c-.285.03-.553-.001-.805-.092l-1.603-2.77a.543.543 0 01-.002-.54l1.207-2.12a.198.198 0 000-.197 550.951 550.951 0 01-1.875-3.272l-.79-1.395c-.16-.31-.173-.496.095-.965.465-.813.927-1.625 1.387-2.436.132-.234.304-.334.584-.335a338.3 338.3 0 012.589-.001.124.124 0 00.107-.063l2.806-4.895a.488.488 0 01.422-.246c.524-.001 1.053 0 1.583-.006L11.704 1c.341-.003.724.032.9.34zm-3.432.403a.06.06 0 00-.052.03L6.254 6.788a.157.157 0 01-.135.078H3.253c-.056 0-.07.025-.041.074l5.81 10.156c.025.042.013.062-.034.063l-2.795.015a.218.218 0 00-.2.116l-1.32 2.31c-.044.078-.021.118.068.118l5.716.008c.046 0 .08.02.104.061l1.403 2.454c.046.081.092.082.139 0l5.006-8.76.783-1.382a.055.055 0 01.096 0l1.424 2.53a.122.122 0 00.107.062l2.763-.02a.04.04 0 00.035-.02.041.041 0 000-.04l-2.9-5.086a.108.108 0 010-.113l.293-.507 1.12-1.977c.024-.041.012-.062-.035-.062H9.2c-.059 0-.073-.026-.043-.077l1.434-2.505a.107.107 0 000-.114L9.225 1.774a.06.06 0 00-.053-.031zm6.29 8.02c.046 0 .058.02.034.06l-.832 1.465-2.613 4.585a.056.056 0 01-.05.029.058.058 0 01-.05-.029L8.498 9.841c-.02-.034-.01-.052.028-.054l.216-.012 6.722-.012z\" fill=\"url(#lobe-icons-qwen-_R_0_)\" fill-rule=\"nonzero\"></path><defs><linearGradient id=\"lobe-icons-qwen-_R_0_\" x1=\"0%\" x2=\"100%\" y1=\"0%\" y2=\"0%\"><stop offset=\"0%\" stop-color=\"#6336E7\" stop-opacity=\".84\"></stop><stop offset=\"100%\" stop-color=\"#6F69F7\" stop-opacity=\".84\"></stop></linearGradient></defs></svg>", "kimi": "<svg fill=\"currentColor\" fill-rule=\"evenodd\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M21.846 0a1.923 1.923 0 110 3.846H20.15a.226.226 0 01-.227-.226V1.923C19.923.861 20.784 0 21.846 0z\"></path><path d=\"M11.065 11.199l7.257-7.2c.137-.136.06-.41-.116-.41H14.3a.164.164 0 00-.117.051l-7.82 7.756c-.122.12-.302.013-.302-.179V3.82c0-.127-.083-.23-.185-.23H3.186c-.103 0-.186.103-.186.23V19.77c0 .128.083.23.186.23h2.69c.103 0 .186-.102.186-.23v-3.25c0-.069.025-.135.069-.178l2.424-2.406a.158.158 0 01.205-.023l6.484 4.772a7.677 7.677 0 003.453 1.283c.108.012.2-.095.2-.23v-3.06c0-.117-.07-.212-.164-.227a5.028 5.028 0 01-2.027-.807l-5.613-4.064c-.117-.078-.132-.279-.028-.381z\"></path></svg>", "doubao": "<svg fill=\"currentColor\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M5.31 15.756c.172-3.75 1.883-5.999 2.549-6.739-3.26 2.058-5.425 5.658-6.358 8.308v1.12C1.501 21.513 4.226 24 7.59 24a6.59 6.59 0 002.2-.375c.353-.12.7-.248 1.039-.378.913-.899 1.65-1.91 2.243-2.992-4.877 2.431-7.974.072-7.763-4.5l.002.001z\" fill=\"#1E37FC\"></path><path d=\"M22.57 10.283c-1.212-.901-4.109-2.404-7.397-2.8.295 3.792.093 8.766-2.1 12.773a12.782 12.782 0 01-2.244 2.992c3.764-1.448 6.746-3.457 8.596-5.219 2.82-2.683 3.353-5.178 3.361-6.66a2.737 2.737 0 00-.216-1.084v-.002z\" fill=\"#37E1BE\"></path><path d=\"M14.303 1.867C12.955.7 11.248 0 9.39 0 7.532 0 5.883.677 4.545 1.807 2.791 3.29 1.627 5.557 1.5 8.125v9.201c.932-2.65 3.097-6.25 6.357-8.307.5-.318 1.025-.595 1.569-.829 1.883-.801 3.878-.932 5.746-.706-.222-2.83-.718-5.002-.87-5.617h.001z\" fill=\"#A569FF\"></path><path d=\"M17.305 4.961a199.47 199.47 0 01-1.08-1.094c-.202-.213-.398-.419-.586-.622l-1.333-1.378c.151.615.648 2.786.869 5.617 3.288.395 6.185 1.898 7.396 2.8-1.306-1.275-3.475-3.487-5.266-5.323z\" fill=\"#1E37FC\"></path></svg>", "openai": "<svg fill=\"currentColor\" fill-rule=\"evenodd\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 00-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 01.476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 014.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 01-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 005.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0010.205 0a5.947 5.947 0 00-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 004.162 1.713z\"></path></svg>", "claude": "<svg fill=\"currentColor\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z\" fill=\"#D97757\" fill-rule=\"nonzero\"></path></svg>", "openrouter": "<svg fill=\"currentColor\" fill-rule=\"evenodd\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M18.654 3.87a5.087 5.087 0 110 10.174L23.7 19.09c.64.641.187 1.737-.72 1.737H8.48a8.479 8.479 0 010-16.958h10.175zM8.479 7.26a5.087 5.087 0 100 10.176 5.087 5.087 0 000-10.175z\"></path></svg>", "gemini": "<img alt=\"\" src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAALNUlEQVR4nORbC4xU5RU+/73zujOzT5YFWiN2EWpKoKJoLG1Ma6JNU4W2idiaIoj4rqVpaigvu7WpCYmkFHCVRwNKpaJSQcG2GNOY1ooEZMtLoEKA0gVc1t2duXNn7rvff+/cebBLYHdn7jXhSy7/vXdnZuec853vnPPfRaArHAJd4QhRgFgzZ82NfH1w7YN7KCAExoD1D6z67n0nX9nNjzWzXridAkJgDviC8r9W7/wareO3FBACS4Hx6cOTvPPrUkcmUUAIhAEvPfD8jCa1S/Sum9XzobWz2u6lABCIA0Zmzz5Weq0JYWo2uh+mABBICoxPfXwTXy0mUo6FSRejdJXSMZkCgO8MeHnW8gWc/poQoYwoUTYUJ0WMUdJU4m1z1j9OPsN3B0zsPTBfgdGu8ZJjvOeEq7OnF5PP8NUBL85auWCU+mlSEWKu8YLLgAxW7pSkIY9Y+simB8lH+OqACfLh+RkhH/G88e7KneHeH6aef4p8hG8O2HD/ihX1Wk+y1PgMaK84aeBpgURRW7/qN4+/NZ98AiMf0DZ7w5e/0f2Pgyj8ooqSp0MAVai/BvV3r92VCyMviYoYzx6Ljx6zbNmtZ6jK8KUMtqjHd9hMFJW8kapjqGusBuO1vvelpKW8jrd+naqMqqfAmtmrnm3OdV7tqb2j/mIp7WM84vnrYlVgtj3lkSd3PUpVRlVTYPljf7hjctfBty1bFDWR074k8rjW8tdqn+sImqMImqSIIocTt6xfMnE/VQlVc8DyJ9ePmdB56ICgUkxlkpPzuhjJr9G8BpRf93c/yyIdaTF2w5vPtJyjKqAqDmh7tK3hWjp9NJZVm7JWkrJWrBhhMdJPzheZoPejEXDGPqM3e/NfVoxVqcKouAjacOrbkY49sVymKRdOUkbnCh8viXCoXP09ZhSNzV9HSqvFRLWpdhM+/ntUYVSUAW2/bGv4knnyo6SWvkY1YbzBjxrK2vGC2pdHvciEYuTDJYwof51B4tbzEv3o9M9ZliqEijlgzcIlt4yj4ztCulmTM2sR+ThlscomHIA0KERYKNECr/57GuClwYVagPsebJsOWCH6zr557DRVABVxwKqnF//0q3RkqW2EQ9zorA6jjVon+jJ3glVTFsnSnC/tA8rvu+cW67dSd+G4a+8C9gENEUN2wEvPzP3TxMh/7slpMaYi2hkN0bbqKKPWkWLXUwrOkO26PirvCWJ5FYgU9gd0dgl5ssmA3sxsX8g20hAwaAe0rlsXm9z9zsejQx3X5Iw45YwEop4kBVFX9FpSzEaSjQYwoI5SRp1D81Kj3WqQj3iJ8PFrewBfCynxu3adfkGtzKJBYMAOaG39ZqilYewr46OHp0qCEc7qMVLNBHJeIjf3edmD4RoYYDVRSoMj7AbKUjQf+ZKcF0tmAqymMLiixHUBlixuX8C20AAxIAesf27mpsnJgz9IikpIM6KIOtpWQ3KPvOo7woeIyyacoMN4sxkMaAK1pT6qXqr2FYFNu0GDRf9eyP52uW+5LAesfWHG6ltr985ulNJiTkMdt2A86nvOQu+Olau8o/pWLaXBgAxngFEP45uoVx8GERzp/KzY7BTV36zGOGLTTpPRz/YtYB9e6qUXdcCS5U/cPD55dOMNDUda6qUM0wx8YSNEqgGhwnnO5NHHIAMnZMAABUov87oPBqTMeqyNWBspbQynXhxZu4l0ipfU/TD5gD1Ij3X4xS+3t7Ke/l5Q5oDlzz/0k69EjyweV9PRNLKhqxAawxRJ1UVEPoISByegtVXghKyF6Y47wU4g8pjooPa93Al2IyIPBkADegyXASlzGEoaxNCWLlbaqgpUjPew7DBM2nRgMTvm3S84oK1t9oI547b0+4jKMAUIXciNvAXDwQIFaaCABRk4QTZxWHACyqCMEpjiym81Ug9ngDUCTmjG/eFk2kkSTAmjrkhBQjfpWs8JBdnVcP+i74CbbAYf4ntb4JSF1YRPkWekGxYZ+Jlm2qA1wTkmqfh5VreQ4wxpYWLGJzAIjayl4f0Mq4QPDO7JfKhkH6QQir9u3/uvuik/7kznIjeELCNRF8sW2GHZ3GCkAL68jveq+PIqf6hB/MFGCCUOB0qaQmAHNjRkFnU2NlIMOoH9P82G8NlRh4fE3I8VHN/7siPnYT9+/2pDoNn7FvaTAheidfVjU65LnFh3U83hsV+UUkyBDmRhiIxVgTEyUkFGPqdMnFMSdI9TmmqpB2KYokb6DGmQ5SkALcgi/zNqIyKPnR683lmNqMuEagLVAGXxVUjOG+3z2Yn+XnJZIXh2w8w1t9ftnD0sLAsZ7gQ7RGk7gvyOYpWoF9NeCvndAzHsQfub5g0Rb4d1HOgHMnoDyuUw0CjuGC1AOwoHBLXSQJb+HUT7NWaF9y712svm4N323eKNm6TtUxJ77pBCKkvBCTLFEPEoIs4Nj1MvGJBGS6zwfgDDkGLBGRqGI/QDGa0euZRE5GMFJ/CVM0LAZ1QENr0LKVq0bxHbeblvGXASPvTqvLpR1PHOpJr9kw1msRSc0G3HQP+kWw3QEaZxKGCA7EyEnAH1TjqYRrIk8lIZCwRr8N0gpKXTsugBGP4WDRCDVqEfvrh40qSmPe83hM9KMhqcFCKbgRNSBu8H3I6Q9wWyxpmAlhgMMMEML/cLDOCMQBoJuM/sgTdHoPtGTacnDrWyz2gQGJIM37hqVfhrzbsOtCQOjuNakEaNz9icARiOeE9guFogQwv4dKhjUnSjLrlR504wpSILBtAjDCXqpRhSR3Jm2zZr16a9K4dNnTG6Pnr6ektgTLUEZ5ZXYYiBCY+XTAPlUYNmGLz0oZR6pZBBnm2+iehcM3fF+9kl5gO85SA2A27Zv4h9RENERVqy/a/9c2v9nQ8fkiKd3ydBFzR8LHeCBuM1xxkh9AG8FxDLjHdWj4TefRjP7Iv3CLyl1TS67eBTrJsqgIr1pEdef/dQ4s6HN4gsd58YyUhO5AtMcFed3BznkXYiXzBecLeTvftYXSeUAz96rV2jaZ2tLEcVQuVbMWznTH3jiXNi7NxwXg0yED5XDzAhYp+gb+6X9wWFPsFZy8rjm6jr06jCqHxDjiB2iVeNyemNsiDqSHkEC4+HSMgSC6mYBHMYA1Ts/uQwU+Aaq+2sKlbtgvua85GI/KFuje6hKqAqE8n70+ale1ITJhmmpDEY4TiBG8UUGMeNVAtG88NknhOKq3ffEvQeDF/fPlFB2peiaiPZBzMe/6Q7ff0dliVYFAITwAAKlUe8lAHFyLtMcO4LKmZNdVqlngH0h6oO5mc3bz85cuocy4idus2tCiJZns9LVN/2SmD+jvsv46Pzo4eeHP5nqiJ8mUcnbH76WDp6ukUhPB/Q4307wbzgOcLnXWs1G47Ove4+qjJ8+QuRjDz6W0L00+M2dgts0WOB2/yI2DQx8+dORoq8GQp1fTJq3/3kA3zZljk+c+YpsWfCCgpp+Rwvrwal1zz3sVnye5o+3SQf4OuWzKgtC1O90e4arw9gThrEivMB1pBZ2/Xf+F0jaDrzxQG+bszFlLFLLoz8hf2AqCZW+mU8h68M4KjfukjORc8kijtDniDi0BpS5+491UCsdVDP+QYD37dmE+lxy9Ho94k8b46ievMyP43n8J0BvOgnts81zHBa4LN/Iff1Br3bHCP5JX4e/N+cx6wgZVqcP3uzkeoeA6Jq84d+G88RyNOJsN78nHduC4aTDoLauJQCgP8pkEdi21yTpwE/B/0N+c6lvjwtvRCBPZ+SMte2F89bdlNACMwBYWXEwsK53vwrCgiBpQDHyD9uvsnUTb3z/untFBACdcDnAVf8/x7/PwAAAP//GJZj1wAAAAZJREFUAwAoZvP++io2SAAAAABJRU5ErkJggg==\">", "custom": "<svg viewBox=\"0 0 24 24\" style=\"fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round\"><path d=\"m18 16 4-4-4-4\"/><path d=\"m6 8-4 4 4 4\"/><path d=\"m14.5 4-5 16\"/></svg>"};
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const GH = "https://github.com/SchaeferAnjon/GetNewWord";
+
+/* 页面语言：地址里的 ?lang= > 上次选的 > 浏览器语言（三种以外用英语）。
+   德文表 i18n/de.js 以英文原文为键；表里没有的句子显示英文。 */
+const LANGS = ["zh", "en", "de"];
+let lang = (() => {
+  const q = new URLSearchParams(location.search).get("lang");
+  if (LANGS.includes(q)) return q;
+  let saved = null; try { saved = localStorage.getItem("gnw.lang"); } catch {}
+  if (LANGS.includes(saved)) return saved;
+  const nav = (navigator.languages || [navigator.language]).map(l => (l || "").toLowerCase().slice(0, 2)).find(l => LANGS.includes(l));
+  return nav || "en";
+})();
+const DE = window.DE || {};
+const L = (zh, en, de) => (lang === "zh" ? zh : lang === "en" ? en : de ?? DE[en] ?? en);
+
+/* 明暗跟随系统 */
+(function () {
+  const root = document.documentElement, mq = matchMedia("(prefers-color-scheme: dark)");
+  const m = location.hash.match(/theme=(light|dark)/);
+  const apply = () => { root.dataset.theme = m ? m[1] : mq.matches ? "dark" : "light"; };
+  apply(); mq.addEventListener("change", apply);
+})();
+
+/* 提示条 */
+let toastT;
+function ptoast(msg) { const t = $("#ptoast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2600); }
+
+/* 语言 */
+const TITLES = {
+  zh: "GetNewWord：框一下生词，AI 讲清它在这句里的意思",
+  en: "GetNewWord: frame a word, see what it means in this sentence",
+  de: "GetNewWord: Wort einrahmen, Bedeutung im Satz verstehen",
+};
+function applyLang() {
+  document.documentElement.lang = { zh: "zh-CN", en: "en", de: "de" }[lang];
+  document.title = TITLES[lang];
+  // 两遍：外层换掉内容后，里面新出现的 data-en 节点第二遍再翻
+  for (let pass = 0; pass < 2; pass++) $$("[data-en], [data-de]").forEach(el => {
+    if (el.dataset.zh === undefined) el.dataset.zh = el.innerHTML;
+    if (el.dataset.shown === lang) return;
+    el.dataset.shown = lang;
+    el.innerHTML = lang === "de" && el.dataset.de !== undefined ? el.dataset.de : L(el.dataset.zh, el.dataset.en ?? el.dataset.zh);
+  });
+  $$(".heroA .fw").forEach(el => { if (el.dataset.w === undefined) el.dataset.w = el.firstChild.nodeValue; el.firstChild.nodeValue = lang === "de" && el.dataset.wDe ? el.dataset.wDe : el.dataset.w; let g = el.querySelector(".g"); if (!g) { g = document.createElement("span"); g.className = "g"; el.appendChild(g); } g.textContent = L(el.dataset.g, el.dataset.gEn, el.dataset.gDe); });
+  $(".heroA").setAttribute("aria-label", L("看到生词，框一下就懂。", "See a new word, frame it, get it.", "Neues Wort? Einrahmen, verstanden."));
+  $$(".lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+  renderPlans(); renderProviders(); renderGuide(); renderVersion();
+  fitHero();
+  restartHeroA();
+}
+/* 德文、英文的标题比中文长：放不下就整体按比例缩小，不换行 */
+function fitHero() {
+  const hero = $("#heroA"); hero.style.zoom = "";
+  const avail = hero.parentElement.clientWidth - 2 * parseFloat(getComputedStyle(hero.parentElement).paddingLeft);
+  const need = Math.max(...$$(".line", hero).map(l => { const k = [...l.children].filter(c => c.offsetParent); return Math.max(...k.map(c => c.getBoundingClientRect().right)) - Math.min(...k.map(c => c.getBoundingClientRect().left)); }));
+  if (need > avail * .96) hero.style.zoom = (avail * .96 / need).toFixed(4);
+}
+
+/* 页面切换：#page=pricing 这样的地址能直接打开、能分享 */
+const PAGES = ["home", "pricing", "guide", "privacy"];
+function go(target, push = true) {
+  const [page, anchor] = target.split("#");
+  $$(".page").forEach(p => p.classList.toggle("on", p.id === "p-" + page));
+  $$(".nav .links a").forEach(a => a.classList.toggle("on", a.dataset.go === target || (a.dataset.go === page && !anchor)));
+  closeOv();
+  if (push) history.pushState(null, "", location.pathname + location.search + (page === "home" ? "" : "#page=" + page));
+  if (anchor) { const el = document.getElementById(anchor); if (el) { el.scrollIntoView({ block: "start" }); scrollBy(0, -70); } }
+  else scrollTo(0, 0);
+}
+const pageFromUrl = () => { const m = location.hash.match(/page=(\w+)/); return m && PAGES.includes(m[1]) ? m[1] : "home"; };
+addEventListener("popstate", () => go(pageFromUrl(), false));
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); go(g.dataset.go); return; }
+  const d = e.target.closest("[data-dl]"); if (d) { openDl(); return; }
+  const c = e.target.closest("[data-close]"); if (c) { closeOv(); return; }
+  const l = e.target.closest("[data-lang]"); if (l) {
+    lang = l.dataset.lang; try { localStorage.setItem("gnw.lang", lang); } catch {}
+    const u = new URL(location.href); u.searchParams.set("lang", lang); history.replaceState(null, "", u);
+    applyLang(); return;
+  }
+  const to = e.target.closest("[data-to]"); if (to) { const el = document.getElementById(to.dataset.to); el.scrollIntoView({ block: "start" }); scrollBy(0, -80); tocLock = Date.now() + 800; to.parentElement.querySelectorAll("a[data-to]").forEach(a => a.classList.toggle("on", a === to)); return; }
+  const cp = e.target.closest("[data-copy]"); if (cp) { const v = cp.dataset.copy; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).catch(() => {}); ptoast(L("已复制 ", "Copied ", "Kopiert: ") + v); return; }
+  if (e.target.classList.contains("ov")) closeOv();
+});
+addEventListener("keydown", e => { if (e.key === "Escape") closeOv(); });
+function closeOv() { $$(".ov").forEach(o => o.classList.remove("on")); }
+
+/* 下载小卡：向 GitHub 问一次最新版，按文件名找 .dmg（先找不带版本号的 GetNewWord.dmg）。
+   问不到或这一版没有 .dmg，按钮就在新标签页打开 Releases 页，让人自己挑文件。 */
+function openDl() { closeOv(); $("#dldone").classList.remove("on"); $("#dlov").classList.add("on"); }
+$("#dlgo").addEventListener("click", () => $("#dldone").classList.add("on"));
+let release = null;
+function renderVersion() {
+  const go = $("#dlgo"), dmg = release && release.dmg;
+  if (dmg) { go.href = dmg.url; go.removeAttribute("target"); }
+  else { go.href = GH + "/releases/latest"; go.target = "_blank"; }
+  $("#dlname").textContent = dmg ? dmg.name : "GetNewWord";
+  $("#dlgot").textContent = dmg ? L("开始下载", "Start download") : L("去 GitHub 下载", "Download from GitHub", "Bei GitHub laden");
+  $("#dldone").textContent = dmg
+    ? L(`已开始下载。下载完在「下载」文件夹里打开 ${dmg.name}。`, `Download started. When it finishes, open ${dmg.name} in Downloads.`, `Download läuft. Danach ${dmg.name} im Ordner „Downloads“ öffnen.`)
+    : L("已在新标签页打开 GitHub 的发布页：在 Assets 里点安装包下载。", "The GitHub release page opened in a new tab: under Assets, click the installer to download it.", "Die GitHub-Release-Seite ist in einem neuen Tab offen: unter Assets auf das Installationspaket klicken.");
+  if (!release) return;
+  const d = new Date(release.date);
+  const date = lang === "zh" ? `${d.getMonth() + 1} 月 ${d.getDate()} 日` : d.toLocaleDateString(lang === "de" ? "de-DE" : "en-GB", { day: "numeric", month: "short" });
+  $("#verline").textContent = " · " + L(`最新 ${release.tag}，${date}`, `Latest ${release.tag}, ${date}`, `Neueste ${release.tag}, ${date}`);
+  $("#dlver").textContent = release.tag + (dmg ? ` · ${dmg.mb} MB` : "") + " · ";
+  $("#footver").textContent = " · " + release.tag;
+}
+fetch("https://api.github.com/repos/SchaeferAnjon/GetNewWord/releases/latest")
+  .then(r => (r.ok ? r.json() : null))
+  .then(j => {
+    if (!j) return;
+    const assets = j.assets || [];
+    const a = assets.find(x => x.name === "GetNewWord.dmg") || assets.find(x => /\.dmg$/i.test(x.name));
+    release = { tag: j.tag_name, date: j.published_at, dmg: a && { name: a.name, url: a.browser_download_url, mb: Math.round(a.size / 1048576) } };
+    renderVersion();
+  })
+  .catch(() => {});
+
+/* 价格：会员后台做好之前只写「即将开放」 */
+function planHTML() {
+  const ck = '<svg class="ico"><use href="#i-check"/></svg>';
+  const li = a => a.map(x => `<li>${ck}<span>${x}</span></li>`).join("");
+  return `
+  <div class="plan" data-plan="free">
+    <div class="k">${L("自带 Key", "Your own key", "Eigener Schlüssel")}</div>
+    <div class="price"><span class="serif">${L("免费", "Free", "Kostenlos")}</span><span>${L("永久", "forever", "für immer")}</span></div>
+    <div class="sub">${L("用你自己的 AI 账户，费用直接付给服务商。", "Use your own AI account and pay the provider directly.")}</div>
+    <ul>${li([L("全部查词功能，不限次数", "Every lookup feature, no limits"), L("10 家 AI 任选，Key 只存在本机钥匙串", "Any of 10 providers; the key stays in your Keychain"), L("查一个词只要几厘钱", "A lookup costs a fraction of a cent")])}</ul>
+    <button class="btn light" data-dl>${L("免费下载", "Download free")}</button>
+  </div>
+  <div class="plan pro" data-plan="pro">
+    <div class="k">${L("会员 · 免配置", "Membership · no setup")}</div>
+    <div class="price"><span class="serif">${L("¥9.9", "$1.99", "1,99 $")}</span><span>${L("每月，或每年 ¥99 · 即将开放", "a month, or $19.90 a year · coming soon")}</span></div>
+    <div class="sub">${L("不用申请任何 Key，装好就能查。", "No key to get. Install and look up.")}</div>
+    <ul>${li([L("用 GetNewWord 的 AI，开箱即用，每天最多 200 次", "GetNewWord's AI, ready out of the box, up to 200 lookups a day"), L("前 100 位新用户免费 30 次", "The first 100 new users get 30 lookups free"), ...(lang === "zh" ? ["也可以用微信一次买 1 个月或 1 年"] : []), L("多台电脑同步词库（登录后）", "Sync between Macs (after logging in)"), L("授权码发到邮箱，不用注册账号", "A licence code by email, no account"), L("到期后填自己的 Key 照常用", "When it ends, your own key keeps it working")])}</ul>
+    <a class="btn dark" href="${GH}/releases" target="_blank" rel="noopener">${L("在 GitHub 关注上线消息", "Follow releases on GitHub")}</a>
+  </div>`;
+}
+function renderPlans() { $("#homePlans").innerHTML = planHTML(); $("#pricePlans").innerHTML = planHTML(); }
+
+/* 服务商。key 是应用里「去官网拿 Key」打开的那一页（ZhipuService.keyPage），app 是应用 AI 服务页里的名字和一句话特点，
+   model 是应用的推荐模型（APIProvider.defaultModel），kp 是示意图里打了码的 Key 长什么样 */
+const PROV = [
+  { id: "zhipu", zh: "智谱", en: "Zhipu", net: "cn", url: "open.bigmodel.cn", key: "open.bigmodel.cn/usercenter/apikeys", path: ["右上角头像 › API Key", "avatar menu › API Keys"], note: ["默认推荐，看图准", "Default, best at images"],
+    app: [["智谱 GLM", "Zhipu GLM", "Zhipu GLM"], ["国内直连，速度快", "Fast, direct in mainland China", "Schnell, direkt in Festlandchina"]], model: "glm-5.3-flash", kp: "3f9a2c••••••••••••••••c21e.Vn8q••••Qk2L" },
+  { id: "deepseek", zh: "DeepSeek", en: "DeepSeek", net: "cn", url: "platform.deepseek.com", key: "platform.deepseek.com/api_keys", path: ["左侧 API keys", "API keys in the sidebar"], note: ["便宜", "Low cost"],
+    app: [null, ["便宜，中文好", "Cheap, great at Chinese", "Günstig, stark in Chinesisch"]], model: "deepseek-v4-flash-vision-exp", kp: "sk-3f9a••••••••••••••••••••c21e" },
+  { id: "qwen", zh: "通义千问", en: "Qwen", net: "cn", url: "bailian.console.aliyun.com", key: "bailian.console.aliyun.com/?tab=model#/api-key", path: ["阿里云百炼 › API Key", "Model Studio › API Key"], note: ["阿里云账号", "Alibaba Cloud"],
+    app: [null, ["阿里云百炼", "Alibaba Cloud Bailian", "Alibaba Cloud Bailian"]], model: "qwen3-vl-plus", kp: "sk-7b21••••••••••••••••••••9e0d" },
+  { id: "kimi", zh: "Kimi", en: "Kimi", net: "cn", url: "platform.moonshot.cn", key: "platform.moonshot.cn/console/api-keys", path: ["用户中心 › API Key 管理", "Console › API Keys"], note: ["月之暗面", "Moonshot"],
+    app: [null, ["月之暗面", "Moonshot AI", "Moonshot AI"]], model: "kimi-k3", kp: "sk-Jx4p••••••••••••••••••••••••Tq8w" },
+  { id: "doubao", zh: "豆包", en: "Doubao", net: "cn", url: "console.volcengine.com/ark", key: "console.volcengine.com/ark/region:ark+cn-beijing/apiKey", path: ["火山方舟 › API Key 管理", "Ark › API Keys"], note: ["火山引擎", "Volcengine"],
+    app: [null, ["火山方舟", "Volcano Ark", "Volcano Ark"]], model: "doubao-seed-1-6-251015", kp: "1c7e2a9b-••••-••••-••••-••••••••d04f" },
+  { id: "openai", zh: "OpenAI", en: "OpenAI", net: "intl", url: "platform.openai.com", key: "platform.openai.com/api-keys", path: ["API keys", "API keys"], note: ["GPT 系列", "GPT models"],
+    app: [null, ["需要海外网络", "Needs international access", "Braucht internationalen Zugang"]], model: "gpt-6-luna", kp: "sk-proj-Hk3x••••••••••••••••••Zq1M" },
+  { id: "gemini", zh: "Gemini", en: "Gemini", net: "intl", url: "aistudio.google.com", key: "aistudio.google.com/apikey", path: ["Get API key", "Get API key"], note: ["Google", "Google"],
+    app: [null, ["需要海外网络", "Needs international access", "Braucht internationalen Zugang"]], model: "gemini-3.8-flash", kp: "AIzaSyB4••••••••••••••••••••8kQ" },
+  { id: "claude", zh: "Claude", en: "Claude", net: "intl", url: "platform.claude.com", key: "platform.claude.com/settings/keys", path: ["Settings › API Keys", "Settings › API Keys"], note: ["Anthropic", "Anthropic"],
+    app: [null, ["需要海外网络", "Needs international access", "Braucht internationalen Zugang"]], model: "claude-haiku-5-5", kp: "sk-ant-api03-Xq••••••••••••••••Lw2A" },
+  { id: "openrouter", zh: "OpenRouter", en: "OpenRouter", net: "intl", url: "openrouter.ai", key: "openrouter.ai/settings/keys", path: ["Keys", "Keys"], note: ["一个 Key 用多家模型", "One key, many models"],
+    app: [null, ["一个 Key 用多家模型", "One key for many models", "Ein Key für viele Modelle"]], model: "openai/gpt-6-luna", kp: "sk-or-v1-5d2e••••••••••••••••a91c" },
+  { id: "custom", zh: "自定义", en: "Custom", net: "any", url: "", key: "", path: ["", ""], note: ["兼容 OpenAI 的接口", "Any OpenAI-compatible API"],
+    app: [["自定义", "Custom", "Eigene"], ["任何 OpenAI 兼容接口", "Any OpenAI-compatible API", "Jede OpenAI-kompatible API"]], model: "qwen-vl-max", kp: "sk-••••••••••••••••••••" },
+];
+let gp = "zhipu";
+const netTag = p => p.net === "cn" ? L("国内直连", "Direct in China") : p.net === "intl" ? L("需海外网络", "Needs intl. network") : L("任意接口", "Any endpoint");
+function renderProviders() {
+  $("#provStrip").innerHTML = PROV.map(p => `<div><span class="plogo">${LOGOS[p.id]}</span>${L(p.zh, p.en, p.en)}<small>${netTag(p)}</small></div>`).join("");
+}
+/* 示意图：一条地址栏加一小块界面，红圈（.ring）是要点的地方 */
+const mock = (url, body, cls = "") => `<div class="shotmock ${cls}" aria-hidden="true">${url ? `<div class="bb"><i></i><i></i><i></i><span>${url}</span></div>` : ""}<div class="bd">${body}</div></div>`;
+const extLink = u => `<a href="https://${u}" target="_blank" rel="noopener">${u}</a>`;
+const appName = p => p.app[0] ? L(...p.app[0]) : L(p.zh, p.en, p.en);
+/* 应用菜单栏的下拉菜单（GetNewWordApp.swift 的 MenuBarExtra），红圈圈住「偏好设置…」 */
+function menuMock() {
+  const it = (zh, en, de, k = "", ring = false) => `<div${ring ? ' class="ring"' : ""}>${L(zh, en, de)}${k ? `<span>${k}</span>` : ""}</div>`;
+  return `<div class="shotmock mm" aria-hidden="true"><div class="mbar"><span class="sp"></span><svg class="ico ring"><use href="#i-logo"/></svg><span>9:41</span></div><div class="menu">`
+    + it("截图取词（自动保存）", "Capture (saves automatically)", "Bildschirmauswahl (sichert automatisch)")
+    + it("快速查词（不保存）", "Quick look-up (don't save)", "Schnell nachschlagen (nicht sichern)") + "<hr>"
+    + it("同步 Anki", "Sync Anki", "Anki synchronisieren") + "<hr>"
+    + it("打开主窗口", "Open main window", "Hauptfenster öffnen") + it("翻译成", "Translate into", "Übersetzen in", "›") + "<hr>"
+    + it("检查更新…", "Check for Updates…", "Nach Updates suchen …") + it("偏好设置…", "Settings…", "Einstellungen …", "⌘,", true) + "<hr>"
+    + it("退出 GetNewWord", "Quit GetNewWord", "GetNewWord beenden") + "</div></div>";
+}
+/* 设置 › AI 服务（ProviderPicker）：选中的那家展开，Key 已粘贴、自动验证通过 */
+function settingsMock(p) {
+  const pages = [["通用", "General", "Allgemein"], ["翻译与学习", "Translation", "Übersetzung"], ["快捷键与取词", "Shortcuts & capture", "Kürzel & Auswahl"], ["AI 服务", "AI service", "KI-Dienst"], ["Anki", "Anki", "Anki"], ["权限", "Permissions", "Berechtigungen"], ["账号与同步", "Account & sync", "Konto & Sync"], ["关于我们", "About Us", "Über uns"], ["更新与关于", "Updates & about", "Updates & Info"]];
+  const dom = ["zhipu", "deepseek", "qwen", "kimi", "doubao"], isDom = dom.includes(p.id);
+  const group = PROV.filter(x => dom.includes(x.id) === isDom), i = group.indexOf(p), other = group[i + 1] || group[i - 1];
+  const row = (x, on) => `<div class="prow${on ? " pon" : ""}"><i class="rad${on ? " on" : ""}"></i><span class="plogo">${LOGOS[x.id]}</span><b>${appName(x)}</b><span class="mut">${L(...x.app[1])}</span></div>`;
+  const line = (lab, html) => `<div class="kl"><span class="lab">${lab}</span>${html}</div>`;
+  const form = `<div class="kf pon">`
+    + (p.id === "custom" ? line(L("接口地址", "API URL", "API-URL"), `<span class="inp mono">https://api.example.com/v1</span>`) : "")
+    + line("API Key", `<span class="inp mono ring">••••••••••••••••••••</span><span class="mb">${L("验证", "Verify", "Prüfen")}</span>`)
+    + line(L("模型", "Model", "Modell"), `<span class="inp mono">${p.model}</span>`)
+    + line("", `<span class="okl">✓ ${L("可以用了", "Ready to use", "Einsatzbereit")}</span><span class="sp"></span>${p.key ? `<span class="lnk">${L("去官网拿 Key ↗", "Get a key ↗", "Key holen ↗")}</span>` : ""}`)
+    + `</div>`;
+  const rows = group.indexOf(other) > i ? row(p, true) + form + row(other) : row(other) + row(p, true) + form;
+  return `<div class="shotmock set" aria-hidden="true"><div class="bb"><i></i><i></i><i></i></div><div class="sw2"><div class="side">${pages.map((x, k) => `<div${k === 3 ? ' class="on"' : ""}>${L(...x)}</div>`).join("")}</div>`
+    + `<div class="pv"><div class="ph2">${L("AI 服务", "AI service", "KI-Dienst")}</div><div class="plist"><div class="ghd">${isDom ? L("国内可直连", "Reachable in mainland China", "In Festlandchina erreichbar") : L("海外与其他", "International & other", "International & Sonstige")}</div>${rows}</div></div></div></div>`;
+}
+function renderGuide() {
+  const p = PROV.find(x => x.id === gp), name = L(p.zh, p.en, p.en);
+  $("#pgrid").innerHTML = PROV.map(x => `<button data-gp="${x.id}" class="${x.id === gp ? "on" : ""}"><span class="plogo">${LOGOS[x.id]}</span>${L(x.zh, x.en, x.en)}<small>${netTag(x)}</small></button>`).join("");
+  $$(".pname").forEach(s => s.textContent = name);
+  const copyBtn = `<span class="mb ring">${L("复制", "Copy", "Kopieren")}</span>`;
+  let steps;
+  if (p.id === "custom") steps = [
+    [L("找到接口地址", "Find the endpoint"), L("你的服务商文档里叫 Base URL，通常以 /v1 结尾。", "Called Base URL in your provider's docs, usually ending in /v1."),
+      mock("", `<span class="mut">Base URL</span><span class="keybox mono ring">https://api.example.com/v1</span>`)],
+    [L("拿到 Key", "Get a key"), L("在服务商后台新建一个 API Key。", "Create an API key in the provider's console."),
+      mock("", `<span class="keybox mono">${p.kp}</span>${copyBtn}`)],
+    [L("记下模型名", "Note the model name"), L("填进应用时要写模型名，比如 qwen-vl-max；要能看图的模型，截图取词才准。", "The app asks for a model name; pick one that can read images so framing works well."),
+      mock("", `<span class="mut">model</span><span class="keybox mono ring">qwen-vl-max</span>`)],
+  ];
+  else steps = [
+    [L(`打开 ${extLink(p.url)} 并登录`, `Open ${extLink(p.url)} and sign in`, `${extLink(p.url)} öffnen und anmelden`), p.net === "cn" ? L("用手机号注册登录，按提示完成实名认证。", "Sign up with a phone number and finish identity verification.") : L("用邮箱或 Google 账号注册，需要海外网络。", "Sign up with email or Google; needs an international network."),
+      mock(p.url, `<span class="plogo">${LOGOS[p.id]}</span><b>${name}</b><span class="sp"></span><span class="mb ring">${L("登录 / 注册", "Sign in / Sign up", "Anmelden / Registrieren")}</span>`)],
+    [L("充一点余额", "Add a little credit"), L("在「充值」或 Billing 里充少量余额就够用很久；有的服务商给新账号送免费额度。", "A small top-up under Billing lasts a long time; some providers give new accounts free credit."),
+      mock(p.url, `<span class="mut">${L("账户余额", "Balance", "Guthaben")}</span><b class="mono">${p.net === "cn" ? "¥" : "$"}0.00</b><span class="sp"></span><span class="mb ring">${L("充值", "Top up", "Aufladen")}</span>`)],
+    [L("新建 API Key", "Create an API key"), L(`进入「${p.path[0]}」（或直接打开 ${extLink(p.key)}），点创建，名字写 GetNewWord。`, `Go to ${p.path[1]} (or open ${extLink(p.key)} directly), create one and name it GetNewWord.`, `Unter ${DE[p.path[1]] ?? p.path[1]} (oder direkt ${extLink(p.key)}) einen neuen anlegen und GetNewWord nennen.`),
+      mock(p.key, `<b>API Keys</b><span class="sp"></span><span class="mb pri ring">+ ${L("创建 API Key", "Create API key", "API-Key erstellen")}</span><div class="row2"><span class="mut">${L("名称", "Name", "Name")}</span><span class="inp">GetNewWord</span><span class="mb">${L("确定", "OK", "OK")}</span></div>`)],
+    [L("复制下来", "Copy it"), L("Key 往往只完整显示这一次，复制后直接做下一步。", "The full key is often shown only once; copy it and go straight to the next step."),
+      mock(p.key, `<span class="keybox mono">${p.kp}</span>${copyBtn}`)],
+  ];
+  $("#gsteps").innerHTML = steps.map(s => `<li><b class="t">${s[0]}</b><span>${s[1]}</span>${s[2]}</li>`).join("");
+  $("#gmMenu").innerHTML = menuMock();
+  $("#gmSet").innerHTML = settingsMock(p);
+}
+document.addEventListener("click", e => { const b = e.target.closest("[data-gp]"); if (b) { gp = b.dataset.gp; renderGuide(); } });
+let tocLock = 0;  // 点了目录后，跳转引起的滚动不改高亮
+function syncToc() {
+  if (Date.now() < tocLock) return;
+  const page = $(".page.on"); const toc = page && page.querySelector(".toc"); if (!toc) return;
+  let cur = toc.querySelector("a[data-to]").dataset.to;
+  toc.querySelectorAll("a[data-to]").forEach(a => { const el = document.getElementById(a.dataset.to); if (el.getBoundingClientRect().top < 140) cur = a.dataset.to; });
+  toc.querySelectorAll("a[data-to]").forEach(a => a.classList.toggle("on", a.dataset.to === cur));
+}
+addEventListener("scroll", syncToc, { passive: true });
+
+/* 计时器：每段动画一个代号，重启时旧的全部作废 */
+function timeline() { let gen = 0; return { start() { gen++; const g = gen; return (ms, fn) => setTimeout(() => { if (g === gen) fn(); }, ms); }, stop() { gen++; } }; }
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function bump(deck, n) { deck.classList.add("bump"); setTimeout(() => deck.classList.remove("bump"), 200); }
+function relRect(el, box) { const a = el.getBoundingClientRect(), b = box.getBoundingClientRect(); const z = box.closest("#stage") ? (parseFloat($("#stage").style.zoom) || 1) : 1; return { x: (a.left - b.left) / z, y: (a.top - b.top) / z, w: a.width / z, h: a.height / z }; }
+function placeVf(vf, r, pad) { Object.assign(vf.style, { left: r.x - pad + "px", top: r.y - pad + "px", width: r.w + pad * 2 + "px", height: r.h + pad * 2 + "px" }); }
+
+/* ===== 方向 A：标题里的外语词一个个被框住、解开、飞进 Anki ===== */
+const tlA = timeline(); let deckAn = 0;
+function restartHeroA() {
+  const hero = $("#heroA"); if (!hero) return;
+  const words = $$(".fw", hero).filter(w => getComputedStyle(w).display !== "none"), vf = $("#vfA"), deck = $("#deckA");
+  words.forEach(w => { if (w.dataset.t === undefined) w.dataset.t = w.style.transform; });
+  const reset = () => { vf.classList.remove("on"); words.forEach(w => { w.className = "fw"; w.style.transform = w.dataset.t; }); };
+  const settle = () => { tlA.stop(); vf.classList.remove("on"); words.forEach(w => { w.className = "fw on"; }); };
+  hero.onmouseenter = settle; hero.onmouseleave = () => run();
+  if (reduce) { settle(); return; }
+  function run() {
+    const at = tlA.start(); reset();
+    let t = 900;
+    words.forEach((w, i) => {
+      at(t, () => { placeVf(vf, { x: w.offsetLeft, y: w.offsetTop, w: w.offsetWidth, h: w.offsetHeight }, 8); vf.classList.add("on"); });
+      at(t + 260, () => w.classList.add("on"));
+      t += 1250;
+    });
+    at(t, () => vf.classList.remove("on"));
+    t += 300;
+    words.forEach((w, i) => at(t + i * 160, () => {
+      const a = w.getBoundingClientRect(), b = deck.getBoundingClientRect();
+      const z = parseFloat(hero.style.zoom) || 1;
+      const dx = (b.left + b.width / 2 - (a.left + a.width / 2)) / z, dy = (b.top + b.height / 2 - (a.top + a.height / 2)) / z;
+      w.classList.remove("on"); w.style.transform = `translate(${dx}px, ${dy}px) scale(.2)`; w.classList.add("fly");
+      // at() 从调用时算起：飞 720ms 后落进牌堆（写成 t + … 会等到下一轮开始，被 tlA 作废，计数一直是 +0）
+      at(720, () => { deckAn = deckAn >= 99 ? 1 : deckAn + 1; $("#deckAn").textContent = "+" + deckAn; bump(deck); w.className = "fw gone"; w.style.transform = w.dataset.t; });
+    }));
+    t += words.length * 160 + 2400;
+    at(t, () => { words.forEach(w => { w.className = "fw"; }); });
+    at(t + 900, run);
+  }
+  run();
+}
+
+/* ===== 演示舞台 ===== */
+const tlS = timeline(); let scN = 1, playing = true, vt = 192;
+const DUR = { 1: 10200, 2: 9200, 3: 9000 };
+setInterval(() => {
+  if (!playing) return; vt += 0.25; const m = Math.floor(vt / 60), s = Math.floor(vt % 60);
+  $("#s1t").textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0"); $("#s1bar").style.width = (vt / 648 * 100).toFixed(2) + "%";
+}, 250);
+function stoast(id, html) { const t = $(id); t.innerHTML = html; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 1700); }
+function setPlaying(p) { playing = p; $("#s1pp").textContent = p ? "❚❚" : "▶"; $("#s1person").classList.toggle("play", p); }
+function scene(n) {
+  scN = n; const at = tlS.start();
+  $$(".scene").forEach(s => s.classList.toggle("on", s.id === "sc" + n));
+  $$(".tab").forEach(t => { const on = +t.dataset.sc === n; t.classList.toggle("on", on); const pg = t.querySelector(".pg"); pg.style.transition = "none"; pg.style.width = "0"; if (on) requestAnimationFrame(() => requestAnimationFrame(() => { pg.style.transition = `width ${DUR[n]}ms linear`; pg.style.width = "100%"; })); });
+  if (n === 1) {
+    const win = $(".player"), sel = $("#s1sel"), word = $("#s1word");
+    setPlaying(true); sel.className = "sel"; $("#s1dim").classList.remove("on"); $("#s1panel").classList.remove("on"); $("#s1skel").style.display = ""; $("#s1body").style.display = "none";
+    at(1300, () => { setPlaying(false); stoast("#s1toast", `<span class="kbd">␣</span>${L("暂停视频", "Pause the video")}`); });
+    at(2700, () => {
+      stoast("#s1toast", `<span class="kbd">⌘⇧A</span>${L("框住生词", "Frame the word")}`);
+      $("#s1dim").classList.add("on"); const r = relRect(word, win);
+      Object.assign(sel.style, { left: r.x - 5 + "px", top: r.y - 4 + "px", width: "0px", height: "0px" }); sel.className = "sel on drag";
+      requestAnimationFrame(() => requestAnimationFrame(() => Object.assign(sel.style, { width: r.w + 10 + "px", height: r.h + 8 + "px" })));
+    });
+    at(3700, () => { $("#s1dim").classList.remove("on"); sel.className = "sel on"; $("#s1panel").classList.add("on"); });
+    at(4500, () => { $("#s1skel").style.display = "none"; $("#s1body").style.display = ""; });
+    at(6800, () => { setPlaying(true); stoast("#s1toast", `<span class="kbd">␣</span>${L("继续播放：面板不抢键盘", "Play again: the panel never takes the keyboard")}`); });
+  }
+  if (n === 2) {
+    const scn = $("#sc2"), cur = $("#s2cur"), word = $("#s2word"), win = $(".browser"), sel = $("#s2sel"), panel = $("#s2panel"), save = $("#s2save"), st = $("#s2state");
+    sel.className = "sel"; panel.classList.remove("on"); save.style.display = ""; save.classList.remove("press");
+    st.className = "st"; st.textContent = L("只查看，没存", "Looked up, not saved", "Nachgeschlagen, nicht gesichert");
+    cur.style.transition = "none"; cur.style.left = "640px"; cur.style.top = "430px";
+    at(400, () => { const r = relRect(word, scn); cur.style.transition = ""; cur.style.left = r.x + r.w * .55 + "px"; cur.style.top = r.y + r.h * .45 + "px"; });
+    at(1700, () => { stoast("#s2toast", `<span class="kbd">⌃⌘A</span>${L("指词查词：不用框", "Point lookup: no framing")}`); const r = relRect(word, win); Object.assign(sel.style, { left: r.x - 4 + "px", top: r.y - 2 + "px", width: r.w + 8 + "px", height: r.h + 4 + "px" }); sel.className = "sel on"; });
+    at(2200, () => { const r = relRect(word, scn); panel.style.left = Math.max(r.x - 80, 90) + "px"; panel.style.top = r.y + r.h + 14 + "px"; panel.classList.add("on"); });
+    at(4300, () => { const r = relRect(save, scn); cur.style.left = r.x + r.w * .5 + "px"; cur.style.top = r.y + r.h * .55 + "px"; });
+    at(5400, () => save.classList.add("press"));
+    at(5600, () => { save.style.display = "none"; st.className = "st ok"; st.textContent = L("✓ 已存进 英语", "✓ Saved to English", "✓ Gesichert in Englisch"); });
+  }
+  if (n === 3) {
+    const btn = $("#s3btn"), flip = $("#s3flip");
+    $$(".s3d").forEach(d => d.classList.remove("ok")); flip.classList.remove("back"); btn.classList.remove("press");
+    const stt = $("#s3stt"); $("#s3st").classList.remove("ok"); stt.textContent = L("待同步 3", "3 to sync", "3 offen");
+    at(1000, () => { btn.classList.add("press"); stoast("#s3toast", `<span class="kbd">⌘⇧S</span>${L("同步到 Anki", "Sync to Anki")}`); });
+    at(1250, () => btn.classList.remove("press"));
+    $$(".s3d").forEach((d, i) => at(1700 + i * 350, () => d.classList.add("ok")));
+    at(2800, () => { $("#s3st").classList.add("ok"); stt.textContent = L("已同步", "Synced", "Synchronisiert"); });
+    at(4600, () => flip.classList.add("back"));
+    at(6600, () => stoast("#s3toast", L("背面带着你遇到它的那句话和译文", "The back keeps the sentence and its translation", "Hinten stehen der Satz und seine Übersetzung")));
+  }
+  at(DUR[n], () => scene(n % 3 + 1));
+}
+$$(".tab").forEach(t => t.addEventListener("click", () => scene(+t.dataset.sc)));
+
+/* 窄屏：舞台整体按比例缩小，不重排 */
+function fitStage() { const st = $("#stage"), wrap = st.parentElement; const avail = wrap.clientWidth - parseFloat(getComputedStyle(wrap).paddingLeft) * 2; if (avail < 1080) { st.style.width = "1080px"; st.style.zoom = (avail / 1080).toFixed(4); } else { st.style.width = ""; st.style.zoom = ""; } }
+addEventListener("resize", () => { fitStage(); fitHero(); }); fitStage();
+
+/* 启动 */
+applyLang();
+go(pageFromUrl(), false);
+scene(1);
+
+</script></body></html>

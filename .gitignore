@@ -1,0 +1,30 @@
+# Xcode：工程由 XcodeGen 按 project.yml 生成（make generate），编译产物在 build/
+*.xcodeproj/
+*.xcworkspace
+xcuserdata/
+DerivedData/
+build/
+.DS_Store
+
+# 只放本机、不进仓库
+.certs/
+.claude/
+CLAUDE.md
+process.md
+*.canvas.tsx
+*.canvas.status.json
+windows/
+# 设计稿和可点原型（17 MB，里面有本机路径）
+design/
+# 官网部署脚本（写着服务器、隧道和内网地址），第一次上线官网时还要用
+scripts/deploy-website.sh
+
+# 真机复测时模拟输入的小工具（Swift 脚本和编出来的程序）
+scrollat
+scrollat.swift
+click
+dragxy
+keys
+
+# 发版：scripts/release.sh 出的安装包、核对记录和发布说明 release/<版本>/notes.md 只放本机
+release/

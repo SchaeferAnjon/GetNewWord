@@ -1,0 +1,48 @@
+{
+  "categories": [
+    {
+      "name": "语言学习",
+      "icon": "character.book.closed.fill",
+      "colorHex": "#4A90D9",
+      "children": [
+        {
+          "name": "德语",
+          "icon": "flag.fill",
+          "colorHex": "#FFD700",
+          "children": []
+        },
+        {
+          "name": "英语",
+          "icon": "globe",
+          "colorHex": "#FF6347",
+          "children": []
+        }
+      ]
+    },
+    {
+      "name": "知识片段",
+      "icon": "doc.text.fill",
+      "colorHex": "#50C878",
+      "children": [
+        {
+          "name": "健身",
+          "icon": "figure.strengthtraining.traditional",
+          "colorHex": "#FF8C00",
+          "children": []
+        },
+        {
+          "name": "医学",
+          "icon": "cross.case.fill",
+          "colorHex": "#DC143C",
+          "children": []
+        },
+        {
+          "name": "其他",
+          "icon": "tray.fill",
+          "colorHex": "#808080",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+# 所有平台拉下来都用 LF 换行，图片和安装包按二进制处理，不做换行转换和文本对比
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.pdf binary
+*.dmg binary
+*.zip binary

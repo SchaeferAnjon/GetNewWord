@@ -1,0 +1,29 @@
+{
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "CFBundleDisplayName": {
+      "shouldTranslate": false
+    },
+    "CFBundleName": {
+      "shouldTranslate": false
+    },
+    "NSScreenCaptureUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GetNewWord braucht die Bildschirmaufnahme, um den ausgewählten Bildschirmbereich aufzunehmen und das Wort zu erkennen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GetNewWord needs Screen Recording to capture the part of the screen you select and pick out the word."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
