@@ -497,11 +497,12 @@ private struct WordsPage: View {
         }
     }
 
-    /// 当前多选对应的单词对象
+    /// 当前多选对应的单词对象：只取选中的那几个（框选时每拖一下都要算，取整个词库再筛 2000 个词时每下卡 0.25 秒）
     private var wordsForSelection: [WordEntry] {
-        let descriptor = FetchDescriptor<WordEntry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        let all = (try? modelContext.fetch(descriptor)) ?? []
-        return all.filter { selectedIDs.contains($0.id) }
+        let ids = Array(selectedIDs)
+        let descriptor = FetchDescriptor<WordEntry>(predicate: #Predicate { ids.contains($0.id) },
+                                                    sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 }
 
