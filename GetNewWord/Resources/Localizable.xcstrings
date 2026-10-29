@@ -3706,22 +3706,6 @@
         }
       }
     },
-    "只查不存，这一次不进词库": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nur nachschlagen; dieses Mal nicht in die Sammlung"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Look up without saving; this one stays out of your library"
-          }
-        }
-      }
-    },
     "只查看，没存": {
       "localizations": {
         "de": {
@@ -4234,34 +4218,18 @@
         }
       }
     },
-    "和「%@」的 %@ 撞了，这一组不会生效": {
+    "和%@的 %@ 撞了，没生效": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kollidiert mit „%1$@“ (%2$@), diese Kombination funktioniert nicht"
+            "value": "Kollidiert mit „%1$@“ (%2$@), nicht aktiv"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clashes with “%1$@” (%2$@), so this one won’t work"
-          }
-        }
-      }
-    },
-    "和下面的开关相反：开关关着就保存这一次": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Macht das Gegenteil des Schalters unten: Ist er aus, wird dieses eine Mal gesichert"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Does the opposite of the switch below: with it off, this one is saved"
+            "value": "Clashes with “%1$@” (%2$@), not active"
           }
         }
       }
@@ -4758,6 +4726,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add one more key"
+          }
+        }
+      }
+    },
+    "多按这个键：这一次也存进词库": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taste dazu: diesmal auch sichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add this key: save this one too"
+          }
+        }
+      }
+    },
+    "多按这个键：这一次只查不存": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taste dazu: nur nachschlagen, nicht sichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add this key: look up only, don’t save"
           }
         }
       }

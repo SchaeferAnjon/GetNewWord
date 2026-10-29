@@ -260,9 +260,13 @@ struct ShortcutsSettingsPage: View {
                 PointIllustration(target: target)
             }
             SettingsGroup(title: "多按一个键", footer: "⌥ 不好按就换成 ⇧、⌃ 或 ⌘；选「不用」就没有这一组。") {
-                SettingsRow(title: "截图取词时多按", detail: "只查不存，这一次不进词库") { ExtraModifierPicker(prefs: .screenshot) }
+                SettingsRow(title: "截图取词时多按", detail: "多按这个键：这一次只查不存") { ExtraModifierPicker(prefs: .screenshot) }
                 Hairline()
-                SettingsRow(title: "指词查词时多按", detail: "和下面的开关相反：开关关着就保存这一次") { ExtraModifierPicker(prefs: .hover) }
+                // 说明跟着下面的开关变：开关关着时多按是存，开着时多按是不存
+                SettingsRow(title: "指词查词时多按",
+                            detail: hoverAutoSave ? "多按这个键：这一次只查不存" : "多按这个键：这一次也存进词库") {
+                    ExtraModifierPicker(prefs: .hover)
+                }
                 Hairline()
                 SettingsRow(title: "指词查词的词也加入词库") {
                     Toggle("", isOn: $hoverAutoSave).toggleStyle(.square).labelsHidden()

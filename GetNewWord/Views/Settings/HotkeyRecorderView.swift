@@ -283,6 +283,7 @@ struct HotkeyKeyCaps: View {
                 display = prefs.displayString
                 recording = false
             })
+            // 一行写完、不截：德文「Zum Ändern auf die Tasten klicken」「Zurücksetzen」在只有两个键帽时会被截成「…k…」
             HStack(spacing: 8) {
                 Text(recording ? "Esc 取消" : "点键帽可以改").font(.system(size: 11.5)).foregroundStyle(Theme.text3)
                 if display != HotkeyPrefs.display(keyCode: prefs.defaultKeyCode, modifiers: prefs.defaultModifiers) {
@@ -290,12 +291,14 @@ struct HotkeyKeyCaps: View {
                         .buttonStyle(.plain).font(.system(size: 11.5)).foregroundStyle(Theme.accent)
                 }
             }
+            .lineLimit(1)
+            .fixedSize()
         }
     }
 }
 
 /// 设置页里选「多按的那个键」：⌥ ⇧ ⌃ ⌘ 四个键帽和「不用」，画法同上面的大键帽；组合键里已经有的键点不了。
-/// 下面一行小字说现在多按以后是哪一组，和另一组撞了用橙色标出来
+/// 下面一行小字说现在多按以后是哪一组，和另一组撞了用橙色标出来（都只占一行，长了往左伸）
 struct ExtraModifierPicker: View {
     let prefs: HotkeyPrefs
     @State private var extra: ExtraModifier
@@ -314,10 +317,10 @@ struct ExtraModifierPicker: View {
                 ForEach(ExtraModifier.allCases) { e in cap(e) }
             }
             Text(status)
-                .font(.system(size: 11.5))
+                .font(.system(size: 12))
                 .foregroundStyle(prefs.extraClashes ? Theme.warn : Theme.text3)
-                .multilineTextAlignment(.trailing)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .fixedSize()
         }
         .onReceive(NotificationCenter.default.publisher(for: .hotkeyChanged)) { _ in
             extra = prefs.extra
@@ -356,7 +359,7 @@ struct ExtraModifierPicker: View {
         if extra == .off { return String(localized: "不用多按的这一组") }
         guard let combo = prefs.extraDisplayString else { return String(localized: "组合键里已经有 \(extra.symbol)，换一个键") }
         if prefs.extraClashes {
-            return String(localized: "和「\(prefs.other.title)」的 \(combo) 撞了，这一组不会生效")
+            return String(localized: "和\(prefs.other.title)的 \(combo) 撞了，没生效")
         }
         return String(localized: "现在是 \(combo)")
     }
