@@ -293,8 +293,8 @@ struct MainView: View {
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(8))
             // 灾难恢复：本地没有任何已同步的单词而 Anki 里有卡 → 自动反向导入
-            let synced = (try? modelContext.fetch(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil }))) ?? []
-            if synced.isEmpty {
+            let synced = (try? modelContext.fetchCount(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil }))) ?? 0
+            if synced == 0 {
                 _ = await AnkiService.shared.restoreFromAnki(context: modelContext)
             }
             await AnkiService.shared.syncEverythingPending(context: modelContext)
