@@ -154,7 +154,7 @@ struct MenuBarView: View {
                 .font(.headline)
             ForEach(filteredTodayWords.prefix(5)) { word in
                 Button("\(word.word) — \(word.meaning)") {
-                    NSApp.activate(ignoringOtherApps: true)
+                    MainWindowOpener.open()   // 主窗口可能关着：打开它，不只是把应用切到前台
                 }
             }
             Divider()
@@ -214,10 +214,14 @@ struct MenuBarView: View {
 @MainActor
 enum MainWindowOpener {
     static let id = "main"
-    /// 主窗口首次出现时存下；没有 Dock 图标，关掉的主窗口只能靠它重新打开
+    /// 主窗口出现时存下；没有 Dock 图标，关掉的主窗口靠它从菜单栏、面板重新打开
     static var openWindow: OpenWindowAction?
+    /// 快捷键、悬浮球这些一个进程只装一次（主窗口关了再开还会走 onAppear）
+    static var launched = false
+    /// 启动时对词库做的事（预置分类、全量备份、云同步、Anki 同步）只做一次
+    static var libraryReady = false
 
-    /// 打开/唤起主窗口：Window 场景只有一个实例，已开着就前置，关掉了就重建
+    /// 打开/唤起主窗口：Window 场景只有一个实例，已开着就前置，关掉了就重新显示（关之前看到哪儿还是哪儿）
     static func open() {
         NSApp.activate(ignoringOtherApps: true)
         openWindow?(id: id)
@@ -289,6 +293,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLog.log("[Location] in Applications: \(AppLocation.isInApplications)")   // 不在的话自动更新装不上
         UsagePing.shared.start()   // 用户同意了才每天匿名报到一次（UsagePing.swift）
     }
+
+    /// 关掉主窗口不退出：GetNewWord 常驻菜单栏，快捷键查词照常用，菜单栏「打开主窗口」再打开。
+    /// （主场景是 Window 时 SwiftUI 默认最后一个窗口关了就退出整个应用）
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     /// 点 Dock 图标：没开着的窗口就打开主窗口
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
