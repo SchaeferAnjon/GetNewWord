@@ -45,6 +45,19 @@ class AnalysisViewModel: ObservableObject {
     @Published var autoSaved = false
     /// 本次保存中因"语境几乎相同"而被跳过的词（面板提示）
     @Published var skippedAsDuplicate: Set<Int> = []
+    /// 自动保存了，其实什么都没新存：认出的词都已在词库里、语境几乎一样，也没有知识片段。
+    /// 面板状态条照实写「已在词库里」，不再写「已存进」，撤销也藏起来（没东西可撤）
+    var savedNothingNew: Bool {
+        guard autoSaved, let a = analysisResult?.analysis else { return false }
+        return Self.savedNothingNew(wordCount: a.words.count, snippetCount: a.snippets.count, skipped: skippedAsDuplicate,
+                                    removedWords: removedWords, removedSnippets: removedSnippets)
+    }
+    nonisolated static func savedNothingNew(wordCount: Int, snippetCount: Int, skipped: Set<Int>,
+                                            removedWords: Set<Int>, removedSnippets: Set<Int>) -> Bool {
+        let words = (0..<wordCount).filter { !removedWords.contains($0) }
+        let snippetLeft = (0..<snippetCount).contains { !removedSnippets.contains($0) }
+        return !words.isEmpty && !snippetLeft && words.allSatisfy(skipped.contains)
+    }
     /// 用户在回执面板里单独移除的条目（不再显示，也已从库里删掉）
     @Published var removedWords: Set<Int> = []
     @Published var removedSnippets: Set<Int> = []

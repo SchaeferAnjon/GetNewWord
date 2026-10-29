@@ -100,3 +100,36 @@ struct ScreenshotThumbnailTests {
         #expect(first !== big)
     }
 }
+
+/// 框选查到的词全是老词、语境也一样：状态条写「已在词库里」，不写「已存进」，撤销藏起来
+struct SavedNothingNewTests {
+    private func check(words: Int, snippets: Int = 0, skipped: Set<Int>, removedWords: Set<Int> = [], removedSnippets: Set<Int> = []) -> Bool {
+        AnalysisViewModel.savedNothingNew(wordCount: words, snippetCount: snippets, skipped: skipped,
+                                          removedWords: removedWords, removedSnippets: removedSnippets)
+    }
+
+    @Test func allOldWords() {
+        #expect(check(words: 1, skipped: [0]))
+        #expect(check(words: 3, skipped: [0, 1, 2]))
+    }
+
+    /// 有一个是新存的、或者还存了知识片段：照旧写「已存进」
+    @Test func somethingNewWasSaved() {
+        #expect(!check(words: 2, skipped: [0]))
+        #expect(!check(words: 1, snippets: 1, skipped: [0]))
+        #expect(!check(words: 0, snippets: 1, skipped: []))
+    }
+
+    /// 什么都没认出来不算「没新存」（那是「未识别到」）
+    @Test func emptyResult() {
+        #expect(!check(words: 0, skipped: []))
+    }
+
+    /// 新存的那个被单项移除了，剩下的都是老词：也算什么都没新存
+    @Test func newOneRemoved() {
+        #expect(check(words: 2, skipped: [0], removedWords: [1]))
+        #expect(check(words: 1, snippets: 1, skipped: [0], removedSnippets: [0]))
+        // 全移除了：没有词可说
+        #expect(!check(words: 1, skipped: [0], removedWords: [0]))
+    }
+}

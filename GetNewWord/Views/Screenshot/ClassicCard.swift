@@ -271,7 +271,7 @@ private struct ClassicSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 10, weight: .semibold))
-                .tracking(1.2)
+                .tracking(Theme.sectionTracking)
                 .foregroundStyle(Theme.text3)
             content
         }

@@ -43,8 +43,11 @@ struct AnalysisResultPanel: View {
                     // 语法拆解流式增长时整列一起动：下面的内容平滑下移，不留空隙
                     .animation(.easeOut(duration: 0.18), value: viewModel.grammarText)
             }
-            Hairline()
-            footer
+            // 这次什么都没新存时底栏没东西可放（没有撤销），整条不要
+            if !hasStatusBar || !viewModel.savedNothingNew {
+                Hairline()
+                footer
+            }
         }
         .frame(minWidth: 360, maxWidth: .infinity, minHeight: 200, maxHeight: .infinity)
         // 面板是 key window，系统会给第一个可聚焦控件套蓝色焦点环——整体禁用（对全部子视图生效）
@@ -93,7 +96,8 @@ struct AnalysisResultPanel: View {
                     FloatingTag(w: w, expanded: $expanded, grammar: viewModel.grammarState,
                                 canBreakDown: viewModel.grammarSentence != nil, onBreakDown: viewModel.breakDownGrammar)
                 }
-                if viewModel.skippedAsDuplicate.contains(0) {
+                // 什么都没新存时状态条已经说了，卡片里不再重复
+                if viewModel.skippedAsDuplicate.contains(0), !viewModel.savedNothingNew {
                     Label("这个词已在词库里，且语境几乎相同，本次未重复添加", systemImage: "info.circle")
                         .font(.system(size: 12)).foregroundStyle(Theme.text2)
                 }
@@ -133,11 +137,14 @@ struct AnalysisResultPanel: View {
                         ClassicWordCard(
                             word: word,
                             isSelected: viewModel.selectedIndices.contains(index),
-                            skippedAsDuplicate: viewModel.skippedAsDuplicate.contains(index),
+                            // 只有一部分词是老词时才在那张卡上提一句；全是老词时状态条说
+                            skippedAsDuplicate: viewModel.skippedAsDuplicate.contains(index) && !viewModel.savedNothingNew,
                             showCheckbox: !viewModel.autoSaved,
                             onToggle: { viewModel.toggleWordSelection(index) },
                             categoryPicker: { wordCategoryRow(index) },
-                            onRemove: viewModel.autoSaved ? { viewModel.removeSavedWord(index) } : nil,
+                            // 这次没存进去的老词没有「从这次保存中撤掉」可言
+                            onRemove: viewModel.autoSaved && !viewModel.skippedAsDuplicate.contains(index)
+                                ? { viewModel.removeSavedWord(index) } : nil,
                             enrichment: viewModel.enrichments[index],
                             screenshot: viewModel.analysisResult?.screenshot,
                             lookupCount: viewModel.lookupCountValue(viewModel.savedWords[index]),
@@ -202,20 +209,36 @@ struct AnalysisResultPanel: View {
 
     // MARK: 状态
 
-    /// 一句话说现在怎样：正在认词 / 正在讲解 / 已存进 德语 / 只查看
-    private var statusText: String {
-        if let hint = viewModel.netHint { return hint }
+    /// 一句话说现在怎样，分两截：前一截是状态（正在认词 / 已存进 德语 / 已在词库里 / 只查看），后一截是补充（Anki 稍后同步…）。
+    /// 放不下时整截去掉补充，状态那截总是完整显示
+    private var status: (main: String, more: String?) {
+        if let hint = viewModel.netHint { return (hint, nil) }
         guard viewModel.analysisResult != nil else {
-            if viewModel.cachedHit != nil { return String(localized: "词库直出 · 正在核对语境…") }
-            return viewModel.quickWord != nil ? String(localized: "正在讲解…") : String(localized: "正在认词…")
+            if viewModel.cachedHit != nil { return (String(localized: "词库直出"), String(localized: "正在核对语境…")) }
+            return (viewModel.quickWord != nil ? String(localized: "正在讲解…") : String(localized: "正在认词…"), nil)
         }
+        if viewModel.savedNothingNew { return (String(localized: "已在词库里"), String(localized: "语境相同，没再存")) }
         if viewModel.autoSaved {
             let cat = (viewModel.savedWords[0]?.category ?? viewModel.savedSnippets[0]?.category)?.displayName
+            let main = cat.map { String(localized: "已存进 \($0)") } ?? String(localized: "已存进词库")
             // 浮签底栏窄，只说存到哪；顶上有状态条的再补一句同步
-            if !hasStatusBar { return cat.map { String(localized: "已存进 \($0)") } ?? String(localized: "已存进词库") }
-            return cat.map { String(localized: "已存进 \($0) · Anki 稍后同步") } ?? String(localized: "已存进词库 · Anki 稍后同步")
+            return (main, hasStatusBar ? String(localized: "Anki 稍后同步") : nil)
         }
-        return String(localized: "只查看，没存")
+        return (String(localized: "只查看，没存"), nil)
+    }
+
+    /// 状态那一行：整句放得下就整句，放不下只留状态那截（鼠标停上去看整句）
+    private func statusLine(size: CGFloat, color: Color, showPin: Bool) -> some View {
+        let s = status
+        let main = showPin && pinned ? String(localized: "已钉住") + " · " + s.main : s.main
+        let full = s.more.map { main + " · " + $0 } ?? main
+        return ViewThatFits(in: .horizontal) {
+            Text(full).fixedSize()
+            Text(main).lineLimit(1)
+        }
+        .font(.system(size: size))
+        .foregroundStyle(viewModel.netHint != nil ? Theme.warn : color)
+        .help(full)
     }
 
     // MARK: 讲义卡顶上的状态条
@@ -224,9 +247,8 @@ struct AnalysisResultPanel: View {
         HStack(spacing: 8) {
             Image(nsImage: MenuBarIcon.image).renderingMode(.template).foregroundStyle(Theme.text2)
             if viewModel.analysisResult == nil { ProgressView().controlSize(.mini) }
-            Text(pinned ? String(localized: "已钉住") + " · " + statusText : statusText)
-                .font(.system(size: 12)).foregroundStyle(viewModel.netHint != nil ? Theme.warn : Theme.text2).lineLimit(1)
-            Spacer()
+            statusLine(size: 13, color: Theme.text2, showPin: true)
+            Spacer(minLength: 8)
             if isClassic { breakDownButton }
             toolIcons
             closeButton
@@ -246,6 +268,7 @@ struct AnalysisResultPanel: View {
             }
         }
         .buttonStyle(SecondaryButtonStyle())
+        .fixedSize()   // 按钮字不截；窄了先让状态那行去掉补充
         .disabled(viewModel.grammarSentence == nil || viewModel.grammarStreaming)
         .help(viewModel.grammarSentence == nil ? String(localized: "等语境句出来后可用") : String(localized: "把这句话的语法从头到尾拆开讲一遍"))
     }
@@ -258,14 +281,15 @@ struct AnalysisResultPanel: View {
                 Spacer()
             } else {
                 if viewModel.analysisResult == nil { ProgressView().controlSize(.mini) }
-                Text(statusText).font(.system(size: 11.5))
-                    .foregroundStyle(viewModel.netHint != nil ? Theme.warn : Theme.text3).lineLimit(1)
+                statusLine(size: 11.5, color: Theme.text3, showPin: false)
                 Spacer(minLength: 4)
             }
             if viewModel.autoSaved {
-                Button("撤销") { viewModel.undoAutoSave() }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .help("删掉这次保存的内容")
+                if !viewModel.savedNothingNew {
+                    Button("撤销") { viewModel.undoAutoSave() }
+                        .buttonStyle(SecondaryButtonStyle())
+                        .help("删掉这次保存的内容")
+                }
             } else if viewModel.analysisResult != nil, !isEmptyResult {
                 Button("存进词库") { onSave() }.buttonStyle(PrimaryButtonStyle())
                     // 经典卡片能勾掉单词：一个都没勾、也没有知识片段时没东西可存
@@ -437,7 +461,7 @@ struct GrammarBreakdownSection: View {
 func sectionTitle(_ t: String) -> some View {
     Text(t)
         .font(.system(size: 10, weight: .semibold))
-        .tracking(1.2)
+        .tracking(Theme.sectionTracking)
         .foregroundStyle(Theme.text3)
 }
 

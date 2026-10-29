@@ -749,6 +749,22 @@
         }
       }
     },
+    "Anki 稍后同步": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anki-Sync folgt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "syncs to Anki shortly"
+          }
+        }
+      }
+    },
     "Anki 返回了无效的响应数据": {
       "localizations": {
         "de": {
@@ -2863,13 +2879,13 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grammatik zerlegen"
+            "value": "Grammatik"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Break down grammar"
+            "value": "Grammar"
           }
         }
       }
@@ -5418,6 +5434,22 @@
         }
       }
     },
+    "已在词库里": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schon in deiner Sammlung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already in your library"
+          }
+        }
+      }
+    },
     "已填 Key": {
       "localizations": {
         "de": {
@@ -5482,22 +5514,6 @@
         }
       }
     },
-    "已存进 %@ · Anki 稍后同步": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gesichert in %@ · Anki-Sync folgt"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved to %@ · syncs to Anki shortly"
-          }
-        }
-      }
-    },
     "已存进词库": {
       "localizations": {
         "de": {
@@ -5510,22 +5526,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Saved to library"
-          }
-        }
-      }
-    },
-    "已存进词库 · Anki 稍后同步": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In Sammlung gesichert · Anki-Sync folgt"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved to library · syncs to Anki shortly"
           }
         }
       }
@@ -8922,6 +8922,22 @@
         }
       }
     },
+    "正在核对语境…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "prüft den Kontext …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "checking the context…"
+          }
+        }
+      }
+    },
     "正在检测连接…": {
       "localizations": {
         "de": {
@@ -10826,18 +10842,18 @@
         }
       }
     },
-    "词库直出 · 正在核对语境…": {
+    "词库直出": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aus deiner Sammlung · prüft den Kontext …"
+            "value": "Aus deiner Sammlung"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "From your library · checking the context…"
+            "value": "From your library"
           }
         }
       }
@@ -10950,6 +10966,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Context"
+          }
+        }
+      }
+    },
+    "语境相同，没再存": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gleicher Kontext, nicht erneut gesichert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "same context, not saved again"
           }
         }
       }

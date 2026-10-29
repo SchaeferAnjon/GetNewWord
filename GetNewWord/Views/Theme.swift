@@ -76,6 +76,10 @@ enum Theme {
     static let radiusLg: CGFloat = 10
     static let gutter: CGFloat = 14
 
+    /// 查词卡分区小标题（释义、语境……）的字距：中文界面照 1.1.7 拉开 1.2；
+    /// 英文德文拉开字距读起来像「M e a n i n g」，不拉
+    static let sectionTracking: CGFloat = Bundle.main.preferredLocalizations.first?.hasPrefix("zh") == true ? 1.2 : 0
+
     // MARK: 字体（带缩放）
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular, scale: CGFloat) -> Font {
         .system(size: size * scale, weight: weight)
