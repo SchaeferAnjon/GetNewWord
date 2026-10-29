@@ -241,9 +241,7 @@ class AnalysisViewModel: ObservableObject {
         // 1.5 词库命中秒出：拿本地 OCR 读到的目标文字比对已存词条
         if let target = text?.target {
             let candidates = LocalOCR.lookupCandidates(target)
-            if !candidates.isEmpty,
-               let hit = ((try? modelContext.fetch(FetchDescriptor<WordEntry>())) ?? [])
-                   .first(where: { candidates.contains($0.word.lowercased()) }) {
+            if !candidates.isEmpty, let hit = analysisService.cachedEntry(candidates: candidates, context: modelContext) {
                 quickWord = ZhipuService.QuickWord(word: hit.word, language: hit.language.rawValue)
                 cachedHit = hit
                 enrichStarted = true
@@ -292,8 +290,7 @@ class AnalysisViewModel: ObservableObject {
                     }
                     // 词库命中：立刻直出已存词条（含现成补全，不再请求）；主分析继续核对语境
                     let langRaw = (Language(rawValue: q.language.lowercased()) ?? .other).rawValue
-                    let key = "\(q.word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())|\(langRaw)"
-                    if let hit = (try? modelContext.fetch(FetchDescriptor<WordEntry>()))?.first(where: { $0.dedupeKey == key }) {
+                    if let hit = self.analysisService.existingEntry(word: q.word, languageRaw: langRaw, context: modelContext) {
                         self.cachedHit = hit
                         self.enrichStarted = true
                         self.enrichments[0] = WordEnrichment(

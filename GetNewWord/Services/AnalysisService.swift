@@ -127,6 +127,27 @@ class AnalysisService {
         Task.detached(priority: .userInitiated) { allExistingTags(context: ModelContext(container)) }
     }
 
+    // MARK: - 词库里找同一个词
+
+    /// 同词同语言（dedupeKey 一样）的已存词条。先让 SQLite 按词粗筛（包含、不分大小写和重音），只把筛出来的几条取成对象再精确比；
+    /// 以前把整个词库取成对象逐条比，2000 个词时主线程每次卡 0.1–0.2 秒（Rosetta 下翻倍）
+    func existingEntry(word: String, languageRaw: String, context: ModelContext) -> WordEntry? {
+        let term = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = "\(term.lowercased())|\(languageRaw)"
+        guard !term.isEmpty else { return (try? context.fetch(FetchDescriptor<WordEntry>()))?.first { $0.dedupeKey == key } }
+        let d = FetchDescriptor<WordEntry>(predicate: #Predicate { $0.languageRaw == languageRaw && $0.word.localizedStandardContains(term) })
+        return (try? context.fetch(d))?.first { $0.dedupeKey == key }
+    }
+
+    /// 本地 OCR 读到的字存过没有：哪个候选词形和词条小写后一样（不分语言）；同样先按词粗筛。原样那个词形优先
+    func cachedEntry(candidates: Set<String>, context: ModelContext) -> WordEntry? {
+        for c in candidates.sorted(by: { $0.count == $1.count ? $0 < $1 : $0.count > $1.count }) where !c.isEmpty {
+            let d = FetchDescriptor<WordEntry>(predicate: #Predicate { $0.word.localizedStandardContains(c) })
+            if let hit = (try? context.fetch(d))?.first(where: { candidates.contains($0.word.lowercased()) }) { return hit }
+        }
+        return nil
+    }
+
     // MARK: - 保存方法
 
     /// 将分析结果保存到数据库
@@ -159,9 +180,7 @@ class AnalysisService {
         let finalTags = Self.mergeTags(word.tags, approvedNewTags)
 
         // 同词同语言已存在：不新建条目，只追加一条语境（基础含义相同，语境不同）
-        let key = "\(word.word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())|\(language.rawValue)"
-        let existingDescriptor = FetchDescriptor<WordEntry>()
-        if let existing = (try? context.fetch(existingDescriptor))?.first(where: { $0.dedupeKey == key }) {
+        if let existing = existingEntry(word: word.word, languageRaw: language.rawValue, context: context) {
             // 语境相似去重：同一页截两次、只差标点/空格/大小写的句子不再重复存
             if let dup = existing.sortedContexts.first(where: { Self.isSimilarSentence($0.sentence, word.contextSentence) }) {
                 AppLog.log("[Analysis] context for '\(existing.word)' looks like an existing one (\(dup.sentence.prefix(30))…), skipped")
