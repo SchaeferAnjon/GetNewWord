@@ -4,8 +4,9 @@
 // README 截图用的演示模式，只编进 Debug 版（scripts/readme-shots.mjs 用它）。没人操作、锁着屏的 Mac 上也能走一遍
 // 真的框选取词：整屏截图换成给定的图片，拖框换成给定的矩形，按快捷键换成启动后依次自动框一遍。
 // 后面的本地 OCR、AI 请求、面板、存词库、发音、同步 Anki 都走正常流程。
-//   GNW_DEMO=<plan.json>  {"lookups": [{"screen": "/path/screen.png", "select": [x, y, w, h]}, …], "pause": 15, "onHotkey": false}
+//   GNW_DEMO=<plan.json>  {"lookups": [{"screen": "/path/screen.png", "select": [x, y, w, h]}, …], "pause": 15, "onHotkey": false, "closeAfter": 9}
 //                         onHotkey 为 true 时启动后不自动框，等真按快捷键（含多按一个键的那组），每按一次框掉下一个
+//                         closeAfter：自动框时每个词框完这么多秒后像按 Esc 一样关面板（开发版打点量关面板），不写就一直开到下一个
 //                         screen 是整屏大小的图（像素 = 屏幕 point × 缩放），select 按 point 算、左上角原点
 //   GNW_DEMO_KEY=<key>    当前 AI 服务商的 Key，只在环境变量里，不写钥匙串
 
@@ -24,6 +25,7 @@ enum DemoMode {
         let lookups: [Lookup]
         let pause: Double?
         let onHotkey: Bool?
+        let closeAfter: Double?
     }
 
     private static let plan: Plan? = {
@@ -57,7 +59,15 @@ enum DemoMode {
                 await vm.triggerAnalysis(modelContext: context, mode: .capture)
                 current = nil
                 AppLog.log("[Demo] \(i + 1)/\(plan.lookups.count) done")
-                try? await Task.sleep(for: .seconds(plan.pause ?? 15))
+                let pause = plan.pause ?? 15
+                if let close = plan.closeAfter, close < pause {
+                    try? await Task.sleep(for: .seconds(close))
+                    PanelPerf.mark(.closeInput("demo"))
+                    vm.dismissPanel()
+                    try? await Task.sleep(for: .seconds(pause - close))
+                } else {
+                    try? await Task.sleep(for: .seconds(pause))
+                }
             }
             AppLog.log("[Demo] all done")
         }
