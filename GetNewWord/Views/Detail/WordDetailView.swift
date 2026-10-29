@@ -168,7 +168,7 @@ struct WordDetailView: View {
                     Tag(text: LocalizedStringKey(word.language.displayName))
                 }
                 if let g = word.grammar, !g.isEmpty {
-                    Text(TextHighlighter.highlight(word.word, in: g, language: word.language))
+                    Text(TextHighlighter.highlight(word.word, in: g, language: word.language, grammar: word.grammar))
                         .font(Theme.font(12, scale: fs))
                         .foregroundStyle(Theme.text2)
                         .textSelection(.enabled)
@@ -308,7 +308,7 @@ struct WordDetailView: View {
 
     private func contextText(_ ctx: WordContext) -> some View {
             VStack(alignment: .leading, spacing: 4) {
-                Text(TextHighlighter.highlight(word.word, in: ctx.sentence, language: word.language))
+                Text(TextHighlighter.highlight(word.word, in: ctx.sentence, language: word.language, grammar: word.grammar))
                     .font(Theme.font(15, scale: fs))
                     .lineSpacing(3)
                     .foregroundStyle(Theme.text)
@@ -374,7 +374,7 @@ struct WordDetailView: View {
                     .editField()
                     .lineLimit(2...8)
             } else {
-                Text(TextHighlighter.highlight(word.word, in: word.analysisNote, language: word.language))
+                Text(TextHighlighter.highlight(word.word, in: word.analysisNote, language: word.language, grammar: word.grammar))
                     .font(Theme.font(13, scale: fs))
                     .lineSpacing(4)
                     .foregroundStyle(Theme.text)
@@ -404,7 +404,7 @@ struct WordDetailView: View {
                     ForEach(colls, id: \.self) { line in
                         let (phrase, tr) = pair(line)
                         GridRow {
-                            Text(TextHighlighter.highlight(word.word, in: phrase, language: word.language))
+                            Text(TextHighlighter.highlight(word.word, in: phrase, language: word.language, grammar: word.grammar))
                                 .font(Theme.font(13, scale: fs))
                                 .foregroundStyle(Theme.text)
                                 .textSelection(.enabled)
@@ -425,7 +425,7 @@ struct WordDetailView: View {
                     ForEach(exs, id: \.self) { line in
                         let (sentence, tr) = pair(line)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(TextHighlighter.highlight(word.word, in: sentence, language: word.language))
+                            Text(TextHighlighter.highlight(word.word, in: sentence, language: word.language, grammar: word.grammar))
                                 .font(Theme.font(13, scale: fs))
                                 .foregroundStyle(Theme.text)
                                 .textSelection(.enabled)
@@ -440,7 +440,7 @@ struct WordDetailView: View {
         }
         if let e = word.etymology, !e.isEmpty {
             DetailSection(title: "构词和来历") {
-                Text(TextHighlighter.highlight(word.word, in: e, language: word.language))
+                Text(TextHighlighter.highlight(word.word, in: e, language: word.language, grammar: word.grammar))
                     .font(Theme.font(13, scale: fs))
                     .lineSpacing(3)
                     .foregroundStyle(Theme.text2)

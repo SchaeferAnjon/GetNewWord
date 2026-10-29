@@ -81,7 +81,7 @@ struct ClassicWordCard: View {
 
             Hairline()
 
-            if let grammar { GrammarBreakdownSection(state: grammar, word: word.word, language: language) }
+            if let grammar { GrammarBreakdownSection(state: grammar, word: word.word, language: language, grammar: word.grammar) }
 
             ClassicSection("释义") {
                 Text(TextHighlighter.emphasizeMeaning(word.contextMeaning, in: word.meaning))
@@ -91,7 +91,7 @@ struct ClassicWordCard: View {
 
             if !word.contextSentence.isEmpty {
                 ClassicSection("语境") {
-                    ClassicContext(word: word.word, language: language, sentence: word.contextSentence,
+                    ClassicContext(word: word.word, language: language, grammar: word.grammar, sentence: word.contextSentence,
                                    translation: word.contextTranslation, keyword: word.translationKeyword, sense: word.contextMeaning)
                 }
             }
@@ -102,7 +102,7 @@ struct ClassicWordCard: View {
 
             if let usage, !usage.isEmpty {
                 ClassicSection("用法") {
-                    Text(TextHighlighter.highlight(word.word, in: usage, language: language))
+                    Text(TextHighlighter.highlight(word.word, in: usage, language: language, grammar: word.grammar))
                         .font(.system(size: 14))
                         .lineSpacing(3)
                         .foregroundStyle(Theme.text)
@@ -118,7 +118,8 @@ struct ClassicWordCard: View {
                 }
             }
 
-            ClassicExtras(word: word.word, language: language, collocations: collocations, examples: examples, etymology: etymology)
+            ClassicExtras(word: word.word, language: language, grammar: word.grammar,
+                          collocations: collocations, examples: examples, etymology: etymology)
 
             categoryPicker()
         }
@@ -159,24 +160,25 @@ struct ClassicCachedCard: View {
                     .font(.caption).foregroundStyle(Theme.text2)
             }
             Hairline()
-            if let grammar { GrammarBreakdownSection(state: grammar, word: entry.word, language: entry.language) }
+            if let grammar { GrammarBreakdownSection(state: grammar, word: entry.word, language: entry.language, grammar: entry.grammar) }
             ClassicSection("释义") {
                 Text(TextHighlighter.emphasizeMeaning(entry.contextMeaning, in: entry.meaning))
                     .font(.system(size: 15.5)).fixedSize(horizontal: false, vertical: true)
             }
             if let ctx = entry.sortedContexts.last {
                 ClassicSection("语境") {
-                    ClassicContext(word: entry.word, language: entry.language, sentence: ctx.sentence,
+                    ClassicContext(word: entry.word, language: entry.language, grammar: entry.grammar, sentence: ctx.sentence,
                                    translation: ctx.translation, keyword: entry.translationKeyword, sense: entry.contextMeaning)
                 }
             }
             if let u = enrichment?.usage, !u.isEmpty {
                 ClassicSection("用法") {
-                    Text(TextHighlighter.highlight(entry.word, in: u, language: entry.language)).font(.system(size: 14)).lineSpacing(3)
+                    Text(TextHighlighter.highlight(entry.word, in: u, language: entry.language, grammar: entry.grammar))
+                        .font(.system(size: 14)).lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            ClassicExtras(word: entry.word, language: entry.language, collocations: enrichment?.collocations,
+            ClassicExtras(word: entry.word, language: entry.language, grammar: entry.grammar, collocations: enrichment?.collocations,
                           examples: enrichment?.examples, etymology: enrichment?.etymology)
         }
         .padding(.vertical, 14)
@@ -283,13 +285,14 @@ private struct ClassicSection<Content: View>: View {
 private struct ClassicContext: View {
     let word: String
     let language: Language
+    let grammar: String?
     let sentence: String
     let translation: String
     let keyword: String?
     let sense: String?
     var body: some View {
         QuoteBlock {
-            Text(TextHighlighter.highlight(word, in: sentence, language: language))
+            Text(TextHighlighter.highlight(word, in: sentence, language: language, grammar: grammar))
                 .font(.system(size: 14.5))
                 .italic()
                 .fixedSize(horizontal: false, vertical: true)
@@ -307,23 +310,24 @@ private struct ClassicContext: View {
 private struct ClassicExtras: View {
     let word: String
     let language: Language
+    let grammar: String?
     let collocations: [String]?
     let examples: [String]?
     let etymology: String?
     var body: some View {
         if let c = collocations, !c.isEmpty {
             ClassicSection("搭配") {
-                VStack(alignment: .leading, spacing: 6) { ForEach(c, id: \.self) { exampleView($0, word: word, language: language) } }
+                VStack(alignment: .leading, spacing: 6) { ForEach(c, id: \.self) { exampleView($0, word: word, language: language, grammar: grammar) } }
             }
         }
         if let ex = examples, !ex.isEmpty {
             ClassicSection("例句") {
-                VStack(alignment: .leading, spacing: 6) { ForEach(ex, id: \.self) { exampleView($0, word: word, language: language) } }
+                VStack(alignment: .leading, spacing: 6) { ForEach(ex, id: \.self) { exampleView($0, word: word, language: language, grammar: grammar) } }
             }
         }
         if let e = etymology, !e.isEmpty {
             ClassicSection("词根词源") {
-                Text(TextHighlighter.highlight(word, in: e, language: language)).font(.system(size: 13)).foregroundStyle(Theme.text2)
+                Text(TextHighlighter.highlight(word, in: e, language: language, grammar: grammar)).font(.system(size: 13)).foregroundStyle(Theme.text2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

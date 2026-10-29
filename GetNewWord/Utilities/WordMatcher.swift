@@ -9,6 +9,8 @@
 //   整个词比较时不放宽：schon 不是 schön，esta 不是 está
 // - 短语按短语找，每个词都可以变形（gave up、traffic confluences）；中间夹了几个词的（picks it up）、
 //   德语换了语序的（nimmt das in Kauf）、可分动词拆开的（hält … an）也认
+// - 德语词头是 halten、变化那行写的是「trennbar · hält an」：模型把可分动词 anhalten 写成了 halten，anhalten 的各种写法也标
+// - 英语否定缩写整个词算：don't 里有 do、can't 里有 can、won't 里有 will；don（穿）不算 Don't
 // - 查的是中日韩的词：照旧按子串找
 
 import Foundation
@@ -25,8 +27,8 @@ struct WordMatcher: Sendable {
         case substring(String)
         /// 带符号的（C++、e.g.）：原样找，两头不能接着别的字母
         case literal(String)
-        /// 按词：短语是几段；德语可分动词另外认拆开的
-        case words([Part], separable: Separable?)
+        /// 按词：短语是几段；德语可分动词另外认拆开的；also 是也算这个词的另一个词头（halten 的变化那行说它可分时的 anhalten）
+        case words([Part], separable: Separable?, also: Part?)
     }
 
     /// 查的词里的一个词
@@ -37,11 +39,17 @@ struct WordMatcher: Sendable {
         let loose: String
         /// 查表的不规则变化；有表就不再按词尾规则猜
         let forms: Set<String>
+        /// 西语查表的动词后面能粘代词的写法（不定式、副动词、命令式，已去掉重音）：hacerlo、hazlo、dímelo
+        let hosts: Set<String>
+        /// 德语短语里能挪位置的词（动词、代词）：主句里动词跑到前面（in Kauf nehmen → nimmt … in Kauf）；
+        /// 介词、冠词、名词不挪（zu Hause 不会写成 Hause zu）
+        var movable = false
 
         init(_ token: String, language: Language) {
             exact = WordMatcher.fold(token)
             loose = WordMatcher.loosen(token)
             forms = Irregular.forms(of: exact, language: language)
+            hosts = language == .spanish ? Irregular.encliticHosts(of: exact) : []
         }
     }
 
@@ -51,9 +59,16 @@ struct WordMatcher: Sendable {
         let verb: Part
     }
 
-    init(word: String, language: Language) {
+    /// grammar：词头下面变化那行（德语「trennbar · hält an · hielt an · hat angehalten」），用来认出模型把可分动词写成了不带前缀的词头
+    init(word: String, language: Language, grammar: String? = nil) {
         self.language = language
-        mode = Self.mode(for: word.trimmingCharacters(in: .whitespacesAndNewlines), language: language)
+        var mode = Self.mode(for: word.trimmingCharacters(in: .whitespacesAndNewlines), language: language)
+        if language == .german, case .words(let parts, separable: .none, also: .none) = mode, parts.count == 1,
+           let grammar, let particle = Self.particle(of: parts[0], in: grammar) {
+            mode = .words(parts, separable: Separable(particle: particle, verb: parts[0]),
+                          also: Part(particle + parts[0].exact, language: language))
+        }
+        self.mode = mode
     }
 
     private static let articles: [String: Set<String>] = [
@@ -65,14 +80,20 @@ struct WordMatcher: Sendable {
 
     private static func isSymbol(_ c: Character) -> Bool { !isWordChar(c) && !c.isWhitespace && !joiners.contains(c) }
 
-    private static func mode(for w: String, language: Language) -> Mode {
-        guard !w.isEmpty else { return .none }
-        if w.unicodeScalars.contains(where: isCJK) { return .substring(w) }
+    private static func mode(for raw: String, language: Language) -> Mode {
+        guard !raw.isEmpty else { return .none }
+        if raw.unicodeScalars.contains(where: isCJK) { return .substring(raw) }
+        var w = raw
+        if w.contains(where: isSymbol) {
+            // 括号里是可选、补充的（look (sth) up、Rücksicht nehmen (auf + A)），斜杠是几选一（take sb/sth for granted、in/on time）
+            let simplified = simplifyOptions(w)
+            if simplified != w, !simplified.isEmpty, !simplified.contains(where: isSymbol) { w = simplified }
+        }
         var source = w
         if w.contains(where: isSymbol) {
             // 短语里占位的 sth. / etw. 去掉后没别的符号了，还按词找；e.g.、C++ 原样找
             let stripped = stripPlaceholders(w)
-            if stripped == w || stripped.isEmpty || stripped.contains(where: isSymbol) { return .literal(w) }
+            if stripped == w || stripped.isEmpty || stripped.contains(where: isSymbol) { return .literal(raw) }
             source = stripped
         }
         var tokens = tokenize(source).map { String(source[$0.range]) }
@@ -92,12 +113,37 @@ struct WordMatcher: Sendable {
             tokens.removeFirst()
         }
         guard !tokens.isEmpty else { return .none }
-        let parts = tokens.map { Part($0, language: language) }
+        var parts = tokens.map { Part($0, language: language) }
+        if language == .german, parts.count > 1 {
+            for (i, t) in tokens.enumerated() where t.first?.isLowercase == true && !germanFixed.contains(parts[i].exact) {
+                parts[i].movable = true
+            }
+        }
         var separable: Separable?
         if language == .german, parts.count == 1, let s = Self.separable(parts[0].exact) {
             separable = Separable(particle: s.particle, verb: Part(s.verb, language: language))
         }
-        return .words(parts, separable: separable)
+        return .words(parts, separable: separable, also: nil)
+    }
+
+    /// 德语短语里不会挪到前面去的小词：介词、冠词、zu、nicht
+    private static let germanFixed: Set<String> = ["zu", "zum", "zur", "in", "im", "ins", "an", "am", "ans", "auf", "aufs", "aus", "bei", "beim",
+                                                   "mit", "nach", "von", "vom", "vor", "über", "unter", "um", "durch", "für", "gegen",
+                                                   "ohne", "bis", "seit", "ab", "der", "die", "das", "den", "dem", "des", "ein", "eine",
+                                                   "einen", "einem", "einer", "eines", "nicht", "kein", "keine"]
+
+    /// 去掉括号（连同括号里的字），斜杠几选一留第一个不是占位词的；sb/sth 这种全是占位词的整段去掉。
+    /// 整个词头就是一组斜杠（and/or）的不动，原样找
+    private static func simplifyOptions(_ w: String) -> String {
+        // 词里面的括号（colo(u)r）不动
+        let noParens = w.replacingOccurrences(of: #"(?<![\p{L}\p{N}])(\([^()]*\)|\[[^\[\]]*\])(?![\p{L}\p{N}])"#, with: " ",
+                                              options: .regularExpression)
+        let chunks = noParens.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard !(chunks.count == 1 && chunks[0].contains("/")) else { return noParens.trimmingCharacters(in: .whitespaces) }
+        return chunks.compactMap { c -> String? in
+            guard c.contains("/") else { return c }
+            return c.split(separator: "/").map(String.init).first { !stripPlaceholders($0).isEmpty }
+        }.joined(separator: " ")
     }
 
     // MARK: - 找
@@ -114,14 +160,16 @@ struct WordMatcher: Sendable {
             return (Self.occurrences(of: needle, in: text, wholeWord: false), true)
         case .literal(let needle):
             return (Self.occurrences(of: needle, in: text, wholeWord: true), true)
-        case .words(let parts, let separable):
-            let tokens = Self.tokenize(text)
+        case .words(let parts, let separable, let also):
+            var tokens = Self.tokenize(text)
             guard !tokens.isEmpty else { return ([], true) }
-            let (lemmas, complete) = Self.lemmas(of: text, tokens: tokens, language: language)
+            if language == .english { tokens = Self.joiningNegations(tokens, in: text) }
+            let (tagged, complete) = Self.lemmas(of: text, tokens: tokens, language: language)
+            let lemmas = tokens.indices.map { tokens[$0].lemma ?? tagged[$0] }
             func hit(_ i: Int, _ p: Part) -> Bool { matches(tokens[i], lemma: lemmas[i], part: p) }
             var found: [Range<String.Index>] = []
             if parts.count == 1 {
-                for i in tokens.indices where hit(i, parts[0]) { found.append(tokens[i].range) }
+                for i in tokens.indices where hit(i, parts[0]) || also.map({ hit(i, $0) }) == true { found.append(tokens[i].range) }
                 if let separable { found += separated(separable, tokens: tokens, lemmas: lemmas, text: text) }
             } else {
                 found = phrase(parts, tokens: tokens, lemmas: lemmas, text: text)
@@ -134,7 +182,28 @@ struct WordMatcher: Sendable {
     private func matches(_ t: Token, lemma: String?, part: Part) -> Bool {
         if t.exact == part.exact || part.forms.contains(t.exact) { return true }
         if let lemma, lemma == part.exact { return true }
-        return part.forms.isEmpty && Inflection.matches(t.loose, base: part.loose, language: language)
+        // 查表的西语动词后面粘着代词：hazlo、dímelo、hacerlo、ponerse
+        if !part.hosts.isEmpty, Inflection.withoutClitics(t.loose).contains(where: part.hosts.contains) { return true }
+        guard part.forms.isEmpty else { return false }
+        // 先按保留重音、变音的写法套词尾规则
+        if Inflection.matches(t.exact, base: part.exact, language: language) { return true }
+        // 只有去掉重音、变音才对得上的：系统认出它是另一个词（schöner → schön、zählt → zählen、drückt → drücken）就不算
+        if let lemma, lemma != t.exact { return false }
+        switch language {
+        case .french:
+            // 法语变位只在 e 上换重音（préfère → préférer），ç 和 c 互换（commençons）；sûre 不是 sur 的变形
+            return Inflection.matches(Self.frenchLoose(t.exact), base: Self.frenchLoose(part.exact), language: language)
+        case .spanish:
+            // 只多一个 -s 不挪重音：estás 不是 esta 的复数
+            if t.loose == part.loose + "s" { return false }
+            return Inflection.matches(t.loose, base: part.loose, language: language)
+        default:
+            return Inflection.matches(t.loose, base: part.loose, language: language)
+        }
+    }
+
+    private static func frenchLoose(_ s: String) -> String {
+        String(s.map { c -> Character in "éèêë".contains(c) ? "e" : c == "ç" ? "c" : c })
     }
 
     /// 短语：按顺序找，两段之间最多夹 3 个词、不跨句子和逗号；挨着的几段连成一整块标
@@ -161,12 +230,16 @@ struct WordMatcher: Sendable {
             out += Self.joined(picks, tokens: tokens, text: text)
             i = picks[picks.count - 1] + 1
         }
-        // 德语主句里动词跑到前面（in Kauf nehmen → nimmt … in Kauf）：同一小句里每段都有就都标
-        if language == .german {
+        // 德语主句里动词跑到前面（in Kauf nehmen → nimmt … in Kauf）：同一小句里每段都有就都标。
+        // 只有动词、代词能挪，别的几段要照原来的先后（um nach Hause zu gehen 里没有 zu Hause）
+        if language == .german, parts.contains(where: \.movable) {
             for clause in Self.clauses(tokens, text: text) where clause.count <= 24 && !clause.contains(where: claimed.contains) {
-                var picks: [Int] = []
+                var picks: [Int] = [], lastFixed = -1
                 for p in parts {
-                    guard let k = clause.first(where: { !picks.contains($0) && hit($0, p) }) else { picks = []; break }
+                    guard let k = clause.first(where: { !picks.contains($0) && (p.movable || $0 > lastFixed) && hit($0, p) }) else {
+                        picks = []; break
+                    }
+                    if !p.movable { lastFixed = k }
                     picks.append(k)
                 }
                 if !picks.isEmpty { out += Self.joined(picks.sorted(), tokens: tokens, text: text) }
@@ -176,17 +249,47 @@ struct WordMatcher: Sendable {
     }
 
     /// 德语可分动词拆开：小句里有这个动词的变位，小句最后一个词是前缀（Der Bus hält an der Ecke an.）；
-    /// 讲解里常写成「hält … an」，省略号不算断句
+    /// 讲解里常写成「hält … an」，省略号不算断句。und / oder 后面是另一个动词的小句（Sie hörte mir zu und hörte auf.），
+    /// 前缀配离它最近的那个变位。命令式只剩词干（Mach die Tür zu!），句末有前缀时也认
     private func separated(_ s: Separable, tokens: [Token], lemmas: [String?], text: String) -> [Range<String.Index>] {
         var out: [Range<String.Index>] = []
-        for clause in Self.clauses(tokens, text: text, ellipsisJoins: true) where clause.count >= 2 && clause.count <= 24 {
-            guard let last = clause.last, tokens[last].exact == s.particle else { continue }
-            for k in clause.dropLast() where matches(tokens[k], lemma: lemmas[k], part: s.verb) {
+        let v = s.verb.loose
+        let stem = v.hasSuffix("en") ? String(v.dropLast(2)) : String(v.dropLast())
+        func isVerb(_ k: Int) -> Bool { matches(tokens[k], lemma: lemmas[k], part: s.verb) || (stem.count >= 3 && tokens[k].loose == stem) }
+        for clause in Self.clauses(tokens, text: text, ellipsisJoins: true) {
+            for sub in clause.split(whereSeparator: { ["und", "oder"].contains(tokens[$0].exact) }) where sub.count >= 2 && sub.count <= 24 {
+                guard let last = sub.last, tokens[last].exact == s.particle, let k = sub.dropLast().last(where: isVerb) else { continue }
                 out += [tokens[k].range, tokens[last].range]
-                break
             }
         }
         return out
+    }
+
+    /// 变化那行说这个德语动词可分：「trennbar · hält an · hielt an · hat angehalten」里的 an。
+    /// 认三种写法：前缀 + ge + 词干（angehalten、zugehört）、前缀 + zu + 原形（anzuhalten）；
+    /// 写明了 trennbar（可分）时再认变位后面紧跟前缀、小句到此为止的（hält an）
+    static func particle(of verb: Part, in grammar: String) -> String? {
+        let v = verb.loose
+        guard v.count >= 4, v.hasSuffix("n"), separable(verb.exact) == nil else { return nil }
+        let stem = v.hasSuffix("en") ? String(v.dropLast(2)) : String(v.dropLast())
+        guard stem.count >= 2 else { return nil }
+        let tokens = tokenize(grammar)
+        let saysSeparable = tokens.indices.contains { i in
+            ["trennbar", "separable"].contains(tokens[i].exact) && (i == 0 || tokens[i - 1].exact != "nicht")
+        } || grammar.replacingOccurrences(of: "不可分", with: "").contains("可分")
+        for (i, t) in tokens.enumerated() {
+            for p in separablePrefixes where t.exact.hasPrefix(p) && t.exact.count > p.count {
+                let rest = loosen(String(t.exact.dropFirst(p.count)))
+                if (rest.hasPrefix("ge") && rest.dropFirst(2).hasPrefix(stem)) || rest == "zu" + v { return p }
+            }
+            if saysSeparable, i > 0, separablePrefixes.contains(t.exact),
+               i == tokens.count - 1 || breaksClause(grammar[t.range.upperBound..<tokens[i + 1].range.lowerBound]),
+               !breaksClause(grammar[tokens[i - 1].range.upperBound..<t.range.lowerBound]),
+               tokens[i - 1].loose.hasPrefix(String(stem.prefix(3))) {
+                return t.exact
+            }
+        }
+        return nil
     }
 
     // MARK: - 切词
@@ -195,6 +298,8 @@ struct WordMatcher: Sendable {
         let range: Range<String.Index>
         let exact: String
         let loose: String
+        /// 自己定的词元（合起来的否定缩写：doesn't → do）；nil 就问系统
+        var lemma: String? = nil
     }
 
     /// 字母、数字连成一个词；中日韩字、空格、标点、连字符、撇号都是边界（l'eau 里能找到 eau，heat's 里能找到 heat）
@@ -208,6 +313,35 @@ struct WordMatcher: Sendable {
             let w = String(s[i..<j])
             out.append(Token(range: i..<j, exact: fold(w), loose: loosen(w)))
             i = j
+        }
+        return out
+    }
+
+    /// 英语否定缩写在撇号处切成了 don + t：合回一个词，按去掉 n't 的那个词比（doesn't → does，词元 do）；
+    /// won't → will、can't → can。只认这些助动词，don（穿）、Don（人名）后面没有 't 的照常
+    private static let negations: [String: (word: String, lemma: String?)] = [
+        "don": ("do", "do"), "doesn": ("does", "do"), "didn": ("did", "do"),
+        "isn": ("is", "be"), "aren": ("are", "be"), "wasn": ("was", "be"), "weren": ("were", "be"), "ain": ("ain", "be"),
+        "hasn": ("has", "have"), "haven": ("have", "have"), "hadn": ("had", "have"),
+        "won": ("will", "will"), "shan": ("shall", "shall"), "can": ("can", "can"), "couldn": ("could", nil),
+        "wouldn": ("would", nil), "shouldn": ("should", nil), "mustn": ("must", nil), "needn": ("need", "need"),
+        "mightn": ("might", nil), "daren": ("dare", "dare"), "oughtn": ("ought", nil),
+    ]
+
+    static func joiningNegations(_ tokens: [Token], in text: String) -> [Token] {
+        var out: [Token] = []
+        var i = 0
+        while i < tokens.count {
+            if i + 1 < tokens.count, tokens[i + 1].exact == "t", let n = negations[tokens[i].exact],
+               text[tokens[i].range.upperBound..<tokens[i + 1].range.lowerBound].allSatisfy({ "'’ʼ".contains($0) }),
+               tokens[i].range.upperBound < tokens[i + 1].range.lowerBound {
+                out.append(Token(range: tokens[i].range.lowerBound..<tokens[i + 1].range.upperBound, exact: n.word,
+                                 loose: n.word, lemma: n.lemma))
+                i += 2
+            } else {
+                out.append(tokens[i])
+                i += 1
+            }
         }
         return out
     }
@@ -231,10 +365,10 @@ struct WordMatcher: Sendable {
     /// 两个词之间只隔这些（和空格）算挨着：well-known、aujourd'hui
     static let joiners: Set<Character> = ["-", "‐", "‑", "–", "'", "’", "ʼ"]
 
-    /// 隔着这些就不是同一小句了
+    /// 隔着这些就不是同一小句了；· • | / 是变化那行的分隔（trennbar · hält an · hielt an）
     private static func breaksClause(_ gap: Substring, ellipsisJoins: Bool = false) -> Bool {
         let g = ellipsisJoins ? Substring(gap.replacingOccurrences(of: "...", with: " ").replacingOccurrences(of: "…", with: " ")) : gap
-        return g.contains { ".,;:!?…。，；：！？、()[]{}«»‹›\"“”„「」『』—\n".contains($0) || isCJKCharacter($0) }
+        return g.contains { ".,;:!?…。，；：！？、()[]{}«»‹›\"“”„「」『』—\n·•|/".contains($0) || isCJKCharacter($0) }
     }
 
     private static func isCJKCharacter(_ c: Character) -> Bool { c.unicodeScalars.first.map(isCJK) ?? false }
@@ -400,11 +534,12 @@ struct WordMatcher: Sendable {
     /// 卡片每重画一次都要标一遍（语法分解流式时一秒几十次）；同一个词、同一段字只算一次
     private static let cache = OSAllocatedUnfairLock(initialState: [String: [Range<Int>]]())
 
-    /// 按字符数算的位置（AttributedString 的字符和 String 的 Character 一一对应）
-    static func spans(of word: String, language: Language, in text: String) -> [Range<Int>] {
-        let key = language.rawValue + "\u{1}" + word + "\u{1}" + text
+    /// 按字符数算的位置（AttributedString 的字符和 String 的 Character 一一对应）。grammar 只对德语有用（认可分动词）
+    static func spans(of word: String, language: Language, in text: String, grammar: String? = nil) -> [Range<Int>] {
+        let g = language == .german ? grammar ?? "" : ""
+        let key = language.rawValue + "\u{1}" + word + "\u{1}" + g + "\u{1}" + text
         if let hit = cache.withLock({ $0[key] }) { return hit }
-        let (ranges, complete) = WordMatcher(word: word, language: language).find(in: text)
+        let (ranges, complete) = WordMatcher(word: word, language: language, grammar: g.isEmpty ? nil : g).find(in: text)
         var spans: [Range<Int>] = []
         var pos = 0, idx = text.startIndex
         for r in ranges {
@@ -472,13 +607,13 @@ enum Inflection {
     private static let germanVerbal: Set<String> = ["e", "est", "st", "et", "t", "en", "end", "ende", "enden", "ender", "endes",
                                                     "te", "test", "ten", "tet", "tete", "teten", "ete", "etest", "eten", "etet"]
 
-    // 德语：变音已经去掉（Häuser → hauser），复数、格、比较级是词尾；动词看去掉 -en 的词干，过去分词 ge…t
+    // 德语：变音已经去掉（Häuser → hauser），复数、格、比较级是词尾；动词看去掉 -en 的词干，过去分词 ge…t。
+    // sein、tun 这种只以 -n 结尾的不猜（sei + t 会认成 seit），它们的变位系统词元都认
     private static func german(_ t: String, _ e: String) -> Bool {
         if suffixed(t, e, germanNominal, min: 4) { return true }   // Kinder Häuser Fahrers größer
         var stem: String?
         if e.hasSuffix("ern") || e.hasSuffix("eln") { stem = String(e.dropLast()) }
         else if e.hasSuffix("en") { stem = String(e.dropLast(2)) }
-        else if e.hasSuffix("n") { stem = String(e.dropLast()) }
         guard let stem, stem.count >= 3 else { return false }
         if suffixed(t, stem, germanVerbal, min: 3) { return true }   // macht machte machend
         if t.hasPrefix("ge"), suffixed(String(t.dropFirst(2)), stem, ["t", "et", "en"], min: 3) { return true }   // gemacht
@@ -540,6 +675,16 @@ enum Inflection {
                                                  "iendo", "id"]
     private static let clitics = ["los", "las", "les", "nos", "lo", "la", "le", "me", "te", "se", "os"]
 
+    /// 西语去掉后面粘着的一两个代词（dímelo → díme → dí），剩下至少两个字母；不含原词
+    static func withoutClitics(_ t: String) -> [String] {
+        var out: [String] = [], round = [t]
+        for _ in 0..<2 {
+            round = round.flatMap { c in clitics.filter { c.hasSuffix($0) && c.count >= $0.count + 2 }.map { String(c.dropLast($0.count)) } }
+            out += round
+        }
+        return out
+    }
+
     // 西语：名词形容词 -s / -es / -ces，-o ↔ -a；-ar / -er / -ir 动词接词尾，词干变音（poder → puedo）、拼写变化（buscar → busqué）、
     // 后面粘着代词（hacerlo、levantarse）
     private static func spanish(_ t: String, _ e: String) -> Bool {
@@ -595,6 +740,22 @@ enum Irregular {
         return list
     }
 
+    /// 西语查表的动词：后面能粘代词的写法（不定式、副动词、肯定命令式），去掉重音（dímelo、hágalo 的重音是粘上代词才加的）。
+    /// di、ve、ven 单独出现时也是 dar、ver 的变位，不放进上面的表，只在粘着代词时认（dime、vete）
+    static func encliticHosts(of lemma: String) -> Set<String> {
+        guard let forms = tables[Language.spanish.rawValue]?[lemma] else { return [] }
+        let hosts = [lemma] + forms.filter { $0.hasSuffix("ndo") } + (spanishImperatives[lemma] ?? [])
+        return Set(hosts.map(WordMatcher.loosen))
+    }
+
+    private static let spanishImperatives: [String: [String]] = build([
+        "hacer": "haz haced haga hagan", "decir": "di decid diga digan", "poner": "pon poned ponga pongan",
+        "tener": "ten tened tenga tengan", "venir": "ven venid venga vengan", "ir": "ve id vaya vayan",
+        "ver": "ve ved vea vean", "dar": "da dad dé den", "saber": "sé sabed sepa sepan", "ser": "sé sed sea sean",
+        "estar": "está estad esté estén", "querer": "quiere quered quiera quieran", "poder": "puede poded pueda puedan",
+        "haber": "he habed haya hayan",
+    ]).mapValues { Array($0) }
+
     private static let tables: [String: [String: Set<String>]] = [
         Language.english.rawValue: build([
             "good": "better best", "well": "better best", "bad": "worse worst", "badly": "worse worst", "ill": "worse worst",
@@ -619,18 +780,18 @@ enum Irregular {
         Language.spanish.rawValue: build([
             "ser": "soy eres es somos sois son era eras éramos erais eran fui fuiste fue fuimos fuisteis fueron seré serás será seremos seréis serán sería serías seríamos seríais serían sea seas seamos seáis sean fuera fueras fuéramos fuerais fueran fuese fuesen sido siendo",
             "estar": "estoy estás está estamos estáis están estaba estabas estábamos estabais estaban estuve estuviste estuvo estuvimos estuvisteis estuvieron estaré estarás estará estaremos estaréis estarán estaría estarías estaríamos estaríais estarían esté estés estemos estéis estén estuviera estuvieras estuviéramos estuvierais estuvieran estado estando",
-            "ir": "voy vas va vamos vais van iba ibas íbamos ibais iban fui fuiste fue fuimos fuisteis fueron iré irás irá iremos iréis irán iría irías iríamos iríais irían vaya vayas vayamos vayáis vayan fuera fueras fuéramos fuerais fueran ido yendo",
-            "tener": "tengo tienes tiene tenemos tenéis tienen tenía tenías teníamos teníais tenían tuve tuviste tuvo tuvimos tuvisteis tuvieron tendré tendrás tendrá tendremos tendréis tendrán tendría tendrías tendríamos tendríais tendrían tenga tengas tengamos tengáis tengan tuviera tuvieras tuviéramos tuvierais tuvieran tenido teniendo",
-            "hacer": "hago haces hace hacemos hacéis hacen hacía hacías hacíamos hacíais hacían hice hiciste hizo hicimos hicisteis hicieron haré harás hará haremos haréis harán haría harías haríamos haríais harían haga hagas hagamos hagáis hagan hiciera hicieras hiciéramos hicierais hicieran hecho hecha hechos hechas haciendo haz",
+            "ir": "voy vas va vamos vais van iba ibas íbamos ibais iban fui fuiste fue fuimos fuisteis fueron iré irás irá iremos iréis irán iría irías iríamos iríais irían vaya vayas vayamos vayáis vayan fuera fueras fuéramos fuerais fueran ido yendo id",
+            "tener": "tengo tienes tiene tenemos tenéis tienen tenía tenías teníamos teníais tenían tuve tuviste tuvo tuvimos tuvisteis tuvieron tendré tendrás tendrá tendremos tendréis tendrán tendría tendrías tendríamos tendríais tendrían tenga tengas tengamos tengáis tengan tuviera tuvieras tuviéramos tuvierais tuvieran tenido teniendo ten tened",
+            "hacer": "hago haces hace hacemos hacéis hacen hacía hacías hacíamos hacíais hacían hice hiciste hizo hicimos hicisteis hicieron haré harás hará haremos haréis harán haría harías haríamos haríais harían haga hagas hagamos hagáis hagan hiciera hicieras hiciéramos hicierais hicieran hecho hecha hechos hechas haciendo haz haced",
             "poder": "puedo puedes puede podemos podéis pueden podía podías podíamos podíais podían pude pudiste pudo pudimos pudisteis pudieron podré podrás podrá podremos podréis podrán podría podrías podríamos podríais podrían pueda puedas podamos podáis puedan pudiera pudieras pudiéramos pudierais pudieran podido pudiendo",
-            "decir": "digo dices dice decimos decís dicen decía decías decíamos decíais decían dije dijiste dijo dijimos dijisteis dijeron diré dirás dirá diremos diréis dirán diría dirías diríamos diríais dirían diga digas digamos digáis digan dijera dijeras dijéramos dijerais dijeran dicho dicha dichos dichas diciendo",
+            "decir": "digo dices dice decimos decís dicen decía decías decíamos decíais decían dije dijiste dijo dijimos dijisteis dijeron diré dirás dirá diremos diréis dirán diría dirías diríamos diríais dirían diga digas digamos digáis digan dijera dijeras dijéramos dijerais dijeran dicho dicha dichos dichas diciendo decid",
             "ver": "veo ves ve vemos veis ven veía veías veíamos veíais veían vi viste vio vimos visteis vieron veré verás verá veremos veréis verán vería verías veríamos veríais verían vea veas veamos veáis vean viera vieras viéramos vierais vieran visto vista vistos vistas viendo",
             "dar": "doy das da damos dais dan daba dabas dábamos dabais daban di diste dio dimos disteis dieron daré darás dará daremos daréis darán daría darías daríamos daríais darían dé des demos deis den diera dieras diéramos dierais dieran dado dada dados dadas dando",
             "haber": "he has ha hemos habéis han había habías habíamos habíais habían hube hubiste hubo hubimos hubisteis hubieron habré habrás habrá habremos habréis habrán habría habrías habríamos habríais habrían haya hayas hayamos hayáis hayan hubiera hubieras hubiéramos hubierais hubieran habido habiendo hay",
             "saber": "sé sabes sabe sabemos sabéis saben sabía sabías sabíamos sabíais sabían supe supiste supo supimos supisteis supieron sabré sabrás sabrá sabremos sabréis sabrán sabría sabrías sabríamos sabríais sabrían sepa sepas sepamos sepáis sepan supiera supieras supiéramos supierais supieran sabido sabiendo",
             "querer": "quiero quieres quiere queremos queréis quieren quería querías queríamos queríais querían quise quisiste quiso quisimos quisisteis quisieron querré querrás querrá querremos querréis querrán querría querrías querríamos querríais querrían quiera quieras queramos queráis quieran quisiera quisieras quisiéramos quisierais quisieran querido queriendo",
-            "venir": "vengo vienes viene venimos venís vienen venía venías veníamos veníais venían vine viniste vino vinimos vinisteis vinieron vendré vendrás vendrá vendremos vendréis vendrán vendría vendrías vendríamos vendríais vendrían venga vengas vengamos vengáis vengan viniera vinieras viniéramos vinierais vinieran venido viniendo",
-            "poner": "pongo pones pone ponemos ponéis ponen ponía ponías poníamos poníais ponían puse pusiste puso pusimos pusisteis pusieron pondré pondrás pondrá pondremos pondréis pondrán pondría pondrías pondríamos pondríais pondrían ponga pongas pongamos pongáis pongan pusiera pusieras pusiéramos pusierais pusieran puesto puesta puestos puestas poniendo",
+            "venir": "vengo vienes viene venimos venís vienen venía venías veníamos veníais venían vine viniste vino vinimos vinisteis vinieron vendré vendrás vendrá vendremos vendréis vendrán vendría vendrías vendríamos vendríais vendrían venga vengas vengamos vengáis vengan viniera vinieras viniéramos vinierais vinieran venido viniendo venid",
+            "poner": "pongo pones pone ponemos ponéis ponen ponía ponías poníamos poníais ponían puse pusiste puso pusimos pusisteis pusieron pondré pondrás pondrá pondremos pondréis pondrán pondría pondrías pondríamos pondríais pondrían ponga pongas pongamos pongáis pongan pusiera pusieras pusiéramos pusierais pusieran puesto puesta puestos puestas poniendo pon poned",
         ]),
     ]
 

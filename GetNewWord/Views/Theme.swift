@@ -229,14 +229,15 @@ extension View {
 
 enum TextHighlighter {
     /// 查的词每次出现都标重点色、加粗不改字号：整个词才算，变形、短语也算（规则在 WordMatcher）。
-    /// 语境、用法、搭配、例句、词根词源、语法分解、词头下的变化那行都用它；中文译文另有 emphasizeTranslation
-    static func highlight(_ word: String, in text: String, language: Language) -> AttributedString {
-        mark(word, in: AttributedString(text), language: language)
+    /// 语境、用法、搭配、例句、词根词源、语法分解、词头下的变化那行都用它；中文译文另有 emphasizeTranslation。
+    /// grammar 是词头下面变化那行：德语写着「trennbar · hält an」时，词头 halten 的 anhalten、hält … an 也标
+    static func highlight(_ word: String, in text: String, language: Language, grammar: String? = nil) -> AttributedString {
+        mark(word, in: AttributedString(text), language: language, grammar: grammar)
     }
 
     /// 已经带格式的字（语法分解的行内 Markdown）里再标：原来的加粗、代码样式留着
-    static func mark(_ word: String, in attr: AttributedString, language: Language) -> AttributedString {
-        let spans = WordMatcher.spans(of: word, language: language, in: String(attr.characters))
+    static func mark(_ word: String, in attr: AttributedString, language: Language, grammar: String? = nil) -> AttributedString {
+        let spans = WordMatcher.spans(of: word, language: language, in: String(attr.characters), grammar: grammar)
         guard !spans.isEmpty else { return attr }
         var out = attr
         for span in spans {

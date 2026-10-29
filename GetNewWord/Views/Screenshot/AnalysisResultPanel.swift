@@ -384,6 +384,8 @@ struct GrammarBreakdownSection: View {
     let state: GrammarBreakdownState
     let word: String
     let language: Language
+    /// 词头下面变化那行（认德语可分动词用）
+    var grammar: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -442,7 +444,7 @@ struct GrammarBreakdownSection: View {
                 .foregroundStyle(Theme.accent)
                 .padding(.top, 6)
         case .line(let l):
-            Text(TextHighlighter.mark(word, in: Self.inline(l), language: language))
+            Text(TextHighlighter.mark(word, in: Self.inline(l), language: language, grammar: grammar))
                 .font(.system(size: 13.5))
                 .lineSpacing(3)
                 .foregroundStyle(Theme.text)
@@ -483,12 +485,12 @@ func aiSection(_ title: String, _ body: String) -> some View {
 
 /// 例句一条："外语原句 —— 中文"拆两行：原句斜体、查的词标紫，译文灰色小字
 @ViewBuilder
-func exampleView(_ line: String, word: String, language: Language) -> some View {
+func exampleView(_ line: String, word: String, language: Language, grammar: String? = nil) -> some View {
     let parts = line.components(separatedBy: "——")
     let foreign = parts.first?.trimmingCharacters(in: .whitespaces) ?? line
     let chinese = parts.count > 1 ? parts.dropFirst().joined(separator: "——").trimmingCharacters(in: .whitespaces) : nil
     VStack(alignment: .leading, spacing: 2) {
-        Text(TextHighlighter.highlight(word, in: foreign, language: language))
+        Text(TextHighlighter.highlight(word, in: foreign, language: language, grammar: grammar))
             .font(.system(size: 13.5))
             .italic()
             .fixedSize(horizontal: false, vertical: true)

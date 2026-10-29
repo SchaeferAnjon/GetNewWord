@@ -6,9 +6,9 @@ import Testing
 @testable import GetNewWord
 
 /// 标出来的地方用 [ ] 括起来，方便一眼对答案
-private func marked(_ word: String, _ language: Language, _ text: String) -> String {
+private func marked(_ word: String, _ language: Language, _ text: String, grammar: String? = nil) -> String {
     var out = "", i = text.startIndex
-    for r in WordMatcher(word: word, language: language).ranges(in: text) {
+    for r in WordMatcher(word: word, language: language, grammar: grammar).ranges(in: text) {
         out += text[i..<r.lowerBound] + "[" + text[r] + "]"
         i = r.upperBound
     }
@@ -65,6 +65,24 @@ struct WordMatcherEnglishTests {
         #expect(marked("give up", .english, "Give, up.") == "Give, up.")
     }
 
+    /// 否定缩写整个词算：Don't 里有 do、won't 里有 will、can't 里有 can；don（穿）不算 Don't，can 不再只紫半个 can't
+    @Test func negativeContractions() {
+        #expect(marked("do", .english, "Don't do that. He doesn't know, she didn't.")
+                == "[Don't] [do] that. He [doesn't] know, she [didn't].")
+        #expect(marked("don", .english, "Don't worry, they don the hats.") == "Don't worry, they [don] the hats.")
+        #expect(marked("can", .english, "I can't open the can.") == "I [can't] open the [can].")
+        #expect(marked("will", .english, "I will go; she won't.") == "I [will] go; she [won't].")
+        #expect(marked("win", .english, "They won't win.") == "They won't [win].")
+    }
+
+    /// 词头带斜杠、括号：take sb/sth for granted、look (sth) up 按词找；整个就是 and/or、colo(u)r 的原样找
+    @Test func optionsInHeadword() {
+        #expect(marked("take sb/sth for granted", .english, "She took him for granted.") == "She [took] him [for granted].")
+        #expect(marked("look (sth) up", .english, "Look it up in the dictionary.") == "[Look] it [up] in the dictionary.")
+        #expect(marked("and/or", .english, "Tea and/or coffee, and more.") == "Tea [and/or] coffee, and more.")
+        #expect(marked("colo(u)r", .english, "The colo(u)r, the colour.") == "The [colo(u)r], the colour.")
+    }
+
     /// 中文讲解里夹着的英文词：前后挨着汉字也是边界
     @Test func insideChineseNotes() {
         #expect(marked("mitigate", .english, "mitigate常与 risk 搭配；mitigating circumstances 是法律术语")
@@ -82,6 +100,48 @@ struct WordMatcherEuropeanTests {
                 == "Die [STRASSE], zwei [Straßen], die [Strasse].")
         #expect(marked("schon", .german, "Das ist schon schön.") == "Das ist [schon] schön.")
         #expect(marked("schön", .german, "Das ist schon schön, am schönsten.") == "Das ist schon [schön], am [schönsten].")
+    }
+
+    /// 去掉变音才对得上、系统说是另一个词的不算：schöner 不是 schon 的变形，zählt 不是 zahlen，seit 不是 sein
+    @Test func germanUmlautIsAnotherWord() {
+        #expect(marked("schon", .german, "Das ist schon ein schöner Tag, die schönen Blumen.")
+                == "Das ist [schon] ein schöner Tag, die schönen Blumen.")
+        #expect(marked("zahlen", .german, "Ich zahle, er zählt bis zehn.") == "Ich [zahle], er zählt bis zehn.")
+        #expect(marked("drucken", .german, "Er druckt, sie drückt den Knopf.") == "Er [druckt], sie drückt den Knopf.")
+        #expect(marked("sein", .german, "Er ist seit Jahren hier.") == "Er [ist] seit Jahren hier.")
+    }
+
+    /// 变化那行用「·」隔开：hält an、hielt an 各是一小句，可分动词照样认
+    @Test func germanGrammarLine() {
+        #expect(marked("anhalten", .german, "trennbar · hält an · hielt an · hat angehalten")
+                == "trennbar · [hält] [an] · [hielt] [an] · hat [angehalten]")
+        #expect(marked("aufstehen", .german, "trennbar • steht auf | stand auf / ist aufgestanden")
+                == "trennbar • [steht] [auf] | [stand] [auf] / ist [aufgestanden]")
+    }
+
+    /// 模型把可分动词写成了 halten、变化那行写着 trennbar · hält an：anhalten、句末的 an 也标；不可分的照旧
+    @Test func germanHeadwordMissingParticle() {
+        let g = "trennbar · hält an · hielt an · hat angehalten"
+        #expect(marked("halten", .german, g, grammar: g) == "trennbar · [hält] [an] · [hielt] [an] · hat [angehalten]")
+        #expect(marked("halten", .german, "Der Bus hält an der Ecke an. Anhalten, halten für.", grammar: g)
+                == "Der Bus [hält] an der Ecke [an]. [Anhalten], [halten] für.")
+        #expect(marked("sehen", .german, "Er sieht sie an.", grammar: "trennbar · sieht an · sah an · hat angesehen")
+                == "Er [sieht] sie [an].")
+        #expect(marked("halten", .german, "Er hält an seiner Meinung fest.", grammar: "hält · hielt · hat gehalten")
+                == "Er [hält] an seiner Meinung fest.")
+        #expect(marked("warten", .german, "Er wartet auf den Bus, wartet auf.", grammar: "wartet auf · wartete · hat gewartet")
+                == "Er [wartet] auf den Bus, [wartet] auf.")
+    }
+
+    /// 前缀配离它最近的那个变位，und 后面是另一个动词；换序兜底不把 zu Hause 认成 Hause zu；命令式只剩词干
+    @Test func germanNearestVerb() {
+        #expect(marked("aufhören", .german, "Sie hörte mir zu und hörte auf.") == "Sie hörte mir zu und [hörte] [auf].")
+        #expect(marked("zumachen", .german, "Sie macht Musik und hört mir zu. Mach die Tür zu!")
+                == "Sie macht Musik und hört mir zu. [Mach] die Tür [zu]!")
+        #expect(marked("zu Hause", .german, "Ich bin zu müde, um nach Hause zu gehen. Ich bin zu Hause.")
+                == "Ich bin zu müde, um nach Hause zu gehen. Ich bin [zu Hause].")
+        #expect(marked("es gibt", .german, "Gibt es hier ein Café?") == "[Gibt es] hier ein Café?")
+        #expect(marked("Rücksicht nehmen (auf + A)", .german, "Er nimmt Rücksicht auf sie.") == "Er [nimmt Rücksicht] auf sie.")
     }
 
     /// 可分动词拆开时动词和前缀都标，中间当介词的 an 不标；短语换了语序也认
@@ -103,6 +163,9 @@ struct WordMatcherEuropeanTests {
                 == "Je [vais] à Paris, elle est [allée], ils [iront].")
         #expect(marked("eau", .french, "L'eau est froide. Beaucoup d'eaux.") == "L'[eau] est froide. Beaucoup d'[eaux].")
         #expect(marked("cheval", .french, "Les chevaux.") == "Les [chevaux].")
+        // 只在 e 上换重音、ç 和 c 互换；sûre 不是 sur
+        #expect(marked("commencer", .french, "Nous commençons, il commence.") == "Nous [commençons], il [commence].")
+        #expect(marked("sur", .french, "Sur la table, je suis sûre.") == "[Sur] la table, je suis sûre.")
     }
 
     /// 西语：¿¡ 开头、复数去掉重音、词干变音、不规则表里的 está 不是 esta
@@ -111,6 +174,16 @@ struct WordMatcherEuropeanTests {
         #expect(marked("poder", .spanish, "¿Puedo hacerlo? Pudimos.") == "¿[Puedo] hacerlo? [Pudimos].")
         #expect(marked("estar", .spanish, "Esta casa está aquí.") == "Esta casa [está] aquí.")
         #expect(marked("hablar", .spanish, "Hablo, habló, ¡háblame!") == "[Hablo], [habló], ¡[háblame]!")
+        // 只多一个 -s 不挪重音：estás 不是 esta
+        #expect(marked("esta", .spanish, "Esta casa, tú estás, estas casas.") == "[Esta] casa, tú estás, [estas] casas.")
+    }
+
+    /// 查表的不规则动词后面粘着代词（hazlo、dímelo、ponerse）也认；vale 里的 va 不是 ir
+    @Test func spanishClitics() {
+        #expect(marked("hacer", .spanish, "Hazlo ya. Hacerlo es fácil. Hágalo.") == "[Hazlo] ya. [Hacerlo] es fácil. [Hágalo].")
+        #expect(marked("decir", .spanish, "Dime la verdad. Dímelo.") == "[Dime] la verdad. [Dímelo].")
+        #expect(marked("poner", .spanish, "Ponlo aquí. Ponerse el abrigo.") == "[Ponlo] aquí. [Ponerse] el abrigo.")
+        #expect(marked("ir", .spanish, "Vete ya. Vale.") == "[Vete] ya. Vale.")
     }
 }
 
@@ -149,4 +222,5 @@ struct TextHighlighterTests {
         #expect(run.inlinePresentationIntent?.contains(.code) == true)
         #expect(run.inlinePresentationIntent?.contains(.stronglyEmphasized) == true)
     }
+
 }
