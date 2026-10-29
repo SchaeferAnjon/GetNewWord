@@ -249,6 +249,11 @@ final class PerfProbe: NSObject {
     }
     private var panelOpen: PanelOpen?
     private var panelClose: PanelClose?
+    /// 整张卡出来以后用户在读、随时会点关的这几秒：补全写回、发音落盘、Anki 同步都在这段里，主线程最长卡多久
+    private var readingUntil: CFTimeInterval = 0
+    private var readingBusy: CFTimeInterval = 0
+    private var readingTotal: CFTimeInterval = 0
+    private static let readingWindow: CFTimeInterval = 8
     /// 整张卡画出来以后再看这么久的主线程（存词、主窗口跟着刷新、补全回来都在这段里）
     private static let resultSettle: CFTimeInterval = 1.5
     private static let closeSettle: CFTimeInterval = 1.0
@@ -282,6 +287,10 @@ final class PerfProbe: NSObject {
     }
 
     private func panelTracked(busy: CFTimeInterval, from: CFTimeInterval, now: CFTimeInterval) {
+        if readingUntil > 0, from < readingUntil {
+            readingBusy = max(readingBusy, busy)
+            readingTotal += busy
+        }
         if var p = panelOpen {
             if p.firstFrame == 0 {
                 p.busyOpen = max(p.busyOpen, busy)
@@ -329,6 +338,15 @@ final class PerfProbe: NSObject {
     private func finishPanelOpen() {
         guard let p = panelOpen else { return }
         panelOpen = nil
+        readingUntil = CACurrentMediaTime() + Self.readingWindow
+        readingBusy = 0
+        readingTotal = 0
+        let until = readingUntil
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.readingWindow) { [weak self] in
+            guard let self, self.readingUntil == until else { return }
+            self.readingUntil = 0
+            AppLog.log("[Perf] panel reading · \(self.panelContext) · main busy max \(self.ms(self.readingBusy))ms, total \(self.ms(self.readingTotal))ms in \(Int(Self.readingWindow))s after card")
+        }
         let capture = p.captured > 0 ? ms(p.captured - p.input) : "-"
         AppLog.log("[Perf] panel open · \(panelContext) · \(p.cachedHit ? "cached" : "new")"
                    + " · input→first frame \(p.firstFrame > 0 ? ms(p.firstFrame - p.input) : "-")ms"
