@@ -103,18 +103,21 @@ struct WordMatcher: Sendable {
     // MARK: - 找
 
     /// 每处出现的范围，从前往后、不重叠
-    func ranges(in text: String) -> [Range<String.Index>] {
+    func ranges(in text: String) -> [Range<String.Index>] { find(in: text).ranges }
+
+    /// complete = 系统词元用上了（或这门语言本来就没有）；主线程上词元模型还没读完时是 false，这次的结果不该缓存
+    private func find(in text: String) -> (ranges: [Range<String.Index>], complete: Bool) {
         switch mode {
         case .none:
-            return []
+            return ([], true)
         case .substring(let needle):
-            return Self.occurrences(of: needle, in: text, wholeWord: false)
+            return (Self.occurrences(of: needle, in: text, wholeWord: false), true)
         case .literal(let needle):
-            return Self.occurrences(of: needle, in: text, wholeWord: true)
+            return (Self.occurrences(of: needle, in: text, wholeWord: true), true)
         case .words(let parts, let separable):
             let tokens = Self.tokenize(text)
-            guard !tokens.isEmpty else { return [] }
-            let lemmas = Self.lemmas(of: text, tokens: tokens, language: language)
+            guard !tokens.isEmpty else { return ([], true) }
+            let (lemmas, complete) = Self.lemmas(of: text, tokens: tokens, language: language)
             func hit(_ i: Int, _ p: Part) -> Bool { matches(tokens[i], lemma: lemmas[i], part: p) }
             var found: [Range<String.Index>] = []
             if parts.count == 1 {
@@ -123,7 +126,7 @@ struct WordMatcher: Sendable {
             } else {
                 found = phrase(parts, tokens: tokens, lemmas: lemmas, text: text)
             }
-            return Self.tidy(found)
+            return (Self.tidy(found), complete)
         }
     }
 
@@ -348,20 +351,27 @@ struct WordMatcher: Sendable {
         }
     }
 
-    /// 这台 Mac 的 NaturalLanguage 有没有这门语言的词元（macOS 14/15 只有英语、德语等几门）
-    private static let lemmaLanguages: Set<String> = {
-        Set([Language.english, .german, .french, .spanish].compactMap { l in
-            nlLanguage(l).flatMap { NLTagger.availableTagSchemes(for: .word, language: $0).contains(.lemma) ? l.rawValue : nil }
-        })
-    }()
+    /// 每门语言的词元模型读完没有、有没有词元（macOS 15 上英语、德语有；法语、西语没有，试一次也要 0.1 秒）。
+    /// 启动时在后台读（warmUp）；读完之前主线程不等它，按没有词元算，这次的结果也不缓存
+    private static let lemmaState = OSAllocatedUnfairLock(initialState: [String: Bool]())
 
-    /// 每个词的词元（大小写折叠）；系统没给、或切词和我们的对不上的是 nil
-    private static func lemmas(of text: String, tokens: [Token], language: Language) -> [String?] {
+    /// 每个词的词元（大小写折叠）；系统没给、或切词和我们的对不上的是 nil。complete = false：主线程上模型还没读完，没问系统
+    private static func lemmas(of text: String, tokens: [Token], language: Language) -> (lemmas: [String?], complete: Bool) {
+        let none = [String?](repeating: nil, count: tokens.count)
+        guard let nl = nlLanguage(language) else { return (none, true) }
+        switch lemmaState.withLock({ $0[language.rawValue] }) {
+        case false?: return (none, true)
+        case nil where Thread.isMainThread: return (none, false)
+        default: break
+        }
+        return (tag(text, tokens: tokens, language: nl), true)
+    }
+
+    private static func tag(_ text: String, tokens: [Token], language: NLLanguage) -> [String?] {
         var out = [String?](repeating: nil, count: tokens.count)
-        guard lemmaLanguages.contains(language.rawValue), let nl = nlLanguage(language) else { return out }
         let tagger = NLTagger(tagSchemes: [.lemma])
         tagger.string = text
-        tagger.setLanguage(nl, range: text.startIndex..<text.endIndex)
+        tagger.setLanguage(language, range: text.startIndex..<text.endIndex)
         var byStart: [String.Index: (end: String.Index, lemma: String)] = [:]
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .lemma,
                              options: [.omitWhitespace, .omitPunctuation]) { tag, r in
@@ -374,12 +384,14 @@ struct WordMatcher: Sendable {
         return out
     }
 
-    /// 第一次用词元要把模型读进来（英语约 0.15 秒、德语约 0.07 秒）：启动时在后台先读，查词时主线程不等它
+    /// 把词元模型读进来（第一次：英语约 0.15 秒、德语约 0.07 秒），顺便记下哪门语言有词元。会卡住调用它的线程，放后台调
     static func warmUp() {
-        DispatchQueue.global(qos: .utility).async {
-            for (text, lang) in [("The sun heats the water.", Language.english), ("Der Bus hält an.", Language.german)] {
-                _ = lemmas(of: text, tokens: tokenize(text), language: lang)
-            }
+        let samples: [(String, Language)] = [("The sun heats the water.", .english), ("Der Bus hält an.", .german),
+                                             ("Il préfère le café.", .french), ("Ella prefiere el café.", .spanish)]
+        for (text, lang) in samples {
+            guard let nl = nlLanguage(lang) else { continue }
+            let has = tag(text, tokens: tokenize(text), language: nl).contains { $0 != nil }
+            lemmaState.withLock { $0[lang.rawValue] = has }
         }
     }
 
@@ -392,7 +404,7 @@ struct WordMatcher: Sendable {
     static func spans(of word: String, language: Language, in text: String) -> [Range<Int>] {
         let key = language.rawValue + "\u{1}" + word + "\u{1}" + text
         if let hit = cache.withLock({ $0[key] }) { return hit }
-        let ranges = WordMatcher(word: word, language: language).ranges(in: text)
+        let (ranges, complete) = WordMatcher(word: word, language: language).find(in: text)
         var spans: [Range<Int>] = []
         var pos = 0, idx = text.startIndex
         for r in ranges {
@@ -402,6 +414,7 @@ struct WordMatcher: Sendable {
             pos += len
             idx = r.upperBound
         }
+        guard complete else { return spans }
         let result = spans
         cache.withLock { c in
             if c.count > 600 { c.removeAll(keepingCapacity: true) }
