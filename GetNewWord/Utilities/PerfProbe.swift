@@ -227,6 +227,7 @@ final class PerfProbe: NSObject {
         var input: CFTimeInterval
         var captured: CFTimeInterval = 0
         var shown: CFTimeInterval = 0
+        var requested: CFTimeInterval = 0
         var firstFrame: CFTimeInterval = 0
         var result: CFTimeInterval = 0
         var resultFrame: CFTimeInterval = 0
@@ -266,6 +267,8 @@ final class PerfProbe: NSObject {
             panelOpen?.captured = now
         case .shown:
             panelOpen?.shown = now
+        case .requested:
+            panelOpen?.requested = now
         case .result(let cached):
             guard panelOpen != nil else { return }
             panelOpen?.result = now
@@ -329,7 +332,7 @@ final class PerfProbe: NSObject {
         let capture = p.captured > 0 ? ms(p.captured - p.input) : "-"
         AppLog.log("[Perf] panel open · \(panelContext) · \(p.cachedHit ? "cached" : "new")"
                    + " · input→first frame \(p.firstFrame > 0 ? ms(p.firstFrame - p.input) : "-")ms"
-                   + " (capture \(capture), show \(p.shown > 0 ? ms(p.shown - p.input) : "-"))"
+                   + " (capture \(capture), show \(p.shown > 0 ? ms(p.shown - p.input) : "-"), AI request \(p.requested > 0 ? ms(p.requested - p.input) : "-"))"
                    + " · main busy max \(ms(p.busyOpen))ms until first frame"
                    + " · result→card frame \(ms(p.resultFrame - p.result))ms"
                    + " · main busy max \(ms(p.busyResult))ms, total \(ms(p.busyResultTotal))ms until card + \(String(format: "%.1f", Self.resultSettle))s")
@@ -367,7 +370,7 @@ import Foundation
 /// 查词面板打点的入口：开发版 GNW_PERF=1 时记进 app.log（PerfProbe），正式版里什么都不做
 @MainActor
 enum PanelPerf {
-    enum Step { case trigger, captured, shown, result(cached: Bool), closeInput(String), orderedOut }
+    enum Step { case trigger, captured, shown, requested, result(cached: Bool), closeInput(String), orderedOut }
 
     /// eventTime：按键 / 点击发生的时刻（CACurrentMediaTime 同一个钟），从那一刻算起；没有就从现在算
     static func mark(_ step: Step, eventTime: TimeInterval? = nil) {

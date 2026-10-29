@@ -224,6 +224,7 @@ class AnalysisViewModel: ObservableObject {
             textEnrich = nil
             AppLog.log("[Analysis] no text in selection, image path")
         }
+        PanelPerf.mark(.requested)
 
         // 1. 面板立刻弹出（骨架态），不再只显示小转圈
         showResultPanel = true
