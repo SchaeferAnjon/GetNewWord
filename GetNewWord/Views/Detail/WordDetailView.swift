@@ -38,7 +38,6 @@ struct WordDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header
-                    .id(Self.top)
                 if !word.sortedContexts.isEmpty { contextCard.padding(.top, 20) }
                 VStack(alignment: .leading, spacing: 22) {
                     meaning
@@ -53,6 +52,7 @@ struct WordDetailView: View {
             .padding(.bottom, 40)
             .frame(maxWidth: 792, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .id(Self.top)   // 整块内容（连顶上的留白）的顶
         }
         // 换词时不整个重建（.id 换掉会把滚动视图连同里面的一切拆了重搭，按住 ↓ 时跟不上），
         // 只把这个词自己的状态清掉、回到顶上
@@ -60,7 +60,8 @@ struct WordDetailView: View {
             isEditing = false
             ctxIndex = 0
             isSpeaking = false
-            proxy.scrollTo(Self.top, anchor: .top)
+            // 等新词的内容排好再滚：同一轮里滚，排版时又按旧的位置放回去了
+            DispatchQueue.main.async { proxy.scrollTo(Self.top, anchor: .top) }
         }
         }
         .background(Theme.bg)
