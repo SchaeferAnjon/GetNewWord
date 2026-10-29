@@ -723,13 +723,12 @@ final class AnkiService: @unchecked Sendable {
     @MainActor
     func pruneDeletedNotes(context: ModelContext) async {
         let container = context.container
-        let synced = await Task.detached(priority: .utility) { () -> [(id: PersistentIdentifier, note: Int)] in
+        let ids = await Task.detached(priority: .utility) { () -> [Int] in
             var d = FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil })
             d.propertiesToFetch = [\.ankiNoteId]
-            return ((try? ModelContext(container).fetch(d)) ?? []).compactMap { w in w.ankiNoteId.map { (w.persistentModelID, $0) } }
+            return ((try? ModelContext(container).fetch(d)) ?? []).compactMap(\.ankiNoteId)
         }.value
-        guard !synced.isEmpty else { return }
-        let ids = synced.map(\.note)
+        guard !ids.isEmpty else { return }
         guard let infos: [NoteInfoLite] = try? await send(action: "notesInfo", params: ["notes": ids], as: [NoteInfoLite].self),
               infos.count == ids.count else { return }
         // 熔断：绝大多数本地卡都在 Anki 中不存在 = 换库/换配置/新账号，绝不能当成用户删卡
@@ -743,7 +742,10 @@ final class AnkiService: @unchecked Sendable {
         for (i, info) in infos.enumerated() where info.noteId == nil {
             // 从另一台电脑同步来、本机 Anki 还没经 AnkiWeb 拿到的卡：不是用户删卡
             guard !CloudSyncService.shared.isUnconfirmedAnkiNote(ids[i]) else { continue }
-            if let w = context.model(for: synced[i].id) as? WordEntry, !w.isDeleted, w.ankiNoteId == ids[i] {
+            // 按卡号在主线程的词库里重新取：等 Anki 回话的这段时间里用户可能已经删了这个词并存了盘，
+            // 拿后台读到的对象 ID 去取会拿到已失效的对象，一读属性就崩
+            let noteId: Int? = ids[i]
+            for w in (try? context.fetch(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId == noteId }))) ?? [] {
                 AppLog.log("[Anki] '\(w.word)' deleted in Anki → remove locally")
                 context.delete(w)
                 removed += 1

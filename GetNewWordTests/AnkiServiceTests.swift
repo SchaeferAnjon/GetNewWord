@@ -333,6 +333,32 @@ final class AnkiServiceTests {
         #expect(try context.fetch(FetchDescriptor<WordEntry>()).map(\.word).sorted() == ["local", "w1", "w3", "w4"])
     }
 
+    /// 后台读完卡号、等 Anki 回 notesInfo 的时候，用户在主窗口删了一个已同步的词并存了盘（App 也删了它在 Anki 的卡）：
+    /// 以前拿后台读到的对象 ID 去取，取到已失效的对象，一读卡号就崩
+    @Test func wordDeletedLocallyWhileAskingAnki() async throws {
+        let context = try makeLibrary()
+        for i in 1...4 {
+            context.insert(WordEntry(word: "w\(i)", language: .english, meaning: "m", contextSentence: "", contextTranslation: "",
+                                     analysisNote: "", ankiNoteId: 100 + i, syncStatus: .synced))
+        }
+        try context.save()
+        FakeAnkiConnect.reply = { @Sendable call in
+            guard call.action == "notesInfo" else { return Self.normalAnki(call) }
+            Thread.sleep(forTimeInterval: 0.4)
+            let ids = call.params["notes"] as? [Int] ?? []
+            return .success(ids.map { $0 == 102 ? [String: Any]() : ["noteId": $0] })
+        }
+        let deleter = Task { @MainActor in
+            try await Task.sleep(for: .milliseconds(150))
+            let w = try #require(try context.fetch(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.word == "w2" })).first)
+            context.delete(w)
+            try context.save()
+        }
+        await anki.pruneDeletedNotes(context: context)
+        try await deleter.value
+        #expect(try context.fetch(FetchDescriptor<WordEntry>()).map(\.word).sorted() == ["w1", "w3", "w4"])
+    }
+
     @Test func highlight() {
         #expect(AnkiService.hl("Running runs ran", word: "running") == "<span class=\"kw\">Running</span> runs ran")
         #expect(AnkiService.hl("Die Vorfahrt achten", word: "Vorfahrt") == "Die <span class=\"kw\">Vorfahrt</span> achten")
