@@ -1,8 +1,9 @@
 // AnalysisResultPanel.swift
 // GetNewWord
 //
-// 查词结果浮动面板（design/panels）：样式由设置决定——跟词浮签（可默认展开）或讲义卡，内容部件在 LookupCards.swift。
-// 只讲一个词或一条知识片段；框选会自动存，指词查词默认只查、点「存进词库」才存。
+// 查词结果浮动面板（design/panels）：样式由设置决定——经典卡片（默认，1.1.7 那版，ClassicCard.swift）、
+// 跟词浮签（可默认展开）或讲义卡（LookupCards.swift）。经典卡片把这次认出的词和知识片段都列出来，另外两种只讲第一个。
+// 框选会自动存，指词查词默认只查、点「存进词库」才存。
 
 import SwiftUI
 import SwiftData
@@ -22,18 +23,21 @@ struct AnalysisResultPanel: View {
     var onResize: (NSSize) -> Void = { _ in }
     @State private var pinned = false
     @State private var expanded = false
-    @AppStorage(LookupPanelStyle.key) private var style: LookupPanelStyle = .tag
+    @AppStorage(LookupPanelStyle.key) private var style: LookupPanelStyle = .classic
 
     private var isLecture: Bool { style == .lecture }
+    private var isClassic: Bool { style == .classic }
+    /// 状态条在顶上、底栏只放撤销 / 存进词库（经典卡片和讲义卡）
+    private var hasStatusBar: Bool { style.hasStatusBar }
 
     var body: some View {
         VStack(spacing: 0) {
-            if isLecture {
+            if hasStatusBar {
                 statusBar
                 Hairline()
             }
             ScrollView {
-                content
+                Group { if isClassic { classicContent } else { content } }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // 语法拆解流式增长时整列一起动：下面的内容平滑下移，不留空隙
@@ -46,8 +50,9 @@ struct AnalysisResultPanel: View {
         // 面板是 key window，系统会给第一个可聚焦控件套蓝色焦点环——整体禁用（对全部子视图生效）
         .focusEffectDisabled()
         .background {
-            // 浮签半透明但底色留得很实：深色视频和白色 PDF 上字都清楚
-            if isLecture { Theme.elevated } else { ZStack { VisualEffectBackground(); Theme.elevated.opacity(0.82) } }
+            // 浮签半透明但底色留得很实：深色视频和白色 PDF 上字都清楚。经典卡片和讲义卡不透明：
+            // 毛玻璃每帧都要窗口服务器把后面（常常是在播的视频）重新模糊一遍，配置低的 Mac 上滑动会跟着掉帧
+            if hasStatusBar { Theme.elevated } else { ZStack { VisualEffectBackground(); Theme.elevated.opacity(0.82) } }
         }
         .clipShape(RoundedRectangle(cornerRadius: 12))
         // 描边不接收鼠标，否则面板四边按下被它吃掉，拖边缘改不了大小
@@ -92,7 +97,7 @@ struct AnalysisResultPanel: View {
                     Label("这个词已在词库里，且语境几乎相同，本次未重复添加", systemImage: "info.circle")
                         .font(.system(size: 12)).foregroundStyle(Theme.text2)
                 }
-                if viewModel.analysisResult != nil, isLecture || expanded { wordCategoryRow }
+                if viewModel.analysisResult != nil, isLecture || expanded { wordCategoryRow() }
             }
         } else if let s = snippet {
             VStack(alignment: .leading, spacing: 16) {
@@ -110,22 +115,82 @@ struct AnalysisResultPanel: View {
         }
     }
 
-    private var wordCategoryRow: some View {
-        let w0 = viewModel.analysisResult?.analysis.words.first
+    /// 经典卡片：1.1.7 的排法，单词一张张列下来，知识片段跟在后面
+    @ViewBuilder private var classicContent: some View {
+        VStack(spacing: 0) {
+            // 主分析还没回来：词库直出或骨架（词头由极速识词先填）
+            if viewModel.analysisResult == nil {
+                if let hit = viewModel.cachedHit {
+                    ClassicCachedCard(entry: hit, enrichment: viewModel.enrichments[0],
+                                      lookupCount: viewModel.lookupCountValue(hit), grammar: viewModel.grammarState)
+                } else {
+                    ClassicSkeletonCard(quickWord: viewModel.quickWord, meaning: viewModel.enrichments[0]?.meaning)
+                }
+            }
+            if let words = viewModel.analysisResult?.analysis.words, !words.isEmpty {
+                ForEach(Array(words.enumerated()), id: \.offset) { index, word in
+                    if !viewModel.removedWords.contains(index) {
+                        ClassicWordCard(
+                            word: word,
+                            isSelected: viewModel.selectedIndices.contains(index),
+                            skippedAsDuplicate: viewModel.skippedAsDuplicate.contains(index),
+                            showCheckbox: !viewModel.autoSaved,
+                            onToggle: { viewModel.toggleWordSelection(index) },
+                            categoryPicker: { wordCategoryRow(index) },
+                            onRemove: viewModel.autoSaved ? { viewModel.removeSavedWord(index) } : nil,
+                            enrichment: viewModel.enrichments[index],
+                            screenshot: viewModel.analysisResult?.screenshot,
+                            lookupCount: viewModel.lookupCountValue(viewModel.savedWords[index]),
+                            grammar: index == 0 ? viewModel.grammarState : nil
+                        )
+                    }
+                }
+            }
+            if let snippets = viewModel.analysisResult?.analysis.snippets, !snippets.isEmpty {
+                Divider().padding(.vertical, 4)
+                HStack {
+                    Image(systemName: "book.closed").foregroundStyle(.secondary)
+                    Text("知识片段").font(.headline).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+                ForEach(Array(snippets.enumerated()), id: \.offset) { index, snippet in
+                    if !viewModel.removedSnippets.contains(index) {
+                        ClassicSnippetCard(snippet: snippet,
+                                           onRemove: viewModel.autoSaved ? { viewModel.removeSavedSnippet(index) } : nil) {
+                            snippetCategoryRow(snippet, index: index)
+                        }
+                    }
+                }
+            }
+            if isEmptyResult {
+                VStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").font(.largeTitle).foregroundStyle(.tertiary)
+                    Text("未识别到单词或知识片段").font(.callout).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            }
+        }
+    }
+
+    private func wordCategoryRow(_ index: Int = 0) -> CategoryAssignRow {
+        let words = viewModel.analysisResult?.analysis.words ?? []
+        let w = words.indices.contains(index) ? words[index] : nil
         return CategoryAssignRow(
             viewModel: viewModel, forWords: true,
-            modelCategory: w0?.category, suggested: w0?.suggestedCategory,
-            selection: Binding(get: { viewModel.chosenWordCategory[0] },
-                               set: { viewModel.chosenWordCategory[0] = $0; viewModel.applyCategoryChange(forWord: 0) }),
+            modelCategory: w?.category, suggested: w?.suggestedCategory,
+            selection: Binding(get: { viewModel.chosenWordCategory[index] },
+                               set: { viewModel.chosenWordCategory[index] = $0; viewModel.applyCategoryChange(forWord: index) }),
             modelContext: modelContext)
     }
 
-    private func snippetCategoryRow(_ s: SnippetAnalysis) -> some View {
+    private func snippetCategoryRow(_ s: SnippetAnalysis, index: Int = 0) -> CategoryAssignRow {
         CategoryAssignRow(
             viewModel: viewModel, forWords: false,
             modelCategory: s.category, suggested: s.suggestedCategory,
-            selection: Binding(get: { viewModel.chosenSnippetCategory[0] },
-                               set: { viewModel.chosenSnippetCategory[0] = $0; viewModel.applyCategoryChange(forSnippet: 0) }),
+            selection: Binding(get: { viewModel.chosenSnippetCategory[index] },
+                               set: { viewModel.chosenSnippetCategory[index] = $0; viewModel.applyCategoryChange(forSnippet: index) }),
             modelContext: modelContext)
     }
 
@@ -146,8 +211,8 @@ struct AnalysisResultPanel: View {
         }
         if viewModel.autoSaved {
             let cat = (viewModel.savedWords[0]?.category ?? viewModel.savedSnippets[0]?.category)?.displayName
-            // 浮签底栏窄，只说存到哪；讲义卡的状态条再补一句同步
-            if !isLecture { return cat.map { String(localized: "已存进 \($0)") } ?? String(localized: "已存进词库") }
+            // 浮签底栏窄，只说存到哪；顶上有状态条的再补一句同步
+            if !hasStatusBar { return cat.map { String(localized: "已存进 \($0)") } ?? String(localized: "已存进词库") }
             return cat.map { String(localized: "已存进 \($0) · Anki 稍后同步") } ?? String(localized: "已存进词库 · Anki 稍后同步")
         }
         return String(localized: "只查看，没存")
@@ -162,6 +227,7 @@ struct AnalysisResultPanel: View {
             Text(pinned ? String(localized: "已钉住") + " · " + statusText : statusText)
                 .font(.system(size: 12)).foregroundStyle(viewModel.netHint != nil ? Theme.warn : Theme.text2).lineLimit(1)
             Spacer()
+            if isClassic { breakDownButton }
             toolIcons
             closeButton
         }
@@ -170,11 +236,25 @@ struct AnalysisResultPanel: View {
         .background(Theme.surface)
     }
 
+    /// 经典卡片的「分解语法」：把语境整句拆开讲，流式插在释义上方
+    private var breakDownButton: some View {
+        Button(action: viewModel.breakDownGrammar) {
+            HStack(spacing: 4) {
+                if viewModel.grammarStreaming { ProgressView().controlSize(.mini) }
+                else { Image(systemName: "text.line.first.and.arrowtriangle.forward") }
+                Text("分解语法")
+            }
+        }
+        .buttonStyle(SecondaryButtonStyle())
+        .disabled(viewModel.grammarSentence == nil || viewModel.grammarStreaming)
+        .help(viewModel.grammarSentence == nil ? String(localized: "等语境句出来后可用") : String(localized: "把这句话的语法从头到尾拆开讲一遍"))
+    }
+
     // MARK: 底栏
 
     private var footer: some View {
         HStack(spacing: 8) {
-            if isLecture {
+            if hasStatusBar {
                 Spacer()
             } else {
                 if viewModel.analysisResult == nil { ProgressView().controlSize(.mini) }
@@ -188,8 +268,10 @@ struct AnalysisResultPanel: View {
                     .help("删掉这次保存的内容")
             } else if viewModel.analysisResult != nil, !isEmptyResult {
                 Button("存进词库") { onSave() }.buttonStyle(PrimaryButtonStyle())
+                    // 经典卡片能勾掉单词：一个都没勾、也没有知识片段时没东西可存
+                    .disabled(isClassic && viewModel.selectedIndices.isEmpty && (viewModel.analysisResult?.analysis.snippets.isEmpty ?? true))
             }
-            if !isLecture {
+            if !hasStatusBar {
                 pinButton
                 if word != nil || snippet != nil {
                     Button(expanded ? "收起" : "展开讲解") { setExpanded(!expanded) }
@@ -217,7 +299,7 @@ struct AnalysisResultPanel: View {
         }
     }
 
-    /// 讲义卡状态条上的：钉住、在主窗口打开、找图（浮签底栏窄，只留钉住）
+    /// 状态条上的：钉住、在主窗口打开、找图（浮签底栏窄，只留钉住）
     private var toolIcons: some View {
         HStack(spacing: 2) {
             pinButton

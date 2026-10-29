@@ -185,7 +185,7 @@ private struct AppearanceThumb: View {
 
 struct TranslateSettingsPage: View {
     @AppStorage(TargetLanguage.key) private var target: TargetLanguage = .zhHans
-    @AppStorage(LookupPanelStyle.key) private var panelStyle: LookupPanelStyle = .tag
+    @AppStorage(LookupPanelStyle.key) private var panelStyle: LookupPanelStyle = .classic
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -199,13 +199,19 @@ struct TranslateSettingsPage: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("查词面板").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.text2)
-                HStack(spacing: 8) {
-                    ForEach(LookupPanelStyle.allCases) { st in
-                        ChoiceCard(selected: panelStyle == st) { panelStyle = st } content: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(st.title).font(.system(size: 13, weight: .semibold))
-                                Text(st.detail).font(.system(size: 11.5)).foregroundStyle(Theme.text2)
-                                    .fixedSize(horizontal: false, vertical: true)
+                // 四种样式两个一排，说明能完整显示
+                Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                    ForEach(Array(stride(from: 0, to: LookupPanelStyle.allCases.count, by: 2)), id: \.self) { i in
+                        GridRow {
+                            ForEach(LookupPanelStyle.allCases[i..<min(i + 2, LookupPanelStyle.allCases.count)]) { st in
+                                ChoiceCard(selected: panelStyle == st) { panelStyle = st } content: {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(st.title).font(.system(size: 13, weight: .semibold))
+                                        Text(st.detail).font(.system(size: 11.5)).foregroundStyle(Theme.text2)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .frame(maxHeight: .infinity, alignment: .top)
+                                }
                             }
                         }
                     }

@@ -1802,6 +1802,22 @@
         }
       }
     },
+    "从上往下一张卡：释义、语境、取词截图、用法、例句": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Karte von oben nach unten: Bedeutung, Kontext, Bildausschnitt, Gebrauch, Beispiele"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One card, top to bottom: meaning, context, screenshot, usage, examples"
+          }
+        }
+      }
+    },
     "从官方模型列表里选": {
       "localizations": {
         "de": {
@@ -10054,6 +10070,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "System Settings › Privacy & Security"
+          }
+        }
+      }
+    },
+    "经典卡片": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klassische Karte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Classic card"
           }
         }
       }

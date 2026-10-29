@@ -1,9 +1,10 @@
 // LookupCards.swift
 // GetNewWord
 //
-// 查词面板的内容（design/panels）：两种样式共用一份展示数据和同一套部件。
+// 查词面板的内容（design/panels）：浮签和讲义卡共用一份展示数据和同一套部件；默认的「经典卡片」在 ClassicCard.swift。
 // - 跟词浮签（B）：先只给这句里的意思和整句译文，点「展开讲解」再用页签看释义、用法、例句、构词、语法
 // - 讲义卡（A）：一整张卡分层摆全：这句话 → 释义（这句里的义项整行高亮）→ 用法 → 搭配和例句 → 构词和来历
+// - 经典卡片（默认）：1.1.7 那版，一整张卡带取词截图和红框
 // 设置 → 翻译与学习 里选，浮签还能设成默认展开。
 
 import SwiftUI
@@ -11,17 +12,18 @@ import SwiftUI
 // MARK: - 样式
 
 enum LookupPanelStyle: String, CaseIterable, Identifiable {
-    case tag, tagExpanded, lecture
+    case classic, tag, tagExpanded, lecture
 
     static let key = "lookupPanelStyle"
     static var current: LookupPanelStyle {
-        LookupPanelStyle(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .tag
+        LookupPanelStyle(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .classic
     }
 
     var id: String { rawValue }
 
     var title: LocalizedStringKey {
         switch self {
+        case .classic: return "经典卡片"
         case .tag: return "跟词浮签"
         case .tagExpanded: return "浮签，默认展开"
         case .lecture: return "讲义卡"
@@ -30,15 +32,20 @@ enum LookupPanelStyle: String, CaseIterable, Identifiable {
 
     var detail: LocalizedStringKey {
         switch self {
+        case .classic: return "从上往下一张卡：释义、语境、取词截图、用法、例句"
         case .tag: return "先只给这句里的意思和整句译文，想细看再展开"
         case .tagExpanded: return "一出来就带页签：释义、用法、例句、构词、语法"
         case .lecture: return "一整张卡，所有内容分层摆全"
         }
     }
 
-    /// 弹出时面板的大小：浮签收起时矮，展开和讲义卡高
+    /// 有顶上状态条（钉住、主窗口、找图、关闭在上面）的样式；浮签把这些放在底栏
+    var hasStatusBar: Bool { self == .classic || self == .lecture }
+
+    /// 弹出时面板的大小：浮签收起时矮，展开和讲义卡高；经典卡片和 1.1.7 一样 520 宽、最高 780（窗口控制器再按屏幕收）
     func panelSize(expanded: Bool) -> NSSize {
         switch self {
+        case .classic: return NSSize(width: 520, height: 780)
         case .lecture: return NSSize(width: 480, height: 640)
         case .tag, .tagExpanded: return expanded ? NSSize(width: 440, height: 520) : NSSize(width: 400, height: 250)
         }
