@@ -60,10 +60,15 @@ class AnalysisService {
         return (image, path, shot.1)
     }
 
-    /// 框选取词的文字版：框里的字和红框图里的上下文并行 OCR（约 0.1–0.2s）；框里读不出字返回 nil，交给识图
-    func regionText(context: NSImage, selection: NSImage?) async -> TextLookup? {
+    /// 框选取词的文字版：框里的字和红框图里的上下文并行 OCR（约 0.1–0.2s，Rosetta 下更久）；框里读不出字得到 nil，交给识图。
+    /// 当场在后台开始认字，返回等结果的 Task：面板先弹出来，不等 OCR
+    func startRegionText(context: NSImage, selection: NSImage?) -> Task<TextLookup?, Never> {
         guard let selCG = selection?.cgImage(forProposedRect: nil, context: nil, hints: nil),
-              let ctxCG = context.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+              let ctxCG = context.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return Task { nil } }
+        return Task.detached(priority: .userInitiated) { await Self.regionText(selection: selCG, context: ctxCG) }
+    }
+
+    private nonisolated static func regionText(selection selCG: CGImage, context ctxCG: CGImage) async -> TextLookup? {
         async let selLines = HoverWordCapture.recognizeLines(in: selCG)
         async let ctxLines = HoverWordCapture.recognizeLines(in: ctxCG)
         let raw = await selLines.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)

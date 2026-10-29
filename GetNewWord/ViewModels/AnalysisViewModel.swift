@@ -157,7 +157,9 @@ class AnalysisViewModel: ObservableObject {
         // 0. 框选（取消则静默退出，面板保持原样）；指词模式直接取鼠标下的词，没认出词就提示后退出。
         // 两种都尽量拿到「文字版」（本地 OCR 读出目标和附近几行）：有文字就走纯文字请求，比让模型看图快 2–3s
         let image: NSImage, screenshotPath: String?
-        let text: TextLookup?
+        let hoverText: TextLookup?
+        /// 框选：框里的字在后台 OCR，面板不等它先弹出来（以前等完 OCR 才弹，框完要多等 0.15–0.2 秒）
+        let regionText: Task<TextLookup?, Never>?
         if source == .hover {
             guard let (shot, path) = await analysisService.captureHoverWord() else {
                 isAnalyzing = false
@@ -165,7 +167,8 @@ class AnalysisViewModel: ObservableObject {
             }
             image = shot.image
             screenshotPath = path
-            text = TextLookup(target: shot.word, context: shot.context, language: shot.language, isWord: true, scene: .hover)
+            hoverText = TextLookup(target: shot.word, context: shot.context, language: shot.language, isWord: true, scene: .hover)
+            regionText = nil
         } else {
             guard let (img, path, sel) = await analysisService.captureRegion() else {
                 isAnalyzing = false
@@ -173,7 +176,8 @@ class AnalysisViewModel: ObservableObject {
             }
             image = img
             screenshotPath = path
-            text = await analysisService.regionText(context: img, selection: sel)
+            hoverText = nil
+            regionText = analysisService.startRegionText(context: img, selection: sel)
         }
 
         PanelPerf.mark(.captured)
@@ -204,11 +208,26 @@ class AnalysisViewModel: ObservableObject {
         let myRun = runID
         installRetryObserver()
 
+        // 1. 面板立刻弹出（骨架态），不等本地 OCR，也不再只显示小转圈
+        showResultPanel = true
+        resultWindow.show(viewModel: self, modelContext: modelContext)
+        PanelPerf.mark(.shown)
+
+        let text: TextLookup?
+        if let regionText {
+            text = await regionText.value
+            // 等 OCR 的时候用户可能已经 Esc / 点外面关了面板，或者又框了一个：这一轮作废
+            guard runID == myRun else { return }
+        } else {
+            text = hoverText
+        }
+
         categories = (try? modelContext.fetch(FetchDescriptor<Category>())) ?? []
         let categoryTree = analysisService.categoryTreeDescription(categories: categories)
         let existingTags = await tagsTask.value
+        guard runID == myRun else { return }
 
-        // 有文字版：主分析和补全立刻在后台发出，不等面板首帧（首帧要占主线程约 0.5s）
+        // 有文字版：主分析和补全立刻在后台发出
         let textMain: Task<WordAnalysisResult, Error>?
         let textEnrich: Task<WordEnrichment, Error>?
         if let text {
@@ -225,11 +244,6 @@ class AnalysisViewModel: ObservableObject {
             AppLog.log("[Analysis] no text in selection, image path")
         }
         PanelPerf.mark(.requested)
-
-        // 1. 面板立刻弹出（骨架态），不再只显示小转圈
-        showResultPanel = true
-        resultWindow.show(viewModel: self, modelContext: modelContext)
-        PanelPerf.mark(.shown)
 
         // 8 秒还没结果：告诉用户是对面慢，不是软件没反应（重试通知会再覆盖这句）
         let slowTask = Task { @MainActor in
