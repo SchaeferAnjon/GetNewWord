@@ -229,14 +229,23 @@ struct ClassicSkeletonCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            if let q = quickWord {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(q.word).font(.system(size: 28, weight: .bold))
-                    Chip(text: q.language.uppercased(), mono: false)
-                    Spacer()
+            // 词头和结果卡一样两行（大字词 / 等级、语言标签），结果回来时分隔线不往下跳；语言写法也和结果一样（英语，不是 EN）
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack(alignment: .leading) {
+                    Text(verbatim: "W").font(.system(size: 28, weight: .bold)).hidden()   // 和词一样高
+                    if let q = quickWord {
+                        Text(q.word).font(.system(size: 28, weight: .bold))
+                    } else {
+                        bar(180, 26).opacity(pulse ? 0.55 : 1)
+                    }
                 }
-            } else {
-                bar(180, 26).opacity(pulse ? 0.55 : 1)
+                HStack(spacing: 6) {
+                    bar(26, 16).opacity(pulse ? 0.55 : 1)   // 等级还没出来
+                    if let q = quickWord {
+                        let lang = Language(rawValue: q.language.lowercased())
+                        Chip(text: lang.map(\.displayName) ?? q.language.uppercased(), mono: false)
+                    }
+                }
             }
             Hairline()
             if let meaning, !meaning.isEmpty {
