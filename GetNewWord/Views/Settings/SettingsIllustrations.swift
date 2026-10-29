@@ -2,10 +2,29 @@
 // GetNewWord
 //
 // 设置页和欢迎页顶上的示意图：画出这一页的设置管的是什么。
-// 动画用 .task 里的循环推进 phase，视图消失时随 task 取消停下；尺寸固定，不让布局跳。
+// 动画用 .task 里的循环推进 phase，视图消失时随 task 取消停下，滚动时暂停（IllustrationPause）；尺寸固定，不让布局跳。
 
 import SwiftUI
 import AppKit
+
+/// 滚动设置页、欢迎页时示意图先停在当前这一步：每动一步主线程都要把图重画几十帧，正好和滚动抢；停手 0.6 秒后接着动
+@MainActor
+enum IllustrationPause {
+    private static var lastScroll: TimeInterval = 0
+    private static var monitor: Any?
+
+    static func waitWhileScrolling() async {
+        if monitor == nil {
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                MainActor.assumeIsolated { lastScroll = ProcessInfo.processInfo.systemUptime }
+                return event
+            }
+        }
+        while ProcessInfo.processInfo.systemUptime - lastScroll < 0.6, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(150))
+        }
+    }
+}
 
 // MARK: - 示例句：一句德语，按翻译语言给释义和整句译文
 
@@ -132,6 +151,7 @@ struct CaptureIllustration: View {
         .task {
             while !Task.isCancelled {
                 for (p, wait) in [(0, 0.9), (1, 0.8), (2, 2.4)] {
+                    await IllustrationPause.waitWhileScrolling()
                     withAnimation(.easeOut(duration: 0.3)) { phase = p }
                     try? await Task.sleep(for: .seconds(wait))
                 }
@@ -194,6 +214,7 @@ struct PointIllustration: View {
         .task {
             while !Task.isCancelled {
                 for (p, wait) in [(0, 0.9), (1, 0.7), (2, 2.4)] {
+                    await IllustrationPause.waitWhileScrolling()
                     withAnimation(.easeInOut(duration: 0.4)) { phase = p }
                     try? await Task.sleep(for: .seconds(wait))
                 }
