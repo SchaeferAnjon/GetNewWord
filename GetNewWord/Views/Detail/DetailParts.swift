@@ -101,6 +101,9 @@ struct ScreenshotThumb: View {
     }
 
     private func load() async {
+        // 换词时这张图跟着换：先回到占位，不留着上一个词的截图
+        image = nil
+        missing = false
         let p = path, w = width ?? 480
         let thumb = await Task.detached(priority: .utility) { () -> NSImage? in
             guard let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: p) as CFURL, nil) else { return nil }

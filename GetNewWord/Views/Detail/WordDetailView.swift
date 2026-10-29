@@ -34,9 +34,11 @@ struct WordDetailView: View {
     @State private var dContexts: [UUID: (String, String)] = [:]
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header
+                    .id(Self.top)
                 if !word.sortedContexts.isEmpty { contextCard.padding(.top, 20) }
                 VStack(alignment: .leading, spacing: 22) {
                     meaning
@@ -52,9 +54,16 @@ struct WordDetailView: View {
             .frame(maxWidth: 792, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // 换词时不整个重建（.id 换掉会把滚动视图连同里面的一切拆了重搭，按住 ↓ 时跟不上），
+        // 只把这个词自己的状态清掉、回到顶上
+        .onChange(of: word.id) { _, _ in
+            isEditing = false
+            ctxIndex = 0
+            isSpeaking = false
+            proxy.scrollTo(Self.top, anchor: .top)
+        }
+        }
         .background(Theme.bg)
-        .id(word.id)                       // 切换单词时重置编辑状态和页签
-        .onChange(of: word.id) { _, _ in isEditing = false }
         // ⌘⌫ 删除；编辑时让出给输入框（⌘⌫ 在输入框里是删到行首）
         .background {
             if !isEditing {
@@ -81,6 +90,8 @@ struct WordDetailView: View {
             Text("连同它的 \(word.sortedContexts.count) 条语境一起删除，不可撤销。「仅本地」保留 Anki 里的卡和复习进度。")
         }
     }
+
+    private static let top = "top"
 
     // MARK: - 编辑
 
