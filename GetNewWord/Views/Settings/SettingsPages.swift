@@ -259,10 +259,10 @@ struct ShortcutsSettingsPage: View {
             shortcutCard(title: "指词查词", detail: "鼠标指着视频字幕或网页里的词，按一下就弹出释义；默认只查不存", prefs: .hover) {
                 PointIllustration(target: target)
             }
-            SettingsGroup(title: "多按一个 ⌥") {
-                SettingsRow(title: "截图取词时多按 ⌥", detail: "只查不存，这一次不进词库") { EmptyView() }
+            SettingsGroup(title: "多按一个键", footer: "⌥ 不好按就换成 ⇧、⌃ 或 ⌘；选「不用」就没有这一组。") {
+                SettingsRow(title: "截图取词时多按", detail: "只查不存，这一次不进词库") { ExtraModifierPicker(prefs: .screenshot) }
                 Hairline()
-                SettingsRow(title: "指词查词时多按 ⌥", detail: "和下面的开关相反：开关关着就保存这一次") { EmptyView() }
+                SettingsRow(title: "指词查词时多按", detail: "和下面的开关相反：开关关着就保存这一次") { ExtraModifierPicker(prefs: .hover) }
                 Hairline()
                 SettingsRow(title: "指词查词的词也加入词库") {
                     Toggle("", isOn: $hoverAutoSave).toggleStyle(.square).labelsHidden()
@@ -458,13 +458,13 @@ private struct UsageGroup: View {
             Hairline()
             usage(HotkeyPrefs.hover.displayString, title: "指词查词",
                   detail: hoverAutoSave ? "鼠标指着词按一下，不用框选；查到的词也存进词库" : "鼠标指着词按一下，不用框选；只查不存")
-            if let shot = Self.withOption(.screenshot) {
+            if let shot = Self.withExtra(.screenshot) {
                 Hairline()
-                usage(shot, title: "多按一个 ⌥", detail: "截图取词这一次只查不存")
+                usage(shot, title: "多按一个 \(HotkeyPrefs.screenshot.extra.symbol)", detail: "截图取词这一次只查不存")
             }
-            if let hover = Self.withOption(.hover) {
+            if let hover = Self.withExtra(.hover) {
                 Hairline()
-                usage(hover, title: "多按一个 ⌥", detail: hoverAutoSave ? "指词查词这一次只查不存" : "指词查词这一次存进词库")
+                usage(hover, title: "多按一个 \(HotkeyPrefs.hover.extra.symbol)", detail: hoverAutoSave ? "指词查词这一次只查不存" : "指词查词这一次存进词库")
             }
             Hairline()
             HStack(spacing: 12) {
@@ -485,11 +485,9 @@ private struct UsageGroup: View {
         }
     }
 
-    /// 组合键再加 ⌥ 的那一组；本来就含 ⌥ 时没有这一组（HotkeyManager 不注册）
-    private static func withOption(_ prefs: HotkeyPrefs) -> String? {
-        let option = UInt32(NSEvent.ModifierFlags.option.rawValue)
-        guard prefs.modifiers & option == 0 else { return nil }
-        return HotkeyPrefs.display(keyCode: prefs.keyCode, modifiers: prefs.modifiers | option)
+    /// 组合键再多按一个键（快捷键与取词里选的，默认 ⌥）的那一组；关掉了、本来就含这个键、和另一组撞了时没有这一组（HotkeyManager 不注册）
+    private static func withExtra(_ prefs: HotkeyPrefs) -> String? {
+        prefs.extraClashes ? nil : prefs.extraDisplayString
     }
 
     private func usage(_ combo: String, title: LocalizedStringKey, detail: LocalizedStringKey) -> some View {

@@ -66,7 +66,7 @@ After that every word you save becomes a card in the background. The front has t
 | Close the look-up panel | <kbd>Esc</kbd> |
 | Sync Anki, in the main window | <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>S</kbd> |
 
-Change the capture and point shortcuts in **Settings › Shortcuts & capture**; adding <kbd>⌥</kbd> keeps working with the new ones. Without a shortcut, start a capture from the menu bar icon or from the floating button on the edge of the screen.
+Change the capture and point shortcuts in **Settings › Shortcuts & capture**; adding <kbd>⌥</kbd> keeps working with the new ones. If <kbd>⌥</kbd> is hard to reach, **Add one more key** on the same page switches it to <kbd>⇧</kbd>, <kbd>⌃</kbd> or <kbd>⌘</kbd>, or turns it off. Without a shortcut, start a capture from the menu bar icon or from the floating button on the edge of the screen.
 
 ## Two ways to use it
 

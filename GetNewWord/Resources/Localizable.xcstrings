@@ -1098,6 +1098,22 @@
     "⌘+ / ⌘− / ⌘0": {
       "shouldTranslate": false
     },
+    "⌥ 不好按就换成 ⇧、⌃ 或 ⌘；选「不用」就没有这一组。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ist ⌥ schwer zu erreichen, nimm ⇧, ⌃ oder ⌘; mit „Keine“ fällt diese Kombination weg."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If ⌥ is hard to reach, use ⇧, ⌃ or ⌘ instead; pick “None” to drop this shortcut."
+          }
+        }
+      }
+    },
     "一个 Key 用多家模型": {
       "localizations": {
         "de": {
@@ -1466,6 +1482,22 @@
         }
       }
     },
+    "不用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        }
+      }
+    },
     "不用 Key，官方 AI": {
       "localizations": {
         "de": {
@@ -1510,6 +1542,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "No thanks"
+          }
+        }
+      }
+    },
+    "不用多按的这一组": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Kombination mit Zusatztaste"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No extra-key shortcut"
           }
         }
       }
@@ -4170,6 +4218,22 @@
         }
       }
     },
+    "和「%@」的 %@ 撞了，这一组不会生效": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kollidiert mit „%1$@“ (%2$@), diese Kombination funktioniert nicht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clashes with “%1$@” (%2$@), so this one won’t work"
+          }
+        }
+      }
+    },
     "和下面的开关相反：开关关着就保存这一次": {
       "localizations": {
         "de": {
@@ -4634,6 +4698,22 @@
         }
       }
     },
+    "多按一个 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add %@"
+          }
+        }
+      }
+    },
     "多按一个 ⌥": {
       "localizations": {
         "de": {
@@ -4646,6 +4726,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add ⌥"
+          }
+        }
+      }
+    },
+    "多按一个键": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Taste dazu"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add one more key"
           }
         }
       }
@@ -6330,6 +6426,22 @@
         }
       }
     },
+    "截图取词时多按": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusatztaste bei der Auswahl"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra key while capturing"
+          }
+        }
+      }
+    },
     "截图取词时多按 ⌥": {
       "localizations": {
         "de": {
@@ -7014,6 +7126,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Point to look up"
+          }
+        }
+      }
+    },
+    "指词查词时多按": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusatztaste beim Zeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra key while pointing"
           }
         }
       }
@@ -9418,6 +9546,22 @@
         }
       }
     },
+    "现在是 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now: %@"
+          }
+        }
+      }
+    },
     "现在重开": {
       "localizations": {
         "de": {
@@ -10070,6 +10214,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "System Settings › Privacy & Security"
+          }
+        }
+      }
+    },
+    "组合键里已经有 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Kombination enthält schon %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortcut already has %@"
+          }
+        }
+      }
+    },
+    "组合键里已经有 %@，换一个键": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Kombination enthält schon %@; wähle eine andere Taste"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortcut already has %@; pick another key"
           }
         }
       }

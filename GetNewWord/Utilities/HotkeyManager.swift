@@ -155,30 +155,33 @@ final class HotkeyManager {
 
     // MARK: - 默认快捷键
 
-    /// 注册截图取词（默认 ⌘⇧A）和指词查词（默认 ⌃⌘A）两组快捷键
+    /// 注册截图取词（默认 ⌘⇧A）和指词查词（默认 ⌃⌘A）两组快捷键，各自再多按一个键（默认 ⌥，设置里能换或关掉）
     /// - Parameters:
     ///   - screenshotHandler: 截图取词并自动保存
-    ///   - lookupHandler: 截图 + ⌥：快速查词，只看释义不入库
+    ///   - lookupHandler: 截图 + 多按的键：快速查词，只看释义不入库
     ///   - hoverHandler: 指词查词，存不存按设置开关（默认只查）
-    ///   - hoverOptionHandler: 指词 + ⌥：和开关相反
+    ///   - hoverOptionHandler: 指词 + 多按的键：和开关相反
     func registerDefaultHotkeys(
         screenshotHandler: @escaping HotkeyHandler, lookupHandler: @escaping HotkeyHandler,
         hoverHandler: @escaping HotkeyHandler, hoverOptionHandler: @escaping HotkeyHandler
     ) {
         // 用户在设置里录制的组合键；设置变更后由 MainView 重新调用本方法
-        registerPair(prefs: .screenshot, identifier: "screenshot", handler: screenshotHandler, optionHandler: lookupHandler)
-        registerPair(prefs: .hover, identifier: "hover", handler: hoverHandler, optionHandler: hoverOptionHandler)
-        AppLog.log("[Hotkey] registered \(HotkeyPrefs.screenshot.displayString) 截图取词（+⌥ 只查）, \(HotkeyPrefs.hover.displayString) 指词查词（+⌥ 与入库开关相反）")
+        registerPair(prefs: .screenshot, identifier: "screenshot", handler: screenshotHandler, extraHandler: lookupHandler)
+        registerPair(prefs: .hover, identifier: "hover", handler: hoverHandler, extraHandler: hoverOptionHandler)
+        func extra(_ p: HotkeyPrefs) -> String {
+            guard let s = p.extraDisplayString else { return "no extra" }
+            return p.extraClashes ? "\(s) clashes, not registered" : s
+        }
+        AppLog.log("[Hotkey] registered \(HotkeyPrefs.screenshot.displayString) 截图取词（+\(extra(.screenshot)) 只查）, \(HotkeyPrefs.hover.displayString) 指词查词（+\(extra(.hover)) 与入库开关相反）")
     }
 
-    /// 组合键本身 → handler；再加 ⌥ → optionHandler（组合键已含 ⌥ 时不注册，避免冲突）
-    private func registerPair(prefs: HotkeyPrefs, identifier: String, handler: @escaping HotkeyHandler, optionHandler: @escaping HotkeyHandler) {
+    /// 组合键本身 → handler；再多按一个键 → extraHandler。关掉了、组合键里本来就有这个键、或和另一组撞了时不注册
+    private func registerPair(prefs: HotkeyPrefs, identifier: String, handler: @escaping HotkeyHandler, extraHandler: @escaping HotkeyHandler) {
         register(identifier: identifier, keyCode: prefs.keyCode, modifiers: prefs.modifiers, handler: handler)
-        let optionFlag = UInt32(NSEvent.ModifierFlags.option.rawValue)
-        if prefs.modifiers & optionFlag == 0 {
-            register(identifier: identifier + "-option", keyCode: prefs.keyCode, modifiers: prefs.modifiers | optionFlag, handler: optionHandler)
+        if let mods = prefs.extraModifiers, !prefs.extraClashes {
+            register(identifier: identifier + "-extra", keyCode: prefs.keyCode, modifiers: mods, handler: extraHandler)
         } else {
-            unregister(identifier: identifier + "-option")
+            unregister(identifier: identifier + "-extra")
         }
     }
 
