@@ -290,6 +290,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLog.log("[Location] in Applications: \(AppLocation.isInApplications)")   // 不在的话自动更新装不上
         MemberService.shared.start()   // 会员模式查一次状态，回到前台再查（MemberService.swift）
         UsagePing.shared.start()   // 用户同意了才每天匿名报到一次（UsagePing.swift）
+        #if DEBUG
+        DemoMode.installShots()   // 实测留图：GNW_SHOT_DIR + SIGUSR1
+        #endif
     }
 
     /// 点 Dock 图标：没开着的窗口就打开主窗口
