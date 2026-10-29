@@ -72,14 +72,16 @@ Change the capture and point shortcuts in **Settings › Shortcuts & capture**; 
 
 | | How to start | Cost |
 |---|---|---|
-| **Your own key** (available now) | Paste a key from one AI provider in **Settings › AI service** ([setup guide](https://getnewword.us-cloud.uk/?lang=en#page=guide), about 5 minutes) | **Free forever, no limits**; you pay the provider directly |
-| **Membership** (coming soon) | No key to set up, our AI; sync between Macs | $1.99 a month or $19.90 a year, up to 200 lookups a day; the first 100 new users get 30 lookups free |
+| **Membership** | No key to set up: pick it in the welcome window or under **Settings › AI service**. Lookups use our AI (relayed by our server to DeepSeek) | The first 100 new users get **30 lookups free**, no expiry. Then $1.99 a month or $19.90 a year (¥9.9 or ¥99 in yuan), renewing through Stripe; cancel any time and it runs to the end of the period. Up to 200 lookups a day, reset at 8:00 Beijing time. Paying in yuan you can also buy 1 month or 1 year once with WeChat Pay, which doesn't renew. One licence code works on up to 2 Macs |
+| **Your own key** | Paste a key from one AI provider in **Settings › AI service** ([setup guide](https://getnewword.us-cloud.uk/?lang=en#page=guide), about 5 minutes) | **Free forever, no limits**; the provider bills your own account at its prices |
+
+**Manage your subscription** (change card, switch monthly and yearly, cancel, invoices): in the app, open **Settings › AI service**, click **Manage membership**, then **Manage subscription**. Not on that Mac any more? Use the [login link](https://billing.stripe.com/p/login/cNi4gse6y52b4sles72Nq01) and enter the email you paid with; Stripe sends you a sign-in email.
 
 Providers: Zhipu GLM, DeepSeek, Qwen, Kimi and Doubao, which connect directly from mainland China; OpenAI, Gemini, Claude and OpenRouter, which need an overseas network there; or any OpenAI-compatible API (**Custom**). Each key is stored on its own in the macOS Keychain.
 
 ## Sync between Macs
 
-Syncing your library between Macs is part of membership: once it opens, members sign in under **Settings › Account & sync**; Macs that were already signed in keep syncing. With your own key there is nothing to sign in to; every lookup feature works and your library stays on this Mac.
+Syncing your library between Macs is for members: sign in with Google under **Settings › Account & sync**. With your own key there is nothing to sign in to; every lookup feature works and your library stays on this Mac.
 
 ## Install
 
@@ -93,7 +95,7 @@ Open the DMG and drag GetNewWord into Applications. It lives in the menu bar, a 
 <summary>The first time you open it</summary>
 
 - GetNewWord is not notarized by Apple, so the first time you open it macOS says it cannot verify the app and will not open it. Open **System Settings**, go to **Privacy & Security**, scroll to the bottom and click **Open Anyway**. You only do this once; updates installed automatically are not blocked.
-- The welcome window has six steps: languages, Screen Recording, an AI key, Anki (optional), anonymous statistics (agree or not) and the shortcuts.
+- The welcome window has six steps: languages, Screen Recording, choosing membership or your own key, Anki (optional), anonymous statistics (agree or not) and the shortcuts.
 - **Screen Recording** is the one permission GetNewWord needs, to capture the area you frame. Click **Allow**: System Settings opens at **Privacy & Security › Screen & System Audio Recording** (**Screen Recording** in older macOS) with the GetNewWord icon floating next to it. Drag the icon into the list, or switch GetNewWord on there. Then quit and reopen GetNewWord once; macOS only lets it capture after that.
 - From macOS 15 on, macOS asks again about once a month whether GetNewWord may keep recording the screen. Click **Allow** (it may read **Allow For One Month**).
 - It does not need the Accessibility permission.
@@ -114,10 +116,10 @@ The full policy is on the [website](https://getnewword.us-cloud.uk/?lang=en#page
 - No account needed, and we sell nothing.
 - We give the first 100 users free credit, so we need to count how many people use the app. The count is anonymous: if you agree, the app sends once a day a random ID (made when you install it, not a hardware ID), the version, the system and chip, membership or your own key, and the app language; never the words you look up, your library, screenshots or keys. If you don't agree, nothing is sent; change it any time in **Settings › Updates & about › Anonymous usage statistics**.
 - The screen is captured only when you look a word up (with a shortcut, the floating button or the menu bar menu), and only the area around the word is kept: with the word on your Mac and, if you use Anki, on the card.
-- The framed area (as an image, or as text read on your Mac) and its sentence go to the AI service you choose: with your own key, straight from your Mac to that provider, under its privacy policy, and we never see them; with membership (coming soon), through our server to the model; we keep only the number of requests, for billing, not what you looked up.
+- The framed area (as an image, or as text read on your Mac) and its sentence go to the AI service you choose: with your own key, straight from your Mac to that provider, under its privacy policy, and we never see them; with membership, through our server (api.us-cloud.uk) to DeepSeek; our server keeps only the time and how many requests and tokens each lookup used, to count lookups, not what you looked up. Membership registers this Mac once, with a hash of its hardware ID, not the ID itself; with your own key the Mac is not registered. Payments go through Stripe: we never see card numbers.
 - To play a word, only that word is sent, to Youdao's dictionary, Wikimedia Commons or Google Translate. When none of them has it, your Mac's own voice reads it offline.
 - Once a day the app downloads the update list from GitHub; it sends nothing about you. Installing Anki or AnkiConnect from the app downloads them from GitHub and AnkiWeb.
-- Sync between Macs is part of membership and needs signing in; Macs that were already signed in keep syncing. When signed in, the text of your library (words, sentences, notes and categories) is then stored on our sync server under your account, and audio and screenshots stay on your Mac. A signed-in Mac also records one "signed in" event and one "opened" event a day, so we know how many people use the app. These events are filed under your account, so they are not anonymous. Without signing in, nothing is recorded. To have your account and data on the server deleted, write from your login email to infoschaeferanjon@gmail.com.
+- Sync between Macs is for members and needs signing in. When signed in, the text of your library (words, sentences, notes and categories) is then stored on our sync server under your account, and audio and screenshots stay on your Mac. A signed-in Mac also records one "signed in" event and one "opened" event a day, so we know how many people use the app. These events are filed under your account, so they are not anonymous. Without signing in, nothing is recorded. To have your account and data on the server deleted, write from your login email to infoschaeferanjon@gmail.com.
 - On your Mac, the library, screenshots, pronunciations, `app.log` and a backup made at every launch (the last 14 are kept) are in `~/Library/Application Support/GetNewWord/`. API keys are in the macOS Keychain.
 
 ## Build from source
