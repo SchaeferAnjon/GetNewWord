@@ -172,10 +172,11 @@ struct WordMatcher: Sendable {
         return out
     }
 
-    /// 德语可分动词拆开：小句里有这个动词的变位，小句最后一个词是前缀（Der Bus hält an der Ecke an.）
+    /// 德语可分动词拆开：小句里有这个动词的变位，小句最后一个词是前缀（Der Bus hält an der Ecke an.）；
+    /// 讲解里常写成「hält … an」，省略号不算断句
     private func separated(_ s: Separable, tokens: [Token], lemmas: [String?], text: String) -> [Range<String.Index>] {
         var out: [Range<String.Index>] = []
-        for clause in Self.clauses(tokens, text: text) where clause.count >= 2 && clause.count <= 24 {
+        for clause in Self.clauses(tokens, text: text, ellipsisJoins: true) where clause.count >= 2 && clause.count <= 24 {
             guard let last = clause.last, tokens[last].exact == s.particle else { continue }
             for k in clause.dropLast() where matches(tokens[k], lemma: lemmas[k], part: s.verb) {
                 out += [tokens[k].range, tokens[last].range]
@@ -228,17 +229,18 @@ struct WordMatcher: Sendable {
     static let joiners: Set<Character> = ["-", "‐", "‑", "–", "'", "’", "ʼ"]
 
     /// 隔着这些就不是同一小句了
-    private static func breaksClause(_ gap: Substring) -> Bool {
-        gap.contains { ".,;:!?…。，；：！？、()[]{}«»‹›\"“”„「」『』—\n".contains($0) || isCJKCharacter($0) }
+    private static func breaksClause(_ gap: Substring, ellipsisJoins: Bool = false) -> Bool {
+        let g = ellipsisJoins ? Substring(gap.replacingOccurrences(of: "...", with: " ").replacingOccurrences(of: "…", with: " ")) : gap
+        return g.contains { ".,;:!?…。，；：！？、()[]{}«»‹›\"“”„「」『』—\n".contains($0) || isCJKCharacter($0) }
     }
 
     private static func isCJKCharacter(_ c: Character) -> Bool { c.unicodeScalars.first.map(isCJK) ?? false }
 
     /// 按标点切成小句，每句是一串词的下标
-    private static func clauses(_ tokens: [Token], text: String) -> [[Int]] {
+    private static func clauses(_ tokens: [Token], text: String, ellipsisJoins: Bool = false) -> [[Int]] {
         var out: [[Int]] = [], cur: [Int] = []
         for i in tokens.indices {
-            if i > 0, breaksClause(text[tokens[i - 1].range.upperBound..<tokens[i].range.lowerBound]) {
+            if i > 0, breaksClause(text[tokens[i - 1].range.upperBound..<tokens[i].range.lowerBound], ellipsisJoins: ellipsisJoins) {
                 out.append(cur); cur = []
             }
             cur.append(i)

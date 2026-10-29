@@ -88,6 +88,9 @@ struct WordMatcherEuropeanTests {
     @Test func germanSeparableAndWordOrder() {
         #expect(marked("anhalten", .german, "Der Bus hält an der Ecke an. Sie hat angehalten.")
                 == "Der Bus [hält] an der Ecke [an]. Sie hat [angehalten].")
+        // 讲解里写成「hält … an」：省略号不断开
+        #expect(marked("anhalten", .german, "前缀置于句末（hält ... an）；也写作 hielt … an。")
+                == "前缀置于句末（[hält] ... [an]）；也写作 [hielt] … [an]。")
         #expect(marked("in Kauf nehmen", .german, "Er nimmt das Risiko in Kauf.") == "Er [nimmt] das Risiko [in Kauf].")
         #expect(marked("die Vorfahrt", .german, "Vorfahrt achten!") == "[Vorfahrt] achten!")
     }
