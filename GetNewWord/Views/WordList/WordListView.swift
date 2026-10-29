@@ -21,9 +21,11 @@ struct WordListView: View {
     let selectedCategory: Category?
     let searchText: String?
 
-    /// 整个词库和过滤分组后的结果；存盘后 version 加一，下次 body 重新取
+    /// 整个词库和过滤分组后的结果；别处存盘后 version 加一，下次 body 重新取；
+    /// 主窗口自己存的（查到新词、补全写回、改分类）缓存里就地改好，edits 加一，只重新过滤分组
     @State private var cache = WordListCache()
     @State private var version = 0
+    @State private var edits = 0
     @Query(sort: [SortDescriptor<Category>(\.name)])
     private var categories: [Category]
 
@@ -104,8 +106,10 @@ struct WordListView: View {
         .onAppear { reconcileSelection() }
         .onChange(of: selectedCategory?.id) { _, _ in reconcileSelection() }
         .onChange(of: searchText) { _, _ in reconcileSelection() }
-        // 存盘（查到新词、删词、改词、移分类、同步）之后重新取词库
-        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in version += 1 }
+        // 存盘（查到新词、删词、改词、移分类、同步）之后：自己存的就地更新，别的（后台同步、导入）重新取词库
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { note in
+            if cache.absorb(note, context: modelContext) { edits += 1 } else { version += 1 }
+        }
         .onChange(of: total) { _, new in
             reconcileSelection()   // 第一个词存好：直接落到它的详情；删掉了选中的：换一个
             if new > 1 { noteDismissed = true }
@@ -359,7 +363,7 @@ struct WordListView: View {
 
     /// 当前条件下的列表（显示顺序、分组、按 id 找词）；条件和词库都没变时直接用上次的
     private var current: WordListCache {
-        cache.refresh(version: version, category: selectedCategory?.id, search: searchText, group: groupMode, context: modelContext)
+        cache.refresh(version: version, edits: edits, category: selectedCategory?.id, search: searchText, group: groupMode, context: modelContext)
     }
 }
 
@@ -379,6 +383,7 @@ final class WordListCache {
     }
     private struct Key: Equatable {
         let version: Int
+        let edits: Int
         let category: UUID?
         let search: String?
         let group: CategorySidebar.GroupMode
@@ -394,8 +399,8 @@ final class WordListCache {
     private var loadedVersion: Int?
     private var key: Key?
 
-    func refresh(version: Int, category: UUID?, search: String?, group: CategorySidebar.GroupMode, context: ModelContext) -> WordListCache {
-        let newKey = Key(version: version, category: category, search: search, group: group)
+    func refresh(version: Int, edits: Int, category: UUID?, search: String?, group: CategorySidebar.GroupMode, context: ModelContext) -> WordListCache {
+        let newKey = Key(version: version, edits: edits, category: category, search: search, group: group)
         guard newKey != key else { return self }
         if loadedVersion != version {
             let d = FetchDescriptor<WordEntry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
@@ -422,6 +427,32 @@ final class WordListCache {
         order = groups.flatMap { $0.words }
         orderIDs = sections.flatMap { $0.rows.map(\.id) }
         return self
+    }
+
+    /// 主窗口这个 ModelContext 自己存的盘：新词按时间插进 all、删掉的拿掉，改了的对象本来就是同一个，不用整个词库重取
+    /// （2000 个词时重取一次主线程要 0.2 秒，查一个词要存三四次盘）。返回 false 时调用方整个重取：
+    /// 还没取过、别的 ModelContext 存的（后台同步）、一次进来很多（导入）、通知里没带改了哪些
+    func absorb(_ note: Notification, context: ModelContext) -> Bool {
+        guard loadedVersion != nil, (note.object as? ModelContext) === context, let info = note.userInfo,
+              let inserted = info["inserted"] as? [PersistentIdentifier],
+              let deleted = info["deleted"] as? [PersistentIdentifier], info["updated"] is [PersistentIdentifier]
+        else { return false }
+        let newIDs = inserted.filter { $0.entityName == "WordEntry" }
+        guard newIDs.count <= 50 else { return false }
+        let gone = Set(deleted.filter { $0.entityName == "WordEntry" })
+        if !gone.isEmpty {
+            all.removeAll { gone.contains($0.persistentModelID) }
+            byID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        }
+        for id in newIDs {
+            guard let w = context.model(for: id) as? WordEntry, !w.isDeleted, byID[w.id] == nil else { continue }
+            // 按时间倒序插：新查的词在最前面，导入的老词插到它的日子里
+            let at = all.firstIndex { $0.createdAt < w.createdAt } ?? all.endIndex
+            all.insert(w, at: at)
+            byID[w.id] = w
+        }
+        key = nil   // 下次 refresh 重新过滤分组（改了分类、难度的也要挪组）
+        return true
     }
 
     func words(for ids: Set<UUID>) -> [WordEntry] {
