@@ -65,6 +65,7 @@ struct MainView: View {
             HoverWordCapture.warmUp()
             #if DEBUG
             DemoMode.start(analysisVM, context: modelContext)
+            PerfProbe.startIfRequested()
             #endif
             FloatingButtonController.shared.configure(
                 onCapture: {
