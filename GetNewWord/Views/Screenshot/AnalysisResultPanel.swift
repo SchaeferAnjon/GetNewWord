@@ -454,10 +454,26 @@ struct GrammarBreakdownSection: View {
     }
 
     /// 行内 Markdown → AttributedString；解析失败就原样显示（流式中途 ** 未闭合也不会闪）
-    private static func inline(_ s: String) -> AttributedString {
+    nonisolated static func inline(_ s: String) -> AttributedString {
         var opts = AttributedString.MarkdownParsingOptions()
         opts.interpretedSyntax = .inlineOnlyPreservingWhitespace
-        return (try? AttributedString(markdown: s, options: opts)) ?? AttributedString(s)
+        return (try? AttributedString(markdown: boldInsideCode(s), options: opts)) ?? AttributedString(s)
+    }
+
+    /// 模型常把加粗写进反引号里（`**Der Bus**`），代码样式里的星号会原样显示成 **Der Bus**：
+    /// 拆成加粗的代码样式（**`Der Bus`**）。没闭合的反引号不动
+    nonisolated static func boldInsideCode(_ s: String) -> String {
+        guard s.contains("`"), s.contains("**") else { return s }
+        let parts = s.components(separatedBy: "`")
+        var out = ""
+        for (i, part) in parts.enumerated() {
+            guard i % 2 == 1 else { out += part; continue }
+            guard i < parts.count - 1, part.contains("**") else { out += "`" + part + (i < parts.count - 1 ? "`" : ""); continue }
+            for (k, seg) in part.components(separatedBy: "**").enumerated() where !seg.isEmpty {
+                out += k % 2 == 1 ? "**`" + seg + "`**" : "`" + seg + "`"
+            }
+        }
+        return out
     }
 }
 

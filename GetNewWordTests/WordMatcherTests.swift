@@ -224,4 +224,16 @@ struct TextHighlighterTests {
         #expect(run.inlinePresentationIntent?.contains(.stronglyEmphasized) == true)
     }
 
+    /// 语法分解里模型把加粗写进了反引号（`**Der Bus**`）：不再显示字面的 **，改成加粗的代码样式
+    @Test func boldInsideCodeSpan() throws {
+        let line = "`**Der Bus**`(主语) / `**hält ... an**`(谓语) / `an der Ecke`"
+        #expect(GrammarBreakdownSection.boldInsideCode(line) == "**`Der Bus`**(主语) / **`hält ... an`**(谓语) / `an der Ecke`")
+        let attr = GrammarBreakdownSection.inline(line)
+        #expect(!String(attr.characters).contains("*"))
+        let run = try #require(attr.runs.first { String(attr[$0.range].characters) == "Der Bus" })
+        #expect(run.inlinePresentationIntent?.contains(.code) == true)
+        #expect(run.inlinePresentationIntent?.contains(.stronglyEmphasized) == true)
+        // 代码段中间夹着加粗、没闭合的反引号
+        #expect(GrammarBreakdownSection.boldInsideCode("`The sun **heats** it` and `x") == "`The sun `**`heats`**` it` and `x")
+    }
 }
