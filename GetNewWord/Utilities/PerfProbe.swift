@@ -203,6 +203,7 @@ final class PerfProbe: NSObject {
         let busy = now - from
         busySince = 0
         openTracked(busy: busy, now: now)
+        panelTracked(busy: busy, from: from, now: now)
         guard active else { return }
         for t in pendingKeys {
             let lag = now - t
@@ -217,6 +218,130 @@ final class PerfProbe: NSObject {
         }
         // 一段在主线程睡下之前收：一直忙着的那一轮先算进去
         if now - lastInput > 0.8 { finish() }
+    }
+
+    // MARK: - 查词面板打开和关闭
+
+    /// 一次查词：从按下快捷键（或框完）到面板第一帧，主分析回来到整张卡画出来
+    private struct PanelOpen {
+        var input: CFTimeInterval
+        var captured: CFTimeInterval = 0
+        var shown: CFTimeInterval = 0
+        var firstFrame: CFTimeInterval = 0
+        var result: CFTimeInterval = 0
+        var resultFrame: CFTimeInterval = 0
+        var busyOpen: CFTimeInterval = 0
+        var busyResult: CFTimeInterval = 0
+        var busyResultTotal: CFTimeInterval = 0
+        var cachedHit = false
+    }
+    /// 一次关面板：从点 ✕ / 按 Esc / 点外面到面板从屏幕上撤掉
+    private struct PanelClose {
+        var via: String
+        var input: CFTimeInterval
+        var handled: CFTimeInterval
+        var orderedOut: CFTimeInterval = 0
+        var goneFrame: CFTimeInterval = 0
+        var busyClose: CFTimeInterval = 0
+        var busyAfter: CFTimeInterval = 0
+        var busyAfterTotal: CFTimeInterval = 0
+    }
+    private var panelOpen: PanelOpen?
+    private var panelClose: PanelClose?
+    /// 整张卡画出来以后再看这么久的主线程（存词、主窗口跟着刷新、补全回来都在这段里）
+    private static let resultSettle: CFTimeInterval = 1.5
+    private static let closeSettle: CFTimeInterval = 1.0
+
+    private var panelVisible: Bool { NSApp.windows.contains { $0 is KeyableBorderlessPanel && $0.isVisible } }
+
+    func panel(_ step: PanelPerf.Step, eventTime: CFTimeInterval?) {
+        guard started else { return }
+        let now = CACurrentMediaTime()
+        // 事件自带的时间（按下的那一刻）；太久以前的不算（菜单栏按钮之类没有事件时间）
+        let input = eventTime.flatMap { now - $0 < 2 && now >= $0 ? $0 : nil } ?? now
+        switch step {
+        case .trigger:
+            panelOpen = PanelOpen(input: input)
+        case .captured:
+            panelOpen?.captured = now
+        case .shown:
+            panelOpen?.shown = now
+        case .result(let cached):
+            guard panelOpen != nil else { return }
+            panelOpen?.result = now
+            panelOpen?.cachedHit = cached
+        case .closeInput(let via):
+            panelClose = PanelClose(via: via, input: input, handled: now)
+        case .orderedOut:
+            guard panelClose != nil, panelClose?.orderedOut == 0 else { return }
+            panelClose?.orderedOut = now
+        }
+    }
+
+    private func panelTracked(busy: CFTimeInterval, from: CFTimeInterval, now: CFTimeInterval) {
+        if var p = panelOpen {
+            if p.firstFrame == 0 {
+                p.busyOpen = max(p.busyOpen, busy)
+                if p.shown > 0, panelVisible { p.firstFrame = now }
+            }
+            if p.result > 0 {
+                if p.resultFrame == 0 {
+                    p.resultFrame = now
+                    let started = p.input
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Self.resultSettle) { [weak self] in
+                        if self?.panelOpen?.input == started { self?.finishPanelOpen() }
+                    }
+                }
+                p.busyResult = max(p.busyResult, busy)
+                p.busyResultTotal += busy
+            }
+            panelOpen = p
+        }
+        if var c = panelClose {
+            if c.goneFrame == 0 {
+                c.busyClose = max(c.busyClose, busy)
+                if c.orderedOut > 0 {
+                    c.goneFrame = now
+                    let started = c.input
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Self.closeSettle) { [weak self] in
+                        if self?.panelClose?.input == started { self?.finishPanelClose() }
+                    }
+                }
+            } else {
+                c.busyAfter = max(c.busyAfter, busy)
+                c.busyAfterTotal += busy
+            }
+            panelClose = c
+        }
+    }
+
+    private func ms(_ t: CFTimeInterval) -> String { String(format: "%.0f", t * 1000) }
+
+    private var panelContext: String {
+        let style = LookupPanelStyle.current.rawValue
+        let motion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? "reduce" : "full"
+        return "style \(style) · shot \(PanelPerf.hidesScreenshot ? "no" : "yes") · motion \(motion)"
+    }
+
+    private func finishPanelOpen() {
+        guard let p = panelOpen else { return }
+        panelOpen = nil
+        let capture = p.captured > 0 ? ms(p.captured - p.input) : "-"
+        AppLog.log("[Perf] panel open · \(panelContext) · \(p.cachedHit ? "cached" : "new")"
+                   + " · input→first frame \(p.firstFrame > 0 ? ms(p.firstFrame - p.input) : "-")ms"
+                   + " (capture \(capture), show \(p.shown > 0 ? ms(p.shown - p.input) : "-"))"
+                   + " · main busy max \(ms(p.busyOpen))ms until first frame"
+                   + " · result→card frame \(ms(p.resultFrame - p.result))ms"
+                   + " · main busy max \(ms(p.busyResult))ms, total \(ms(p.busyResultTotal))ms until card + \(String(format: "%.1f", Self.resultSettle))s")
+    }
+
+    private func finishPanelClose() {
+        guard let c = panelClose else { return }
+        panelClose = nil
+        AppLog.log("[Perf] panel close · \(panelContext) · via \(c.via)"
+                   + " · input→handled \(ms(c.handled - c.input))ms · input→ordered out \(ms(c.orderedOut - c.input))ms"
+                   + " · input→gone frame \(ms(c.goneFrame - c.input))ms · main busy max \(ms(c.busyClose))ms until gone"
+                   + " · after: max \(ms(c.busyAfter))ms, total \(ms(c.busyAfterTotal))ms in \(String(format: "%.0f", Self.closeSettle))s")
     }
 
     private func finish() {
@@ -236,3 +361,27 @@ final class PerfProbe: NSObject {
     }
 }
 #endif
+
+import Foundation
+
+/// 查词面板打点的入口：开发版 GNW_PERF=1 时记进 app.log（PerfProbe），正式版里什么都不做
+@MainActor
+enum PanelPerf {
+    enum Step { case trigger, captured, shown, result(cached: Bool), closeInput(String), orderedOut }
+
+    /// eventTime：按键 / 点击发生的时刻（CACurrentMediaTime 同一个钟），从那一刻算起；没有就从现在算
+    static func mark(_ step: Step, eventTime: TimeInterval? = nil) {
+        #if DEBUG
+        PerfProbe.shared.panel(step, eventTime: eventTime)
+        #endif
+    }
+
+    /// GNW_PERF_NOSHOT=1：经典卡片里不放取词截图，量截图那一块占多少
+    static let hidesScreenshot: Bool = {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["GNW_PERF_NOSHOT"] != nil
+        #else
+        return false
+        #endif
+    }()
+}

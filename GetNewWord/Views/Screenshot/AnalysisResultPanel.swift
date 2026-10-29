@@ -146,7 +146,7 @@ struct AnalysisResultPanel: View {
                             onRemove: viewModel.autoSaved && !viewModel.skippedAsDuplicate.contains(index)
                                 ? { viewModel.removeSavedWord(index) } : nil,
                             enrichment: viewModel.enrichments[index],
-                            screenshot: viewModel.analysisResult?.screenshot,
+                            screenshot: PanelPerf.hidesScreenshot ? nil : viewModel.analysisResult?.screenshot,
                             lookupCount: viewModel.lookupCountValue(viewModel.savedWords[index]),
                             grammar: index == 0 ? viewModel.grammarState : nil
                         )

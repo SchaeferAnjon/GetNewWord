@@ -150,6 +150,7 @@ class AnalysisViewModel: ObservableObject {
         // 框选期间只占用 isAnalyzing 防重入；面板内容一律不动——
         // 钉住的面板得保留上一个词，用户按 Esc 放弃框选后它不能变成「识别中」
         isAnalyzing = true
+        PanelPerf.mark(.trigger, eventTime: HotkeyManager.lastPressedAt)
         if !resultWindow.isPinned { resultWindow.dismiss() }
 
         // 0. 框选（取消则静默退出，面板保持原样）；指词模式直接取鼠标下的词，没认出词就提示后退出。
@@ -174,6 +175,7 @@ class AnalysisViewModel: ObservableObject {
             text = await analysisService.regionText(context: img, selection: sel)
         }
 
+        PanelPerf.mark(.captured)
         // 框选成功，才开始新一轮：清空上一轮状态（钉住的面板此时原地刷新为骨架态）
         self.modelContext = modelContext
         self.mode = mode
@@ -225,6 +227,7 @@ class AnalysisViewModel: ObservableObject {
         // 1. 面板立刻弹出（骨架态），不再只显示小转圈
         showResultPanel = true
         resultWindow.show(viewModel: self, modelContext: modelContext)
+        PanelPerf.mark(.shown)
 
         // 8 秒还没结果：告诉用户是对面慢，不是软件没反应（重试通知会再覆盖这句）
         let slowTask = Task { @MainActor in
@@ -323,6 +326,7 @@ class AnalysisViewModel: ObservableObject {
             }
             analyzeTask = task
             let result = enforceExclusive(try await task.value)
+            PanelPerf.mark(.result(cached: cachedHit != nil))
             guard runID == myRun else {
                 isAnalyzing = false
                 AppLog.log("[Analysis] cancelled, dropping result")

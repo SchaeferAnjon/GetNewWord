@@ -44,9 +44,11 @@ private func carbonHotKeyCallback(
     guard status == noErr else { return noErr }
 
     let id = hotKeyID.id
+    let pressedAt = GetEventTime(event)
 
     // 派发到主队列执行，保证 handler 在主线程安全执行
     DispatchQueue.main.async {
+        HotkeyManager.lastPressedAt = pressedAt
         HotkeyManager.dispatchHotKey(id: id)
     }
 
@@ -72,6 +74,9 @@ final class HotkeyManager {
     /// 写入仅发生在主线程（@MainActor 的注册/注销方法），
     /// 读取仅发生在主队列（carbonHotKeyCallback 派发的回调），无数据竞争
     nonisolated(unsafe) private static var registry: [UInt32: @Sendable () -> Void] = [:]
+
+    /// 最近一次热键按下的时刻（开机以来的秒数，和 CACurrentMediaTime 同一个钟）：开发版打点从按下那一刻算
+    nonisolated(unsafe) static var lastPressedAt: TimeInterval = 0
 
     /// 由 Carbon 回调（经主队列派发）调用：查找并执行对应热键的 handler
     nonisolated static func dispatchHotKey(id: UInt32) {

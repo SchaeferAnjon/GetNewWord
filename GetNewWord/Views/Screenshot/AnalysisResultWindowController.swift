@@ -70,6 +70,7 @@ class AnalysisResultWindowController {
                 self.dismiss()
             },
             onDismiss: { [weak self] in
+                PanelPerf.mark(.closeInput("x"), eventTime: NSApp.currentEvent?.timestamp)
                 viewModel.dismissPanel()
                 self?.dismiss()
             },
@@ -179,6 +180,7 @@ class AnalysisResultWindowController {
         // 关的时候不播 utilityWindow 的淡出：点外面要立刻消失
         panel.animationBehavior = .none
         panel.orderOut(nil)
+        PanelPerf.mark(.orderedOut)
         self.panel = nil
     }
 
@@ -196,13 +198,21 @@ class AnalysisResultWindowController {
         }
         guard !escOnly else { return }
         // 点了别的 app：关（钉住时不装这个）
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { _ in
-            Task { @MainActor in onDismiss() }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+            let at = event.timestamp
+            Task { @MainActor in
+                PanelPerf.mark(.closeInput("click other app"), eventTime: at)
+                onDismiss()
+            }
         }
         // 本 app 内点面板外也关
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak panel] event in
             if event.window !== panel {
-                Task { @MainActor in onDismiss() }
+                let at = event.timestamp
+                Task { @MainActor in
+                    PanelPerf.mark(.closeInput("click own window"), eventTime: at)
+                    onDismiss()
+                }
             }
             return event
         }
@@ -213,6 +223,7 @@ class AnalysisResultWindowController {
         if let overlay = NSApp.windows.first(where: { $0 is OverlayWindow && $0.isVisible }) {
             overlay.contentView?.cancelOperation(nil)
         } else {
+            PanelPerf.mark(.closeInput("esc"), eventTime: HotkeyManager.lastPressedAt)
             pendingDismiss?()
         }
     }
