@@ -105,6 +105,12 @@ struct MemberStatus: Codable, Equatable, Sendable {
     var canUse = true
     /// canUse 为 false 时：trial-used-up / trial-closed / sub-ended / payment-failed / daily-limit
     var reason: String?
+    /// reason 是 daily-limit 时：uses（今天的次数用完）| cost（这张授权今天的用量到上限，试用也会有）。旧后台没有
+    var limitBy: String?
+    /// reason 是 daily-limit 时的重置时刻（毫秒，下一个 UTC 0 点）
+    var resetAt: Double?
+    /// 这台注册时领试用的结果（后台记的）：granted / closed / ip-limit / daily-limit / none。旧后台没有
+    var trialResult: String?
     var prices: Prices?
     var passPrices: Prices?
     var sync: Sync?
@@ -131,6 +137,9 @@ struct MemberStatus: Codable, Equatable, Sendable {
         today = opt(.today)
         canUse = get(.canUse, true)
         reason = opt(.reason)
+        limitBy = opt(.limitBy)
+        resetAt = opt(.resetAt)
+        trialResult = opt(.trialResult)
         prices = opt(.prices)
         passPrices = opt(.passPrices)
         sync = opt(.sync)
@@ -222,6 +231,9 @@ enum MemberText {
         case "too-many-devices": return String(localized: "授权码已经用在 2 台电脑上")
         case "already-subscribed": return String(localized: "已经开了自动续费")
         case "pass-active": return String(localized: "一次买的会员还没到期")
+        case "re-register-limit": return String(localized: "这台 Mac 重新注册太多次了")
+        case "already-paid": return String(localized: "上一个付款页已经付好了")
+        case "payment-pending": return String(localized: "上一笔付款还在确认")
         case "not-ready": return String(localized: "购买还没开通")
         case "portal-not-ready", "portal-upstream": return String(localized: "管理订阅暂时打不开")
         case "pay-upstream": return String(localized: "付款页暂时打不开")
@@ -323,13 +335,14 @@ enum MemberState: Equatable {
     case paymentFailed
     case ended
 
-    /// registered：这台已经向后台注册过（或正在注册）
+    /// registered：这台已经向后台注册过（或正在注册）。trialResult：本机记下的注册结果，后台 /status 带了 trialResult 时用后台的
     static func of(_ status: MemberStatus?, available: Bool, failed: Bool, trialResult: String?, registered: Bool = true, now: Date = Date()) -> MemberState {
         guard available else { return .unavailable }
         guard let s = status else { return !registered ? .notClaimed : failed ? .offline : .connecting }
+        // 每天的上限：会员 200 次用完，或这张授权今天的用量到上限（试用也会有，limitBy = cost）。过了重置时刻的不算
+        let reset = MemberStatus.date(s.resetAt ?? s.today?.resetAt)
+        if s.reason == "daily-limit", (s.isMember || s.limitBy == "cost"), (reset ?? .distantFuture) > now { return .dailyLimit(reset: reset) }
         if s.isMember {
-            let reset = MemberStatus.date(s.today?.resetAt)
-            if s.reason == "daily-limit", (reset ?? .distantFuture) > now { return .dailyLimit(reset: reset) }
             // 自动续费的写下次扣款日（当期结束）；其余写用到哪天（含续费没扣成的宽限）
             let until = s.autoRenew ? MemberStatus.date(s.subscription?.periodEnd ?? s.memberUntil) : MemberStatus.date(s.memberUntil)
             return .member(until: until, autoRenew: s.autoRenew, expiring: s.expiring,
@@ -339,8 +352,8 @@ enum MemberState: Equatable {
         switch s.reason {
         case "payment-failed": return .paymentFailed
         case "sub-ended": return .ended
-        case "trial-closed": return .trialClosed(.of(trialResult))
-        default: return s.trial.granted ? .trialUsedUp : .trialClosed(.of(trialResult))
+        case "trial-closed": return .trialClosed(.of(s.trialResult ?? trialResult))
+        default: return s.trial.granted ? .trialUsedUp : .trialClosed(.of(s.trialResult ?? trialResult))
         }
     }
 
@@ -667,10 +680,11 @@ final class MemberService: ObservableObject, MemberRoute {
     func explain(_ e: MemberError) -> MemberError {
         var e = e
         switch e.code {
-        case "trial-closed": e.miss = .of(trialResult)
+        case "trial-closed": e.miss = .of(status?.trialResult ?? trialResult)
         case "pass-active": e.until = MemberStatus.date(status?.memberUntil)
-        // 后台每天的上限有两种：200 次用完、或这张授权当天的成本到顶。后者时状态里今天还剩好多次
-        case "daily-limit": e.costCap = (status?.today?.left ?? 0) > 0
+        // 后台每天的上限有两种：200 次用完、或这张授权当天的成本到顶。/status 的 limitBy 写了是哪种；旧后台没有，按今天还剩不剩次数猜
+        case "daily-limit":
+            if let by = status?.limitBy { e.costCap = by == "cost" } else { e.costCap = (status?.today?.left ?? 0) > 0 }
         default: break
         }
         return e
@@ -719,6 +733,14 @@ final class MemberService: ObservableObject, MemberRoute {
         } catch var e as MemberError where e.code == "upstream" {
             e.code = "pay-upstream"   // 是付款服务连不上，不是会员 AI
             throw e
+        } catch let e as MemberError where e.code == "already-paid" {
+            // 上一个付款页其实已经付好了（后台刚落库、旧的付款页作废不了）：问一次状态，是会员就当付款成功
+            await refresh()
+            guard isMember else { throw e }
+            lastCheckout = nil
+            justPaid = true
+            AppLog.log("[Member] checkout: earlier checkout was already paid")
+            return
         }
         let r = try JSONDecoder().decode(Checkout.self, from: data)
         guard let url = URL(string: r.url) else { throw MemberError.badReply }
@@ -897,7 +919,8 @@ final class MemberService: ObservableObject, MemberRoute {
             if left <= 0 {
                 s.canUse = false
                 s.reason = "daily-limit"
-            } else if s.reason == "daily-limit" {
+                s.limitBy = "uses"
+            } else if s.reason == "daily-limit", s.limitBy != "cost" {
                 // 过了 0 点的第一次查词：昨天记下的「用完了」清掉，不然重置时间换成今晚以后又显示用完
                 s.canUse = true
                 s.reason = nil

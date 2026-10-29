@@ -73,6 +73,35 @@ struct MemberStatusTests {
         #expect(throws: MemberError.self) { try MemberStatus.registration(from: Data(#"{"trial":"closed"}"#.utf8)) }
     }
 
+    /// 后台 2026-10-29 加的 trialResult、limitBy、resetAt：读得到；旧后台没有也照样读
+    @Test func decodesLimitFields() throws {
+        let s = try status(#"{"plan":"trial","trial":{"granted":false,"total":0,"used":0,"left":0},"canUse":false,"reason":"daily-limit","limitBy":"cost","resetAt":1793318400000,"trialResult":"ip-limit"}"#)
+        #expect(s.limitBy == "cost" && s.resetAt == 1_793_318_400_000 && s.trialResult == "ip-limit")
+        let old = try status(statusJSON)
+        #expect(old.limitBy == nil && old.resetAt == nil && old.trialResult == nil)
+    }
+
+    /// 状态里的 trialResult 比本机记的准（本机的可能是重新注册后的 existing）；成本上限过了重置时刻就不算
+    @Test func statesUseServerTrialResultAndCostCap() {
+        var s = makeStatus(plan: "none", granted: false, reason: "trial-closed")
+        s.trialResult = "closed"
+        #expect(MemberState.of(s, available: true, failed: false, trialResult: "existing") == .trialClosed(.full))
+        var c = makeStatus(plan: "trial", left: 10)
+        c.reason = "daily-limit"
+        c.canUse = false
+        c.limitBy = "cost"
+        c.resetAt = Date().addingTimeInterval(600).timeIntervalSince1970 * 1000
+        #expect(MemberState.of(c, available: true, failed: false, trialResult: nil).blockCode == "daily-limit")
+        c.resetAt = Date().addingTimeInterval(-60).timeIntervalSince1970 * 1000
+        #expect(MemberState.of(c, available: true, failed: false, trialResult: nil) == .trial(left: 10, total: 30))
+    }
+
+    @Test func newErrorCodesHaveTitles() {
+        #expect(MemberText.title(MemberError(code: "re-register-limit", message: "这台电脑 24 小时里重新注册超过 5 次了，约 3 小时后再试")) == String(localized: "这台 Mac 重新注册太多次了"))
+        #expect(MemberText.detail(MemberError(code: "re-register-limit", message: "这台电脑 24 小时里重新注册超过 5 次了，约 3 小时后再试")).contains("约 3 小时"))
+        #expect(MemberText.title(MemberError(code: "payment-pending", message: "x")) == String(localized: "上一笔付款还在确认"))
+    }
+
     @Test func states() {
         let later = Date().addingTimeInterval(20 * 86_400)
         func state(_ s: MemberStatus?, trialResult: String? = nil, available: Bool = true, failed: Bool = false, registered: Bool = true) -> MemberState {
@@ -504,6 +533,56 @@ struct MemberServiceTests {
             try await m.buy(plan: "month", currency: "cny", mode: "sub")
         }
         #expect(opened.isEmpty && m.purchase == nil)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 上一个付款页其实付好了（后台回 409 already-paid）：问一次状态，是会员就当付款成功，不报错、不开新页
+    @Test func buyAlreadyPaidCountsAsPaid() async throws {
+        server.on("POST", "/v1/getnewword/checkout", .init(status: 409, body: #"{"error":{"code":"already-paid","message":"上一个付款页已经付好了，会员已经开通，不用再付"}}"#))
+        server.on("GET", "/v1/getnewword/status", .init(status: 200, body: memberStatusBody))
+        let m = make(token: "gwd_one")
+        try await m.buy(plan: "year", currency: "cny", mode: "sub")
+        #expect(m.justPaid && m.isMember)
+        #expect(opened.isEmpty && m.purchase == nil)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 后台 /status 带了 trialResult：按后台记的原因说，本机没记下（比如钥匙串清过、重装）也说得出
+    @Test func serverTrialResultExplainsMiss() async throws {
+        server.on("GET", "/v1/getnewword/status",
+                  .init(status: 200, body: #"{"plan":"none","trial":{"granted":false,"total":0,"used":0,"left":0},"canUse":false,"reason":"trial-closed","trialResult":"closed"}"#))
+        let m = make(token: "gwd_one")
+        await m.refresh()
+        #expect(m.trialResult == nil)
+        #expect(m.state == .trialClosed(.full))
+        #expect(m.explain(MemberError(code: "trial-closed", status: 402)).miss == .full)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 成本上限进了 /status（limitBy cost）：试用的也拦，说成「今天的用量到上限了」；次数用完的说成次数用完
+    @Test func costCapFromStatus() async throws {
+        let reset = Int(Date().addingTimeInterval(3600).timeIntervalSince1970 * 1000)
+        server.on("GET", "/v1/getnewword/status",
+                  .init(status: 200, body: #"{"plan":"trial","trial":{"granted":true,"total":30,"used":5,"left":25},"canUse":false,"reason":"daily-limit","limitBy":"cost","resetAt":\#(reset)}"#))
+        let m = make(token: "gwd_one")
+        await m.refresh()
+        guard case .dailyLimit(let at) = m.state else { Issue.record("试用的成本上限也要拦：\(m.state)"); return }
+        #expect(at.map { Int($0.timeIntervalSince1970 * 1000) } == reset)
+        #expect(m.state.blocked && m.state.blockCode == "daily-limit")
+        let e = m.explain(MemberError(code: "daily-limit", status: 429))
+        #expect(e.costCap)
+        #expect(MemberText.title(e) == String(localized: "今天的用量到上限了"))
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    @Test func usesLimitIsNotCostCap() async throws {
+        server.on("GET", "/v1/getnewword/status", .init(status: 200, body: memberBody(todayLeft: 0, reason: "daily-limit")
+            .replacingOccurrences(of: #""reason":"daily-limit""#, with: #""reason":"daily-limit","limitBy":"uses""#)))
+        let m = make(token: "gwd_one")
+        await m.refresh()
+        let e = m.explain(MemberError(code: "daily-limit", status: 429))
+        #expect(!e.costCap)
+        #expect(MemberText.title(e) == String(localized: "今天的次数用完了"))
         defaults.removePersistentDomain(forName: suite)
     }
 

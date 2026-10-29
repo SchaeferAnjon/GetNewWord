@@ -1453,6 +1453,22 @@
         }
       }
     },
+    "上一个付款页已经付好了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die vorherige Zahlung ist schon erledigt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your earlier checkout is already paid"
+          }
+        }
+      }
+    },
     "上一期的续费没扣成。打开「管理订阅」换一张卡，换好马上恢复。": {
       "localizations": {
         "de": {
@@ -1497,6 +1513,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Back"
+          }
+        }
+      }
+    },
+    "上一笔付款还在确认": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die letzte Zahlung wird noch bestätigt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your last payment is still being confirmed"
           }
         }
       }
@@ -13753,6 +13785,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "License code on this Mac"
+          }
+        }
+      }
+    },
+    "这台 Mac 重新注册太多次了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Mac wurde zu oft neu registriert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac re-registered too many times"
           }
         }
       }
