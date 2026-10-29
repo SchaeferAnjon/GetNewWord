@@ -115,20 +115,95 @@ struct LookupPopup: View {
     }
 }
 
-// MARK: - 翻译语言：选哪种，弹窗就换成哪种
+/// 经典卡片缩小版：词头 + 等级，下面「释义」「语境」两节，和查词面板默认的那张卡一个排法
+private struct ClassicMiniCard: View {
+    let target: TargetLanguage
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(DemoSentence.word).font(.system(size: 15, weight: .bold))
+                Chip(text: "B2", tone: .custom(Theme.levelColor(.b2)))
+                Chip(text: Language.german.displayName, mono: false)
+            }
+            Hairline()
+            VStack(alignment: .leading, spacing: 2) {
+                sectionTitle(String(localized: "释义"))
+                Text(DemoSentence.meaning(target)).font(.system(size: 12.5)).foregroundStyle(Theme.accent).lineLimit(1)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                sectionTitle(String(localized: "语境"))
+                QuoteBlock {
+                    Text(DemoSentence.translation(target)).font(.system(size: 11.5)).foregroundStyle(Theme.text2)
+                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        // 只要自己内容的高度：不然引用块左边那根竖线会把卡撑满整个台子
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: 210, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
+    }
+}
+
+/// 讲义卡缩小版：词头，灰底框里是整句译文，下面带序号的释义
+private struct LectureMiniCard: View {
+    let target: TargetLanguage
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(DemoSentence.word).font(.system(size: 15, weight: .bold))
+                Spacer()
+                Chip(text: "B2", tone: .custom(Theme.levelColor(.b2)))
+            }
+            Text(DemoSentence.translation(target)).font(.system(size: 11.5)).foregroundStyle(Theme.text2)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 2) {
+                sectionTitle(String(localized: "释义"))
+                HStack(spacing: 6) {
+                    Text(verbatim: "1").font(.system(size: 11)).foregroundStyle(Theme.text3)
+                    Text(DemoSentence.meaning(target)).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.accent).lineLimit(1)
+                }
+            }
+        }
+        .frame(width: 210, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
+    }
+}
+
+// MARK: - 翻译语言：选哪种，弹窗就换成哪种；弹窗画成下面选中的查词面板样式
 
 struct TranslateIllustration: View {
     let target: TargetLanguage
+    var style: LookupPanelStyle = .classic
     var body: some View {
-        Stage(height: 150) {
+        // 三种卡高矮不一，台子按最高的经典卡片定死，换样式时页面不跳
+        Stage(height: 164) {
             HStack(alignment: .center, spacing: -16) {
                 SentenceCard(highlighted: true).offset(y: -12)
-                LookupPopup(target: target)
-                    .id(target)
+                popup
+                    .id("\(target.rawValue)-\(style.rawValue)")
                     .transition(.opacity.combined(with: .offset(y: 4)))
-                    .offset(y: 16)
+                    .offset(y: 8)
             }
             .animation(.easeOut(duration: 0.25), value: target)
+            .animation(.easeOut(duration: 0.25), value: style)
+        }
+    }
+
+    @ViewBuilder private var popup: some View {
+        switch style {
+        case .classic: ClassicMiniCard(target: target)
+        case .lecture: LectureMiniCard(target: target)
+        case .tag, .tagExpanded: LookupPopup(target: target)
         }
     }
 }

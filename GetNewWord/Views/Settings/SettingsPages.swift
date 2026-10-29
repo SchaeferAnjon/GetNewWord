@@ -190,7 +190,7 @@ struct TranslateSettingsPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("查到的词和整句译成哪种语言。").font(.system(size: 13)).foregroundStyle(Theme.text2)
-            TranslateIllustration(target: target)
+            TranslateIllustration(target: target, style: panelStyle)
             VStack(alignment: .leading, spacing: 6) {
                 Text("翻译成").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.text2)
                 TargetLanguageGrid(target: $target)
