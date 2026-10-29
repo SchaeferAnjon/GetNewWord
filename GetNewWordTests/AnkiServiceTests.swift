@@ -314,6 +314,25 @@ final class AnkiServiceTests {
         #expect(b.ety == "con- 一起 + fluere 流")
     }
 
+    /// Anki 里删掉的卡（notesInfo 回空对象）：本地只删那一个词；卡号在后台读，删的时候按 id 拿回主线程这边的对象
+    @Test func deletedInAnkiRemovedLocally() async throws {
+        let context = try makeLibrary()
+        for i in 1...4 {
+            context.insert(WordEntry(word: "w\(i)", language: .english, meaning: "m", contextSentence: "", contextTranslation: "",
+                                     analysisNote: "", ankiNoteId: 100 + i, syncStatus: .synced))
+        }
+        context.insert(WordEntry(word: "local", language: .english, meaning: "m", contextSentence: "", contextTranslation: "", analysisNote: ""))
+        try context.save()
+        FakeAnkiConnect.reply = { @Sendable call in
+            guard call.action == "notesInfo" else { return Self.normalAnki(call) }
+            let ids = call.params["notes"] as? [Int] ?? []
+            return .success(ids.map { $0 == 102 ? [String: Any]() : ["noteId": $0] })
+        }
+        await anki.pruneDeletedNotes(context: context)
+        #expect(Set(FakeAnkiConnect.calls("notesInfo").first?.params["notes"] as? [Int] ?? []) == [101, 102, 103, 104])
+        #expect(try context.fetch(FetchDescriptor<WordEntry>()).map(\.word).sorted() == ["local", "w1", "w3", "w4"])
+    }
+
     @Test func highlight() {
         #expect(AnkiService.hl("Running runs ran", word: "running") == "<span class=\"kw\">Running</span> runs ran")
         #expect(AnkiService.hl("Die Vorfahrt achten", word: "Vorfahrt") == "Die <span class=\"kw\">Vorfahrt</span> achten")

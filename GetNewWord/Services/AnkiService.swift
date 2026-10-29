@@ -718,11 +718,18 @@ final class AnkiService: @unchecked Sendable {
 
     /// 反向同步：Anki 里已被删掉的卡（notesInfo 返回空对象），本地单词也删掉，保持两端一致
     private struct NoteInfoLite: Codable { let noteId: Int? }
+    /// 要看全部同步过的词：只要卡号，在后台另开一个 ModelContext 读。以前在主线程把这些词全取成对象，
+    /// 2000 个词时卡 0.2–0.3 秒，查完词 Anki 一开着就同步，正好卡在用户读卡、点关面板的时候
     @MainActor
     func pruneDeletedNotes(context: ModelContext) async {
-        let words = (try? context.fetch(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil }))) ?? []
-        guard !words.isEmpty else { return }
-        let ids = words.compactMap { $0.ankiNoteId }
+        let container = context.container
+        let synced = await Task.detached(priority: .utility) { () -> [(id: PersistentIdentifier, note: Int)] in
+            var d = FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil })
+            d.propertiesToFetch = [\.ankiNoteId]
+            return ((try? ModelContext(container).fetch(d)) ?? []).compactMap { w in w.ankiNoteId.map { (w.persistentModelID, $0) } }
+        }.value
+        guard !synced.isEmpty else { return }
+        let ids = synced.map(\.note)
         guard let infos: [NoteInfoLite] = try? await send(action: "notesInfo", params: ["notes": ids], as: [NoteInfoLite].self),
               infos.count == ids.count else { return }
         // 熔断：绝大多数本地卡都在 Anki 中不存在 = 换库/换配置/新账号，绝不能当成用户删卡
@@ -736,7 +743,7 @@ final class AnkiService: @unchecked Sendable {
         for (i, info) in infos.enumerated() where info.noteId == nil {
             // 从另一台电脑同步来、本机 Anki 还没经 AnkiWeb 拿到的卡：不是用户删卡
             guard !CloudSyncService.shared.isUnconfirmedAnkiNote(ids[i]) else { continue }
-            if let w = words.first(where: { $0.ankiNoteId == ids[i] }) {
+            if let w = context.model(for: synced[i].id) as? WordEntry, !w.isDeleted, w.ankiNoteId == ids[i] {
                 AppLog.log("[Anki] '\(w.word)' deleted in Anki → remove locally")
                 context.delete(w)
                 removed += 1
