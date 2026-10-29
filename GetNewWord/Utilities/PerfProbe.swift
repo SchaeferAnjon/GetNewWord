@@ -190,7 +190,6 @@ final class PerfProbe: NSObject {
         }
         lastFrame = l.timestamp
         if inSession { frames += 1 }
-        if CACurrentMediaTime() - lastInput > 0.8 { finish() }
     }
 
     private func woke() {
@@ -200,20 +199,24 @@ final class PerfProbe: NSObject {
     private func willSleep() {
         let now = CACurrentMediaTime()
         guard busySince > 0 else { return }
-        let busy = now - busySince
+        let from = busySince
+        let busy = now - from
         busySince = 0
         openTracked(busy: busy, now: now)
-        if !pendingKeys.isEmpty {
-            for t in pendingKeys {
-                let lag = now - t
-                lagTotal += lag
-                worstLag = max(worstLag, lag)
-            }
-            pendingKeys = []
+        guard active else { return }
+        for t in pendingKeys {
+            let lag = now - t
+            lagTotal += lag
+            worstLag = max(worstLag, lag)
         }
-        guard active, now - lastInput < Self.tail else { return }
-        worstBusy = max(worstBusy, busy)
-        busyTotal += busy
+        pendingKeys = []
+        // 这一轮是在输入中或收尾的 0.25 秒里开始的就算（一轮可能很长：主线程被占住时事件排着队，中间不睡）
+        if from - lastInput < Self.tail {
+            worstBusy = max(worstBusy, busy)
+            busyTotal += busy
+        }
+        // 一段在主线程睡下之前收：一直忙着的那一轮先算进去
+        if now - lastInput > 0.8 { finish() }
     }
 
     private func finish() {
