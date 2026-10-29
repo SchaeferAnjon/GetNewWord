@@ -350,7 +350,7 @@ class AnalysisViewModel: ObservableObject {
             // 快速识词是否认对了（词头一致）
             var quickOK = false
             if let q = quickWord, let first = result.analysis.words.first,
-               Self.isSameHeadword(first.word, q.word) { quickOK = true }
+               Self.isSameHeadword(first.word, q.word, language: Language(rawValue: q.language.lowercased())) { quickOK = true }
             if enrichStarted && !quickOK {
                 // 快速识词认错了（或其实是知识片段）→ 丢弃预生成的补全，交回常规补全
                 enrichStarted = false
@@ -427,7 +427,8 @@ class AnalysisViewModel: ObservableObject {
                 guard self.runID == myRun else { return }
                 // 和主分析回来时同一个判法：框的是 heats、词头是 heat 也算同一个词。
                 // 以前这里要一字不差，主分析先回来时补全被丢掉、又没人重补，用法和例句一直「生成中」
-                if let r = self.analysisResult, !Self.isSameHeadword(r.analysis.words.first?.word ?? "", word) {
+                if let r = self.analysisResult,
+                   !Self.isSameHeadword(r.analysis.words.first?.word ?? "", word, language: Language(rawValue: language.lowercased())) {
                     AppLog.log("[Analysis] pre-enrich '\(word)' 丢弃（实际词头 '\(r.analysis.words.first?.word ?? "-")'）")
                 } else {
                     enrichments[0] = e
@@ -457,11 +458,21 @@ class AnalysisViewModel: ObservableObject {
 
     /// 快速识词与主分析给出的词头是否算同一个词。主分析常把词还原成原形（jerking→jerk、
     /// obscured→obscure、steamed up→steam up），逐字比较会误判为"认错了"而把同一个词再念一遍。
-    /// 判据：按空格拆词后逐词比较，每对词共同前缀足够长且词尾差异不超过 5 个字符就算同一个词；
+    /// 判据：按空格拆词后逐词比较，每对词共同前缀足够长且词尾差异不超过 5 个字符就算同一个词（变音不算差别：hält → halten）；
+    /// 对不上时再用标紫的认词规则看 b 整个是不是 a 的变形（ran → run、hielt → halten）。
     /// 词数不同或词根不同（Britain/beloved）才算认错，交回主分析重读。
-    static func isSameHeadword(_ a: String, _ b: String) -> Bool {
+    /// 以前 hält 和 halten 算两个词：提前发出的补全被丢掉、再补一遍，晚几秒，还把词再念一遍
+    static func isSameHeadword(_ a: String, _ b: String, language: Language? = nil) -> Bool {
+        if prefixMatch(a, b) { return true }
+        guard let language else { return false }
+        let whole = b.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hits = WordMatcher(word: a, language: language).ranges(in: whole)
+        return hits.count == 1 && hits[0] == whole.startIndex..<whole.endIndex
+    }
+
+    private static func prefixMatch(_ a: String, _ b: String) -> Bool {
         func norm(_ s: String) -> [String] {
-            s.lowercased()
+            s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
                 .replacingOccurrences(of: "-", with: " ")
                 .split(whereSeparator: { $0.isWhitespace })
                 .map { $0.trimmingCharacters(in: .punctuationCharacters) }

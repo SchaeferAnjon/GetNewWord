@@ -133,3 +133,26 @@ struct SavedNothingNewTests {
         #expect(!check(words: 1, skipped: [0], removedWords: [0]))
     }
 }
+
+/// 快速识词（框的那个写法）和主分析的词头算不算同一个词：算的话提前发出的补全留着，不再补一遍、不再念第二遍
+@MainActor
+struct SameHeadwordTests {
+    @Test func inflectedFormsAreTheSameWord() {
+        WordMatcher.warmUp()   // 主线程上要等词元模型读完才认不规则变化（App 里启动时在后台读）
+        #expect(AnalysisViewModel.isSameHeadword("heat", "heats", language: .english))
+        #expect(AnalysisViewModel.isSameHeadword("steam up", "steamed up", language: .english))
+        // 变音不算差别：以前 hält 和 halten 算两个词，补全被丢掉重补
+        #expect(AnalysisViewModel.isSameHeadword("halten", "hält", language: .german))
+        #expect(AnalysisViewModel.isSameHeadword("Haus", "Häuser", language: .german))
+        // 不规则变化
+        #expect(AnalysisViewModel.isSameHeadword("run", "ran", language: .english))
+        #expect(AnalysisViewModel.isSameHeadword("give up", "gave up", language: .english))
+    }
+
+    @Test func differentWordsAreNot() {
+        #expect(!AnalysisViewModel.isSameHeadword("Britain", "beloved", language: .english))
+        #expect(!AnalysisViewModel.isSameHeadword("anhalten", "hält", language: .german))
+        #expect(!AnalysisViewModel.isSameHeadword("heat", "wheat", language: .english))
+        #expect(!AnalysisViewModel.isSameHeadword("give up", "give", language: .english))
+    }
+}
