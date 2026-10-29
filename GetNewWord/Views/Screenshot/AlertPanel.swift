@@ -95,10 +95,14 @@ enum LookupFailure {
     case unreadable
     /// 没归类的服务商报错，带它的原话
     case service(String)
+    /// 会员通道：试用用完、每天上限、欠费、我们的后台连不上……（不让会员去填 Key）
+    case member(MemberError)
     case other(String)
 
     static func from(_ error: Error) -> LookupFailure {
         switch error {
+        case ZhipuServiceError.member(let e): return .member(e)
+        case let e as MemberError: return .member(e)
         case ZhipuServiceError.apiKeyNotConfigured: return .noKey
         case ZhipuServiceError.unauthorized: return .badKey
         case ZhipuServiceError.quotaExceeded: return .quota
@@ -126,6 +130,13 @@ enum LookupFailure {
         case .model: return "questionmark"
         case .truncated: return "scissors"
         case .unreadable: return "curlybraces"
+        case .member(let e):
+            switch e.code {
+            case "trial-used-up", "trial-closed", "sub-ended", "payment-failed": return "creditcard"
+            case "daily-limit", "use-expired": return "clock.fill"
+            case "network": return "wifi.slash"
+            default: return "exclamationmark"
+            }
         case .service, .other: return "exclamationmark"
         }
     }
@@ -142,6 +153,7 @@ enum LookupFailure {
         case .truncated: return String(localized: "\(ai) 的回复被截断了")
         case .unreadable: return String(localized: "\(ai) 回的内容读不懂")
         case .service: return String(localized: "\(ai) 这次报错了")
+        case .member(let e): return MemberText.title(e)
         case .other: return String(localized: "这次没讲成")
         }
     }
@@ -158,6 +170,7 @@ enum LookupFailure {
         case .truncated: return String(localized: "这次讲得太长，没写完就停了。再按一次，或者框小一点；老是这样就换一家 AI。")
         case .unreadable: return String(localized: "它没按约定的格式回答。再按一次一般就好；老是这样就换个模型，或换一家 AI。")
         case .service(let m): return String(localized: "再按一次试试，老是这样就换一家 AI。它的原话：\(m)")
+        case .member(let e): return MemberText.detail(e)
         case .other(let m): return m
         }
     }
@@ -250,7 +263,7 @@ struct ErrorPanelView: View {
         HStack(alignment: .top, spacing: 12) {
             ZStack(alignment: .bottomTrailing) {
                 Group {
-                    if case .noWord = failure {
+                    if failure.showsAppIcon {
                         Image(nsImage: NSApp.applicationIconImage).resizable()
                     } else {
                         ProviderLogo(provider: provider, size: 22)
@@ -267,7 +280,7 @@ struct ErrorPanelView: View {
                     .offset(x: 4, y: 4)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(failure.title(provider.displayName)).font(.system(size: 14, weight: .semibold))
+                Text(failure.title(ZhipuService.shared.currentProviderName)).font(.system(size: 14, weight: .semibold))
                 Text(failure.detail).font(.system(size: 12)).foregroundStyle(Theme.text2)
                     .lineLimit(4).fixedSize(horizontal: false, vertical: true)   // 英文、德文常要四行
                 Spacer(minLength: 6)
@@ -305,7 +318,19 @@ struct ErrorPanelView: View {
             case .model:
                 Button("去改模型") { onDismiss(); SettingsOpener.open(.ai) }.buttonStyle(PrimaryButtonStyle())
             case .timeout, .network, .truncated, .unreadable, .service:
-                Button("换一家 AI") { onDismiss(); SettingsOpener.open(.ai) }.buttonStyle(SecondaryButtonStyle())
+                if AIPlan.current == .own {
+                    Button("换一家 AI") { onDismiss(); SettingsOpener.open(.ai) }.buttonStyle(SecondaryButtonStyle())
+                }
+            case .member(let e):
+                switch e.code {
+                case "trial-used-up", "trial-closed", "sub-ended":
+                    Button("看会员方案") { onDismiss(); PricingWindow.show() }.buttonStyle(PrimaryButtonStyle())
+                    Button("用自己的 Key") { onDismiss(); SettingsOpener.open(.ai) }.buttonStyle(SecondaryButtonStyle())
+                case "payment-failed":
+                    Button("管理订阅") { onDismiss(); Task { try? await MemberService.shared.openPortal() } }.buttonStyle(PrimaryButtonStyle())
+                default:
+                    EmptyView()
+                }
             case .noWord, .other:
                 EmptyView()
             }
@@ -318,8 +343,17 @@ private extension LookupFailure {
     /// 有没有解决按钮：没有就把面板收矮
     var hasActions: Bool {
         switch self {
-        case .noKey, .badKey, .timeout, .network, .quota, .model, .truncated, .unreadable, .service: return true
+        case .timeout, .network, .truncated, .unreadable, .service: return AIPlan.current == .own
+        case .noKey, .badKey, .quota, .model: return true
+        case .member(let e): return ["trial-used-up", "trial-closed", "sub-ended", "payment-failed"].contains(e.code)
         case .noWord, .other: return false
+        }
+    }
+    /// 没认出词、会员通道的报错用应用图标，不画服务商的标
+    var showsAppIcon: Bool {
+        switch self {
+        case .noWord, .member: return true
+        default: return false
         }
     }
 }

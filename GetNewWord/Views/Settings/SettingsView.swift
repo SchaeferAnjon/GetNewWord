@@ -108,7 +108,7 @@ struct SettingsView: View {
     private func needsAttention(_ p: SettingsPage) -> Bool {
         switch p {
         case .permissions: return !permissions.hasScreenRecording
-        case .ai: return (ZhipuService.shared.key(for: provider) ?? "").isEmpty
+        case .ai: return AIPlan.current == .member ? MemberService.shared.state.blocked : (ZhipuService.shared.key(for: provider) ?? "").isEmpty
         default: return false
         }
     }

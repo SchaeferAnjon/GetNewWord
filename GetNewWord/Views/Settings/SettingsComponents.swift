@@ -206,35 +206,83 @@ struct ChoiceCard<Content: View>: View {
 
 // MARK: - 方案卡（设置侧栏底部、主窗口侧栏底部）
 
-/// 现在用的是哪种：自带 Key / 还没选 AI。会员开放前没有试用和会员这两种状态。
+/// 现在用的是哪种、还剩多少：会员（试用剩几次、今天剩几次、到期日、欠费）或自带 Key。点开是方案和价格
 struct PlanCard: View {
     @AppStorage("apiProvider") private var provider: APIProvider = .zhipu
-    @State private var showPricing = false
+    @AppStorage(AIPlan.key) private var plan: AIPlan = .member
+    @ObservedObject private var member = MemberService.shared
 
     private var hasKey: Bool { !(ZhipuService.shared.key(for: provider) ?? "").isEmpty }
 
     var body: some View {
-        Button { showPricing = true } label: {
+        let card = content
+        Button { PricingWindow.show() } label: {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    if hasKey {
+                    if plan == .own, hasKey {
                         ProviderLogo(provider: provider, size: 13)
-                        Text("自带 Key").font(.system(size: 12.5, weight: .medium))
-                    } else {
+                    } else if card.warn {
                         Circle().fill(Theme.warn).frame(width: 7, height: 7)
-                        Text("还没选 AI").font(.system(size: 12.5, weight: .medium))
+                    } else if plan == .member {
+                        Image(systemName: "sparkles").font(.system(size: 11)).foregroundStyle(Theme.accent)
+                    }
+                    Text(card.title).font(.system(size: 12.5, weight: .medium))
+                    Spacer(minLength: 0)
+                    if let count = card.count {
+                        Text(count).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(card.warn ? Theme.warn : Theme.text)
+                            .monospacedDigit()
                     }
                 }
-                Text(hasKey ? "永久免费 · 想省事可看会员" : "选一种用法才能查词")
+                Text(card.detail)
                     .font(.system(size: 11.5)).foregroundStyle(Theme.text3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
             .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 0.5))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(card.warn ? Theme.warn.opacity(0.6) : Theme.border, lineWidth: card.warn ? 1 : 0.5))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $showPricing) { PricingView() }
+    }
+
+    private var content: (title: String, detail: String, count: String?, warn: Bool) {
+        if plan == .own {
+            return hasKey ? (String(localized: "自带 Key"), String(localized: "永久免费 · 想省事可看会员"), nil, false)
+                          : (String(localized: "还没选 AI"), String(localized: "选一种用法才能查词"), nil, true)
+        }
+        return Self.memberContent(member.state)
+    }
+
+    /// 会员模式下卡片上写什么（单独拿出来，测试和会员页共用）
+    static func memberContent(_ state: MemberState) -> (title: String, detail: String, count: String?, warn: Bool) {
+        switch state {
+        case .unavailable:
+            return (String(localized: "会员"), String(localized: "开发版没连会员服务器"), nil, true)
+        case .connecting:
+            return (String(localized: "会员"), String(localized: "正在连接会员服务器…"), nil, false)
+        case .offline:
+            return (String(localized: "会员"), String(localized: "连不上会员服务器，联网后自动重试"), nil, true)
+        case .trial(let left, let total):
+            return (String(localized: "免费试用"), String(localized: "共 \(total) 次，用完可订阅或换自带 Key"), String(localized: "剩 \(left) 次"), false)
+        case .trialUsedUp:
+            return (String(localized: "试用用完了"), String(localized: "订阅会员接着用，或换自带 Key"), nil, true)
+        case .trialClosed(let daily):
+            return (String(localized: "没领到免费试用"),
+                    daily ? String(localized: "注册那天的免费名额满了；可订阅或换自带 Key") : String(localized: "前 100 位的名额发完了；可订阅或换自带 Key"), nil, true)
+        case .member(let until, let autoRenew, let expiring, let pastDue, let left, _):
+            if pastDue { return (String(localized: "续费没扣成"), String(localized: "打开「管理订阅」换一张卡"), nil, true) }
+            let count = left.map { String(localized: "今天剩 \($0)") }
+            guard let until else { return (String(localized: "会员"), String(localized: "会员在用"), count, false) }
+            if expiring { return (String(localized: "会员快到期了"), String(localized: "\(MemberText.day(until)) 到期，续买一段接着用"), count, true) }
+            return (String(localized: "会员"), autoRenew ? String(localized: "自动续费 · 下次 \(MemberText.day(until))") : String(localized: "用到 \(MemberText.day(until))"), count, false)
+        case .dailyLimit(let reset):
+            return (String(localized: "今天的次数用完了"),
+                    reset.map { String(localized: "\($0.formatted(date: .omitted, time: .shortened)) 恢复") } ?? String(localized: "北京时间早上 8 点恢复"), nil, true)
+        case .paymentFailed:
+            return (String(localized: "续费没扣成"), String(localized: "打开「管理订阅」换一张卡"), nil, true)
+        case .ended:
+            return (String(localized: "会员到期了"), String(localized: "续订或再买一段，或换自带 Key"), nil, true)
+        }
     }
 }

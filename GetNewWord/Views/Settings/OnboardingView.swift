@@ -12,13 +12,15 @@ struct OnboardingView: View {
     @ObservedObject private var permissions = PermissionManager.shared
     @AppStorage(TargetLanguage.key) private var target: TargetLanguage = .zhHans
     @AppStorage("apiProvider") private var provider: APIProvider = .zhipu
+    @AppStorage(AIPlan.key) private var plan: AIPlan = .member
+    @ObservedObject private var member = MemberService.shared
     @AppStorage(UsageConsent.key) private var usageConsent = ""
     @State private var step = 0
     @State private var pendingLanguage: AppLanguage?
     let onComplete: () -> Void
 
     private let steps: [(title: LocalizedStringKey, note: LocalizedStringKey)] = [
-        ("欢迎", "语言"), ("权限", "截图要用"), ("选择 AI", "必填"), ("连接 Anki", "可选"), ("匿名统计", "选一个"), ("开始使用", "")
+        ("欢迎", "语言"), ("权限", "截图要用"), ("选择 AI", "会员或自带 Key"), ("连接 Anki", "可选"), ("匿名统计", "选一个"), ("开始使用", "")
     ]
 
     var body: some View {
@@ -100,7 +102,7 @@ struct OnboardingView: View {
         switch i {
         case 0: return step > 0
         case 1: return permissions.hasScreenRecording
-        case 2: return hasKey
+        case 2: return plan == .member ? !member.state.blocked && member.status != nil : hasKey
         case 3: return AnkiInstaller.shared.connected
         case 4: return !usageConsent.isEmpty
         default: return false
@@ -162,7 +164,7 @@ struct OnboardingView: View {
                 Button(nextTitle) { next() }
                     .buttonStyle(PrimaryButtonStyle())
                     .keyboardShortcut(.return, modifiers: [])
-                    .disabled(step == 2 && !hasKey)
+                    .disabled(step == 2 && plan == .own && !hasKey)
             }
         }
     }
@@ -257,20 +259,31 @@ struct OnboardingView: View {
 
     private var aiStep: some View {
         VStack(alignment: .leading, spacing: 16) {
-            header("用哪种 AI 讲解？", "填好一家就能用，之后随时在设置里换。")
+            header("用哪种 AI 讲解？", "两种都能查词，之后随时在设置里换。")
             HStack(spacing: 10) {
-                planCard(title: "免费试用", tag: "即将开放", big: "7 天", detail: "什么都不用填", selected: false, disabled: true)
-                planCard(title: "会员", tag: "即将开放", big: "免配置", detail: "不用 Key，官方 AI", selected: false, disabled: true)
-                planCard(title: "自带 Key", tag: "永久免费", big: "免费", detail: "10 家服务商可选", selected: true, disabled: false)
+                planCard(title: "会员", tag: "前 100 位免费 30 次", big: "免配置", detail: "不用 Key，装好就能查；之后每月 ¥9.9 起",
+                         selected: plan == .member) { choose(.member) }
+                planCard(title: "自带 Key", tag: "永久免费", big: "免费", detail: "填自己的 Key，10 家服务商可选",
+                         selected: plan == .own) { choose(.own) }
             }
             .fixedSize(horizontal: false, vertical: true)
-            ProviderPicker(viewModel: viewModel, selected: $provider)
+            if plan == .member {
+                MemberStatusBox()
+            } else {
+                ProviderPicker(viewModel: viewModel, selected: $provider)
+            }
         }
     }
 
+    private func choose(_ p: AIPlan) {
+        guard plan != p else { return }
+        plan = p
+        AppLog.log("[Onboarding] plan → \(p.rawValue)")
+    }
+
     private func planCard(title: LocalizedStringKey, tag: LocalizedStringKey, big: LocalizedStringKey, detail: LocalizedStringKey,
-                          selected: Bool, disabled: Bool) -> some View {
-        ChoiceCard(selected: selected, disabled: disabled) {} content: {
+                          selected: Bool, action: @escaping () -> Void) -> some View {
+        ChoiceCard(selected: selected, action: action) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text(title).font(.system(size: 12.5, weight: .semibold))

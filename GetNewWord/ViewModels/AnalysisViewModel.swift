@@ -127,7 +127,16 @@ class AnalysisViewModel: ObservableObject {
 
     func triggerAnalysis(modelContext: ModelContext, mode: Mode = .capture, source: Source = .region) async {
         guard !isAnalyzing else { return }
-        guard ZhipuService.shared.isConfigured else {
+        if AIPlan.current == .member {
+            // 会员：已知用不了（试用用完、今天的次数用完、欠费、开发版没连后台）就先别让人框，直接说清楚；
+            // 记着的状态可能旧了（别的电脑上买了、过了 0 点），拦之前再问一次后台
+            let member = MemberService.shared
+            if member.state.blocked, member.isAvailable { await member.refresh() }
+            if let code = member.state.blockCode {
+                ErrorPanelController.shared.show(.member(MemberError(code: code, resetAt: MemberStatus.date(member.status?.today?.resetAt))))
+                return
+            }
+        } else if !ZhipuService.shared.isConfigured {
             let msg = String(localized: "还没填 \(ZhipuService.shared.currentProviderName) 的 API Key：打开设置 → AI 服务填一下")
             errorMessage = msg
             ErrorPanelController.shared.show(.noKey)
@@ -197,10 +206,10 @@ class AnalysisViewModel: ObservableObject {
         let textEnrich: Task<WordEnrichment, Error>?
         if let text {
             textMain = Task.detached {
-                try await ZhipuService.shared.analyzeText(text, existingTags: existingTags, categoryTree: categoryTree)
+                try await ZhipuService.shared.analyzeText(text, existingTags: existingTags, categoryTree: categoryTree, useID: myRun)
             }
             textEnrich = text.isWord ? Task.detached {
-                try await ZhipuService.shared.enrichWord(word: text.target, language: text.language, sentence: text.context)
+                try await ZhipuService.shared.enrichWord(word: text.target, language: text.language, sentence: text.context, useID: myRun)
             } : nil
             AppLog.log("[Analysis] text path '\(text.target.prefix(40))' (\(text.language), \(text.isWord ? "word" : "passage"), \(text.context.count) chars context)")
         } else {
@@ -258,7 +267,7 @@ class AnalysisViewModel: ObservableObject {
         } else {
             // 2. 框里读不出字（图片等）：极速识图识词（~2s，出词头 + 发音 + 提前起跑补全）
             let quickTask = Task { @MainActor in
-                if let q = try? await ZhipuService.shared.quickExtract(image) {
+                if let q = try? await ZhipuService.shared.quickExtract(image, useID: myRun) {
                     guard self.runID == myRun else { return }          // 已取消
                     guard self.analysisResult == nil else { return }   // 主分析已回来就不用了
                     guard !q.word.isEmpty else {
@@ -305,7 +314,7 @@ class AnalysisViewModel: ObservableObject {
                 }
                 return try await self.analysisService.analyze(
                     image: image, screenshotPath: screenshotPath,
-                    existingTags: existingTags, categoryTree: categoryTree
+                    existingTags: existingTags, categoryTree: categoryTree, useID: myRun
                 )
             }
             analyzeTask = task
@@ -389,7 +398,7 @@ class AnalysisViewModel: ObservableObject {
         enrichingIndices = [0]
         let myRun = runID
         let request = prefetched ?? Task.detached {
-            try await ZhipuService.shared.enrichWord(word: word, language: language, meaning: meaning, sentence: sentence)
+            try await ZhipuService.shared.enrichWord(word: word, language: language, meaning: meaning, sentence: sentence, useID: myRun)
         }
         let t = Task { @MainActor in
             do {
@@ -497,7 +506,7 @@ class AnalysisViewModel: ObservableObject {
         grammarTask = Task { @MainActor in
             do {
                 try await ZhipuService.shared.streamGrammarBreakdown(
-                    sentence: target.sentence, word: target.word, language: target.language
+                    sentence: target.sentence, word: target.word, language: target.language, useID: myRun
                 ) { piece in
                     Task { @MainActor [weak self] in
                         guard let self, self.runID == myRun, self.grammarStreaming else { return }
@@ -581,7 +590,7 @@ class AnalysisViewModel: ObservableObject {
                 guard self.runID == myRun else { return }
                 do {
                     let e = try await ZhipuService.shared.enrichWord(
-                        word: w.word, language: w.language, meaning: w.meaning, sentence: w.contextSentence
+                        word: w.word, language: w.language, meaning: w.meaning, sentence: w.contextSentence, useID: myRun
                     )
                     enrichments[i] = e
                     applyEnrichmentToSaved(i, e)

@@ -75,6 +75,22 @@
         }
       }
     },
+    "%@ 到期，续买一段接着用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Endet am %@; verlängere, um weiterzumachen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ends %@; buy more to keep going"
+          }
+        }
+      }
+    },
     "%@ 只有开和关，没有等级。默认关闭。": {
       "localizations": {
         "de": {
@@ -151,6 +167,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ failed: %@"
+          }
+        }
+      }
+    },
+    "%@ 恢复": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wieder ab %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back at %@"
           }
         }
       }
@@ -500,18 +532,34 @@
         }
       }
     },
-    "10 家服务商可选": {
+    "1 个月": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "10 Anbieter zur Wahl"
+            "value": "1 Monat"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "10 providers to choose from"
+            "value": "1 month"
+          }
+        }
+      }
+    },
+    "1 年": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 Jahr"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 year"
           }
         }
       }
@@ -519,18 +567,18 @@
     "12:41": {
       "shouldTranslate": false
     },
-    "7 天": {
+    "30 次": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "7 Tage"
+            "value": "30 Abfragen"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "7 days"
+            "value": "30 lookups"
           }
         }
       }
@@ -563,22 +611,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "The AI couldn't pick a category. Choose one above, or leave it and it goes under its language."
-          }
-        }
-      }
-    },
-    "AI 讲解的费用我们出": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die KI-Erklärungen zahlen wir"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "We pay for the AI explanations"
           }
         }
       }
@@ -870,6 +902,9 @@
     "GPL-3.0-or-later": {
       "shouldTranslate": false
     },
+    "GW-XXXX-XXXX-XXXX": {
+      "shouldTranslate": false
+    },
     "GetNewWord": {
       "shouldTranslate": false
     },
@@ -888,6 +923,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "GetNewWord · see a new word, box it, get it"
+          }
+        }
+      }
+    },
+    "GetNewWord 会员": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GetNewWord-Mitgliedschaft"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GetNewWord membership"
           }
         }
       }
@@ -1028,23 +1079,23 @@
     "· %@": {
       "shouldTranslate": false
     },
-    "· 7 天": {
+    "· 不过期": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "· 7 Tage"
+            "value": "· verfallen nie"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "· 7 days"
+            "value": "· never expire"
           }
         }
       }
     },
-    "· 不限时间": {
+    "· 不限次数": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1055,7 +1106,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "· no time limit"
+            "value": "· unlimited"
           }
         }
       }
@@ -1072,6 +1123,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "· optional"
+          }
+        }
+      }
+    },
+    "· 每年，自动续费": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· pro Jahr, verlängert sich automatisch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· a year, renews automatically"
+          }
+        }
+      }
+    },
+    "· 每月，自动续费": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· pro Monat, verlängert sich automatisch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· a month, renews automatically"
           }
         }
       }
@@ -1110,6 +1193,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "One key for many models"
+          }
+        }
+      }
+    },
+    "一个授权码最多 2 台。先在另一台的「方案和价格」里点「解绑这台电脑」。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Lizenzcode gilt auf höchstens 2 Computern. Klick auf dem anderen zuerst unter „Tarife und Preise“ auf „Diesen Computer lösen“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A license code works on up to 2 computers. On the other one, open Plans & pricing and click Unlink this computer first."
           }
         }
       }
@@ -1162,6 +1261,54 @@
         }
       }
     },
+    "一次买的会员还没到期": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine einmal gekaufte Mitgliedschaft läuft noch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your one-off membership hasn't ended yet"
+          }
+        }
+      }
+    },
+    "一次查词怎么算？": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was zählt als eine Abfrage?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What counts as one lookup?"
+          }
+        }
+      }
+    },
+    "一次查词里请求太多了。关掉面板，重新框一次。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Abfrage hat zu viele Anfragen gestellt. Schließ das Fenster und markiere das Wort neu."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This lookup made too many requests. Close the panel and frame the word again."
+          }
+        }
+      }
+    },
     "一键安装": {
       "localizations": {
         "de": {
@@ -1190,6 +1337,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Once all three steps are ticked, cards sync."
+          }
+        }
+      }
+    },
+    "上一期的续费没扣成。打开「管理订阅」换一张卡，换好马上恢复。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die letzte Verlängerung wurde nicht bezahlt. Öffne „Abo verwalten“ und hinterleg eine andere Karte, dann geht es sofort weiter."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The last renewal payment failed. Open Manage subscription and switch cards; it works again right away."
           }
         }
       }
@@ -1354,22 +1517,6 @@
         }
       }
     },
-    "下载就能用，什么都不用填": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sofort nach dem Download nutzbar, nichts einzutragen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Works right after download, nothing to fill in"
-          }
-        }
-      }
-    },
     "下载新版、看使用说明和隐私政策": {
       "localizations": {
         "de": {
@@ -1466,34 +1613,34 @@
         }
       }
     },
-    "不用 Key，官方 AI": {
+    "不是 GetNewWord 的授权码，核对一下再试（GW- 开头）。": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kein Key, offizielle KI"
+            "value": "Das ist kein GetNewWord-Lizenzcode. Prüf ihn und versuch es noch einmal (er beginnt mit GW-)."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No key, official AI"
+            "value": "That isn't a GetNewWord license code. Check it and try again (it starts with GW-)."
           }
         }
       }
     },
-    "不用。查词、词库、Anki 都不用账号；只有多台 Mac 同步词库要登录，这是会员功能。": {
+    "不用 Key，装好就能查；之后每月 ¥9.9 起": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nein. Nachschlagen, Sammlung und Anki brauchen kein Konto; anmelden musst du dich nur zum Synchronisieren zwischen Macs, und das gehört zur Mitgliedschaft."
+            "value": "Kein Key, gleich nach der Installation nutzbar; danach ab 1,99 $ im Monat"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No. Looking up, your library and Anki need no account; signing in is only for syncing your library between Macs, which is a membership feature."
+            "value": "No key, works right after install; then from $1.99 a month"
           }
         }
       }
@@ -1514,18 +1661,34 @@
         }
       }
     },
-    "不用注册账号，授权码激活": {
+    "不用注册账号；授权码一个最多用在 2 台 Mac 上": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kein Konto; Aktivierung per Lizenzcode"
+            "value": "Kein Konto; ein Lizenzcode gilt auf bis zu 2 Macs"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No account; activate with a license code"
+            "value": "No account; one license code works on up to 2 Macs"
+          }
+        }
+      }
+    },
+    "不用注册，不用登录": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Registrierung, kein Login"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No sign-up, no login"
           }
         }
       }
@@ -1546,34 +1709,50 @@
         }
       }
     },
-    "不用申请任何 Key，装好就能用": {
+    "不用申请任何 Key，买了就能用": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Keine Keys beantragen; läuft nach der Installation"
+            "value": "Kein Key nötig; funktioniert direkt nach dem Kauf"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No keys to apply for; works once installed"
+            "value": "No key to set up; works as soon as you buy"
           }
         }
       }
     },
-    "不登录也能用全部查词功能": {
+    "不等了": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alle Nachschlage-Funktionen gehen ohne Anmeldung"
+            "value": "Nicht mehr warten"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Every look-up feature works without signing in"
+            "value": "Stop waiting"
+          }
+        }
+      }
+    },
+    "不自动续费；快到期时提醒你续买": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlängert sich nicht automatisch; vor dem Ende wirst du erinnert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doesn't renew automatically; you get a reminder before it ends"
           }
         }
       }
@@ -1606,6 +1785,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keep at least one, or you won't be able to find GetNewWord."
+          }
+        }
+      }
+    },
+    "两种都能查词，之后随时在设置里换。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit beiden kannst du nachschlagen; wechseln geht jederzeit in den Einstellungen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both can look words up; you can switch any time in Settings."
           }
         }
       }
@@ -1706,22 +1901,6 @@
         }
       }
     },
-    "什么都不用填": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nichts einzutragen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nothing to fill in"
-          }
-        }
-      }
-    },
     "仅本地删除": {
       "localizations": {
         "de": {
@@ -1766,6 +1945,118 @@
           "stringUnit": {
             "state": "translated",
             "value": "Today"
+          }
+        }
+      }
+    },
+    "今天剩 %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute noch %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld left today"
+          }
+        }
+      }
+    },
+    "今天用的人太多，过一会儿再按一次。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute nutzen es zu viele. Versuch es gleich noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many people are using it today. Try again in a little while."
+          }
+        }
+      }
+    },
+    "今天的 %lld 次用完了，%@ 恢复": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die %lld Abfragen für heute sind verbraucht; wieder ab %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's %lld lookups are used up; back at %@"
+          }
+        }
+      }
+    },
+    "今天的次数用完了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Abfragen für heute sind verbraucht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's lookups are used up"
+          }
+        }
+      }
+    },
+    "今天能查的次数用完了，%@ 恢复（你这里的时间）。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Abfragen für heute sind verbraucht; wieder ab %@ (deine Ortszeit)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's lookups are used up; back at %@ (your time)."
+          }
+        }
+      }
+    },
+    "今天能查的次数用完了，北京时间早上 8 点恢复。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Abfragen für heute sind verbraucht; zurückgesetzt wird um Mitternacht UTC."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's lookups are used up; they reset at midnight UTC."
+          }
+        }
+      }
+    },
+    "今天还能查 %lld 次（每天 %lld 次）": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute noch %lld Abfragen (%lld pro Tag)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld lookups left today (%lld a day)"
           }
         }
       }
@@ -1850,6 +2141,38 @@
         }
       }
     },
+    "付款成功，已经是会员了。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zahlung erhalten. Du bist jetzt Mitglied."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment received. You're a member now."
+          }
+        }
+      }
+    },
+    "付款成功，已经是会员了，用到 %@。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zahlung erhalten. Du bist Mitglied bis %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment received. You're a member until %@."
+          }
+        }
+      }
+    },
     "任何 OpenAI 兼容接口": {
       "localizations": {
         "de": {
@@ -1882,34 +2205,82 @@
         }
       }
     },
-    "会员不用去各家申请 Key，费用我们出；自带 Key 费用走你自己的账户。": {
+    "会员 AI 今天太忙": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mit Mitgliedschaft brauchst du keine Keys und wir zahlen die KI; mit eigenem Key läuft es über dein eigenes Konto."
+            "value": "Die Mitglieder-KI ist heute stark ausgelastet"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "With a membership you don't need any keys and we pay for the AI; with your own key, it's billed to your own account."
+            "value": "Member AI is very busy today"
           }
         }
       }
     },
-    "会员什么时候开放？": {
+    "会员 AI 暂时连不上": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wann startet die Mitgliedschaft?"
+            "value": "Die Mitglieder-KI ist gerade nicht erreichbar"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When does membership open?"
+            "value": "Member AI is unavailable for now"
+          }
+        }
+      }
+    },
+    "会员不用去各家申请 Key，费用我们出，每天最多 200 次；自带 Key 永久免费、不限次数，费用走你自己的账户。随时能换。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitglieder brauchen keine Keys und wir zahlen die KI, bis zu 200 Abfragen am Tag. Mit eigenem Key ist es dauerhaft kostenlos und unbegrenzt, abgerechnet über dein eigenes Konto. Wechseln geht jederzeit."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Members need no keys and we pay for the AI, up to 200 lookups a day. Your own key is free forever and unlimited, billed to your own account. You can switch any time."
+          }
+        }
+      }
+    },
+    "会员到期了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Mitgliedschaft ist abgelaufen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Membership has ended"
+          }
+        }
+      }
+    },
+    "会员可以多台 Mac 同步词库": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitglieder können ihren Wortschatz zwischen Macs synchronisieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Members can sync their library across Macs"
           }
         }
       }
@@ -1926,6 +2297,134 @@
           "stringUnit": {
             "state": "translated",
             "value": "Membership or your own key: what's the difference?"
+          }
+        }
+      }
+    },
+    "会员在用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitgliedschaft aktiv"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Membership active"
+          }
+        }
+      }
+    },
+    "会员快到期了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Mitgliedschaft endet bald"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Membership ends soon"
+          }
+        }
+      }
+    },
+    "会员或自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitgliedschaft oder eigener Key"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Membership or own key"
+          }
+        }
+      }
+    },
+    "会员服务器回的内容读不懂，过一会儿再试。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Antwort des Mitgliedschafts-Servers ist unlesbar. Versuch es gleich noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The membership server sent a reply we can't read. Try again in a little while."
+          }
+        }
+      }
+    },
+    "会员服务这次出错了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Mitgliedschafts-Dienst ist ein Fehler aufgetreten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The membership service had an error"
+          }
+        }
+      }
+    },
+    "会员的设备标识": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerätekennung der Mitgliedschaft"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Membership device ID"
+          }
+        }
+      }
+    },
+    "会员的请求经我们的服务器转给 DeepSeek，只记次数和用量，不存查了什么。词库只在你的 Mac 上。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfragen von Mitgliedern gehen über unseren Server an DeepSeek. Wir speichern nur Anzahl und Verbrauch, nie, was du nachgeschlagen hast. Dein Wortschatz bleibt auf deinem Mac."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Members' requests go through our server to DeepSeek. We keep only the count and usage, never what you looked up. Your library stays on your Mac."
+          }
+        }
+      }
+    },
+    "会员的请求经我们的服务器转给 DeepSeek，只记次数，不存查了什么。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anfragen von Mitgliedern gehen über unseren Server an DeepSeek. Wir zählen sie, speichern aber nie, was du nachgeschlagen hast."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Members' requests go through our server to DeepSeek. We count them, but never keep what you looked up."
           }
         }
       }
@@ -2378,6 +2877,38 @@
         }
       }
     },
+    "免费名额已经发完了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die kostenlosen Testzugänge sind vergeben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The free trials have all been given out"
+          }
+        }
+      }
+    },
+    "免费的 30 次用完了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine 30 kostenlosen Abfragen sind verbraucht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your 30 free lookups are used up"
+          }
+        }
+      }
+    },
     "免费的记忆卡片软件，安装包约 230 MB": {
       "localizations": {
         "de": {
@@ -2406,6 +2937,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Free trial"
+          }
+        }
+      }
+    },
+    "免费试用有多少？": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wie viel umfasst der kostenlose Test?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How much is the free trial?"
           }
         }
       }
@@ -2486,6 +3033,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "All notes"
+          }
+        }
+      }
+    },
+    "共 %lld 次，用完可订阅或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld insgesamt; danach abonnieren oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld in total; then subscribe or use your own key"
           }
         }
       }
@@ -3146,34 +3709,66 @@
         }
       }
     },
-    "到期后仍可填自己的 Key 免费用": {
+    "到期前 3 天再开自动续费，接着用不断档。": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Danach kannst du weiter kostenlos mit eigenem Key arbeiten"
+            "value": "Schalte die automatische Verlängerung in den letzten 3 Tagen ein, dann gibt es keine Lücke."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When it ends, you can still use your own key for free"
+            "value": "Turn on automatic renewal within 3 days of the end date so there's no gap."
           }
         }
       }
     },
-    "到期后转成下面两种之一": {
+    "刷卡按月、按年自动续费，随时取消": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Danach wechselst du zu einer der anderen beiden"
+            "value": "Kartenzahlung, verlängert sich monatlich oder jährlich, jederzeit kündbar"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Afterwards, switch to one of the other two"
+            "value": "Card payment, renews monthly or yearly, cancel any time"
+          }
+        }
+      }
+    },
+    "刷卡按月、按年自动续费，随时取消；也能用微信一次买": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kartenzahlung, verlängert sich monatlich oder jährlich, jederzeit kündbar; oder einmalig mit WeChat zahlen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Card payment, renews monthly or yearly, cancel any time; or pay once with WeChat"
+          }
+        }
+      }
+    },
+    "刷卡（人民币或美元）按月或按年自动续费，随时在「管理订阅」里取消，用到当期结束。人民币还能用微信一次买 1 个月或 1 年，不自动续费，快到期时提醒你续买。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per Karte (Yuan oder Dollar), verlängert sich monatlich oder jährlich. Kündige jederzeit unter „Abo verwalten“; es läuft bis zum Ende des Zeitraums. In Yuan kannst du auch einmalig mit WeChat für 1 Monat oder 1 Jahr zahlen; das verlängert sich nicht, und du wirst vor dem Ende erinnert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pay by card (yuan or dollars); it renews monthly or yearly. Cancel any time under Manage subscription and keep it until the period ends. In yuan you can also pay once with WeChat for 1 month or 1 year; that doesn't renew, and you get a reminder before it ends."
           }
         }
       }
@@ -3190,6 +3785,118 @@
           "stringUnit": {
             "state": "translated",
             "value": "Refresh deck list"
+          }
+        }
+      }
+    },
+    "前 100 位免费 30 次": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ersten 100: 30 gratis"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First 100 get 30 free"
+          }
+        }
+      }
+    },
+    "前 100 位新用户": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ersten 100 neuen Nutzer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First 100 new users"
+          }
+        }
+      }
+    },
+    "前 100 位新用户每人 30 次，不过期，不用注册。名额发完就没有了，这一栏会照实写。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ersten 100 neuen Nutzer bekommen je 30 Abfragen. Sie verfallen nie und brauchen keine Registrierung. Sind alle vergeben, gibt es keine mehr, und diese Seite sagt das."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The first 100 new users get 30 lookups each. They never expire and need no sign-up. Once they're all given out, there are no more, and this page says so."
+          }
+        }
+      }
+    },
+    "前 100 位新用户的免费次数已经发完，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die kostenlosen Abfragen für die ersten 100 neuen Nutzer sind vergeben, dieser Mac hat keine bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The free lookups for the first 100 new users are all given out, and this Mac didn't get any. Subscribe, or add your own AI key to use it for free."
+          }
+        }
+      }
+    },
+    "前 100 位的名额发完了；可订阅或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ersten 100 Testzugänge sind vergeben; abonnieren oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The first 100 trials are gone; subscribe or use your own key"
+          }
+        }
+      }
+    },
+    "剩 %lld 次": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld left"
+          }
+        }
+      }
+    },
+    "北京时间早上 8 点恢复": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurückgesetzt um Mitternacht UTC"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resets at midnight UTC"
           }
         }
       }
@@ -3270,22 +3977,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remove just this word from this save (the rest stays)"
-          }
-        }
-      }
-    },
-    "即将开放": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bald verfügbar"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Coming soon"
           }
         }
       }
@@ -3654,38 +4345,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Looked up, not saved"
-          }
-        }
-      }
-    },
-    "可以。软件开源，自带 Key 不限时间、不限次数。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ja. Die App ist Open Source, und mit eigenem Key gibt es keine Zeit- oder Nutzungsgrenze."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Yes. The app is open source, and with your own key there's no time or usage limit."
-          }
-        }
-      }
-    },
-    "可以一直免费用吗？": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kann ich es dauerhaft kostenlos nutzen?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Can I use it for free forever?"
           }
         }
       }
@@ -4106,6 +4765,22 @@
         }
       }
     },
+    "名额已发完，这台没领到": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle vergeben; dieser Mac hat keinen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All given out; this Mac got none"
+          }
+        }
+      }
+    },
     "含重复遇到": {
       "localizations": {
         "de": {
@@ -4298,6 +4973,22 @@
         }
       }
     },
+    "在别的电脑上买过？输入授权码": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf einem anderen Computer gekauft? Gib deinen Lizenzcode ein"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bought on another computer? Enter your license code"
+          }
+        }
+      }
+    },
     "在此管理自定义分类和标签": {
       "localizations": {
         "de": {
@@ -4326,6 +5017,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Manage your tags here"
+          }
+        }
+      }
+    },
+    "在浏览器里付款，付完这里自动生效。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bezahl im Browser; sobald du bezahlt hast, gilt es hier automatisch."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pay in your browser; it takes effect here as soon as you've paid."
+          }
+        }
+      }
+    },
+    "在浏览器里付款，付完这里自动生效。微信付款到账可能要一两分钟。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bezahl im Browser; sobald du bezahlt hast, gilt es hier automatisch. Eine WeChat-Zahlung kann ein bis zwei Minuten brauchen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pay in your browser; it takes effect here as soon as you've paid. A WeChat payment can take a minute or two to arrive."
           }
         }
       }
@@ -4410,22 +5133,6 @@
         }
       }
     },
-    "填好一家就能用，之后随时在设置里换。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ein Anbieter reicht zum Start; wechseln kannst du jederzeit in den Einstellungen."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One provider is enough to start; you can switch any time in Settings."
-          }
-        }
-      }
-    },
     "填服务商给的地址、Key 和模型名": {
       "localizations": {
         "de": {
@@ -4454,6 +5161,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Model name"
+          }
+        }
+      }
+    },
+    "填自己的 Key，10 家服务商可选": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigenen Key eintragen; 10 Anbieter zur Wahl"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add your own key; 10 providers to choose from"
           }
         }
       }
@@ -4602,18 +5325,66 @@
         }
       }
     },
-    "多台 Mac 同步词库": {
+    "多台 Mac 同步是会员功能": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sammlung zwischen Macs synchronisieren"
+            "value": "Sync zwischen Macs gehört zur Mitgliedschaft"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sync your library across Macs"
+            "value": "Syncing between Macs is a membership feature"
+          }
+        }
+      }
+    },
+    "多台 Mac 同步是会员功能，本机词库不受影响。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync zwischen Macs gehört zur Mitgliedschaft. Der Wortschatz auf diesem Mac bleibt, wie er ist."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syncing between Macs is a membership feature. The library on this Mac isn't affected."
+          }
+        }
+      }
+    },
+    "多台 Mac 同步是会员功能，本机词库不受影响。成了会员以后几秒内自动开始同步，云端以前的词都还在。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync zwischen Macs gehört zur Mitgliedschaft. Der Wortschatz auf diesem Mac bleibt, wie er ist. Sobald du Mitglied bist, startet der Sync in Sekunden, und die Wörter in der Cloud sind noch da."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Syncing between Macs is a membership feature. The library on this Mac isn't affected. Once you're a member, syncing starts within seconds, and the words already in the cloud are still there."
+          }
+        }
+      }
+    },
+    "多台 Mac 同步词库（登录 Google）": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wortschatz zwischen Macs synchronisieren (Google-Anmeldung)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync your library between Macs (sign in with Google)"
           }
         }
       }
@@ -5274,6 +6045,22 @@
         }
       }
     },
+    "已取消自动续费，用到 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Verlängerung gekündigt; aktiv bis %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic renewal canceled; active until %@"
+          }
+        }
+      }
+    },
     "已同步": {
       "localizations": {
         "de": {
@@ -5482,6 +6269,22 @@
         }
       }
     },
+    "已是会员": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du bist Mitglied"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're a member"
+          }
+        }
+      }
+    },
     "已是最新": {
       "localizations": {
         "de": {
@@ -5494,6 +6297,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Up to date"
+          }
+        }
+      }
+    },
+    "已用在 %lld 台电脑上，最多 %lld 台": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf %lld Computern genutzt, höchstens %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used on %lld computers, up to %lld"
           }
         }
       }
@@ -5526,6 +6345,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Words you've already saved stay as they are"
+          }
+        }
+      }
+    },
+    "已经开了自动续费": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die automatische Verlängerung ist schon an"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic renewal is already on"
           }
         }
       }
@@ -5722,6 +6557,38 @@
         }
       }
     },
+    "年付": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jährlich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yearly"
+          }
+        }
+      }
+    },
+    "年付约等于 10 个月的钱": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Jahr kostet etwa so viel wie 10 Monate"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A year costs about as much as 10 months"
+          }
+        }
+      }
+    },
     "建议减少：%lld": {
       "localizations": {
         "de": {
@@ -5750,6 +6617,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "The dev build doesn't check for updates; the release checks daily."
+          }
+        }
+      }
+    },
+    "开发版没连会员服务器": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Entwicklerversion ist nicht mit dem Mitgliedschafts-Server verbunden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dev build isn't connected to the membership server"
+          }
+        }
+      }
+    },
+    "开发版没连会员服务器，买不了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Entwicklerversion ist nicht mit dem Mitgliedschafts-Server verbunden; Kauf nicht möglich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dev build isn't connected to the membership server, so it can't buy"
+          }
+        }
+      }
+    },
+    "开发版要设环境变量 GETNEWWORD_API 指到本机后台才连会员服务器；也可以先用自带 Key。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Entwicklerversion verbindet sich nur mit dem Mitgliedschafts-Server, wenn die Umgebungsvariable GETNEWWORD_API auf einen lokalen Server zeigt. Bis dahin geht ein eigener Key."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The dev build only connects to the membership server when the GETNEWWORD_API environment variable points to a local server. You can use your own key meanwhile."
           }
         }
       }
@@ -5850,6 +6765,38 @@
         }
       }
     },
+    "开自动续费 · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch verlängern · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn on automatic renewal · %@"
+          }
+        }
+      }
+    },
+    "开通会员": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitglied werden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get membership"
+          }
+        }
+      }
+    },
     "归入": {
       "localizations": {
         "de": {
@@ -5930,6 +6877,38 @@
         }
       }
     },
+    "微信一次买 1 个月 · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einmalig mit WeChat, 1 Monat · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pay once with WeChat, 1 month · %@"
+          }
+        }
+      }
+    },
+    "微信一次买 1 年 · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einmalig mit WeChat, 1 Jahr · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pay once with WeChat, 1 year · %@"
+          }
+        }
+      }
+    },
     "德语": {
       "localizations": {
         "de": {
@@ -5946,7 +6925,7 @@
         }
       }
     },
-    "必填": {
+    "必需": {
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5962,18 +6941,18 @@
         }
       }
     },
-    "必需": {
+    "快到期了，续买一段接着用。": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Erforderlich"
+            "value": "Endet bald; verlängere, um weiterzumachen."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Required"
+            "value": "Ending soon; buy more to keep going."
           }
         }
       }
@@ -6038,6 +7017,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Quick look-up (don't save)"
+          }
+        }
+      }
+    },
+    "怎么付钱、怎么取消？": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wie bezahle ich, und wie kündige ich?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How do I pay, and how do I cancel?"
           }
         }
       }
@@ -6234,6 +7229,22 @@
         }
       }
     },
+    "我们这边的 AI 服务暂时不通，不是你的问题。过一会儿再按一次。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unser KI-Dienst ist gerade nicht erreichbar; an deiner Einrichtung liegt es nicht. Versuch es gleich noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Our AI service is down for the moment; it's not your setup. Try again in a little while."
+          }
+        }
+      }
+    },
     "截下框住的那一块（指词查词是光标附近），发给你选的 AI 服务商讲解，现在是 %@。能认出字时只发附近几行文字，不发图。": {
       "localizations": {
         "de": {
@@ -6246,6 +7257,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "The area you select (or the spot under the pointer) is sent to the AI service you chose, currently %@, for the explanation. When the text can be read on your Mac, only a few nearby lines of text are sent, no image."
+          }
+        }
+      }
+    },
+    "截下框住的那一块（指词查词是光标附近），经我们的服务器转给 DeepSeek 讲解，服务器只记次数，不存内容。能认出字时只发附近几行文字，不发图。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nimmt den eingerahmten Ausschnitt auf (beim Zeigen den Bereich um den Zeiger) und schickt ihn über unseren Server an DeepSeek; der Server zählt nur die Abfragen und speichert keine Inhalte. Lässt sich der Text auf deinem Mac lesen, gehen nur die Zeilen in der Nähe hinaus, kein Bild."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captures the framed area (or the area around the pointer when pointing) and sends it through our server to DeepSeek for the explanation; the server only counts lookups and keeps no content. When the text can be read on your Mac, only the nearby lines are sent, not the image."
           }
         }
       }
@@ -6298,18 +7325,18 @@
         }
       }
     },
-    "截图取词、指词查词全都能用": {
+    "截图取词、指词查词、语法拆解全能用": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auswahl und Zeigen funktionieren beide"
+            "value": "Bildschirmauswahl, Zeigen und Grammatikzerlegung funktionieren alle"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Capture and point-to-look-up both work"
+            "value": "Capture, point to look up and grammar breakdowns all work"
           }
         }
       }
@@ -6554,22 +7581,6 @@
         }
       }
     },
-    "截图讲解、指词查词、语法拆解全包": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auswahl, Zeigen und Grammatikzerlegung inklusive"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Capture, point-to-look-up and grammar breakdowns included"
-          }
-        }
-      }
-    },
     "截图质量": {
       "localizations": {
         "de": {
@@ -6662,6 +7673,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Download Anki for Mac from apps.ankiweb.net, drag it into Applications and open it once."
+          }
+        }
+      }
+    },
+    "打开「管理订阅」换一张卡": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne „Abo verwalten“ und hinterleg eine andere Karte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Manage subscription and switch cards"
           }
         }
       }
@@ -7194,6 +8221,22 @@
         }
       }
     },
+    "换一个授权码，或在另一台 Mac 上用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anderen Lizenzcode nutzen oder diesen auf einem anderen Mac"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a different license code, or use this one on another Mac"
+          }
+        }
+      }
+    },
     "换一家 AI": {
       "localizations": {
         "de": {
@@ -7226,6 +8269,38 @@
         }
       }
     },
+    "换成会员用法": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zur Mitgliedschaft wechseln"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to membership"
+          }
+        }
+      }
+    },
+    "换电脑、多台 Mac 怎么办？": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neuer Computer oder mehrere Macs?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New computer, or several Macs?"
+          }
+        }
+      }
+    },
     "授权": {
       "localizations": {
         "de": {
@@ -7242,6 +8317,54 @@
         }
       }
     },
+    "授权码一个最多 2 台：新电脑上输授权码就行。多台 Mac 同步词库是会员功能，在「设置 › 账号与同步」登录 Google。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Lizenzcode gilt auf bis zu 2 Computern: gib ihn einfach auf dem neuen ein. Sync zwischen Macs gehört zur Mitgliedschaft; melde dich unter Einstellungen › Konto & Sync mit Google an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One license code works on up to 2 computers: just enter it on the new one. Syncing your library between Macs is a membership feature; sign in with Google under Settings › Account & sync."
+          }
+        }
+      }
+    },
+    "授权码不对": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Lizenzcode passt nicht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That license code doesn't work"
+          }
+        }
+      }
+    },
+    "授权码已经用在 2 台电脑上": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Lizenzcode ist schon auf 2 Computern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This license code is already on 2 computers"
+          }
+        }
+      }
+    },
     "接口地址": {
       "localizations": {
         "de": {
@@ -7254,6 +8377,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "API URL"
+          }
+        }
+      }
+    },
+    "推荐": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empfohlen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recommended"
           }
         }
       }
@@ -7386,18 +8525,18 @@
         }
       }
     },
-    "收款和授权码服务在做，开放后这一页就能开通。现在可以先用自带 Key。": {
+    "收款还没配好，过一阵再来；现在可以先用自带 Key。": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bezahlung und Lizenzcodes sind in Arbeit; danach kannst du hier abschließen. Bis dahin: eigener Key."
+            "value": "Bezahlung ist noch nicht eingerichtet. Schau bald wieder vorbei; bis dahin geht ein eigener Key."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Payments and license codes are in the works; once they're live you can sign up on this page. Until then, use your own key."
+            "value": "Payments aren't set up yet. Come back a bit later; until then, use your own key."
           }
         }
       }
@@ -7446,6 +8585,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Switching to %@. The app quits and opens again by itself."
+          }
+        }
+      }
+    },
+    "改用自带 Key →": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigenen Key nutzen →"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use my own key →"
           }
         }
       }
@@ -7594,18 +8749,18 @@
         }
       }
     },
-    "新用户": {
+    "方案和价格": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neu"
+            "value": "Tarife und Preise"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "New users"
+            "value": "Plans & pricing"
           }
         }
       }
@@ -7930,6 +9085,22 @@
         }
       }
     },
+    "月付": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monatlich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly"
+          }
+        }
+      }
+    },
     "服务端响应慢，仍在等待回复…": {
       "localizations": {
         "de": {
@@ -8154,6 +9325,22 @@
         }
       }
     },
+    "本机词库不受影响：查词、词库、同步到 Anki 都不用账号。成了会员以后在这里用 Google 登录。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Wortschatz auf diesem Mac bleibt, wie er ist: Nachschlagen, Wortschatz und Anki-Sync brauchen kein Konto. Als Mitglied meldest du dich hier mit Google an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The library on this Mac isn't affected: looking up, your library and Anki sync need no account. Once you're a member, sign in with Google here."
+          }
+        }
+      }
+    },
     "本机词库会保留，但不再与其他电脑同步。": {
       "localizations": {
         "de": {
@@ -8266,6 +9453,70 @@
         }
       }
     },
+    "查得太快了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu viele Abfragen hintereinander"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many lookups in a row"
+          }
+        }
+      }
+    },
+    "查的词会被存吗？": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speichert ihr, was ich nachschlage?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you keep the words I look up?"
+          }
+        }
+      }
+    },
+    "查的词直接发给服务商，不经过我们": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abfragen gehen direkt an den Anbieter, nicht über uns"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lookups go straight to the provider, not through us"
+          }
+        }
+      }
+    },
+    "查看方案": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarife ansehen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See plans"
+          }
+        }
+      }
+    },
     "查第一个词": {
       "localizations": {
         "de": {
@@ -8282,18 +9533,18 @@
         }
       }
     },
-    "查词、词库、同步到 Anki 都不用账号。多台 Mac 之间同步词库是会员功能，会员开放后在这里登录。": {
+    "查词、词库、同步到 Anki 都不用账号；登录只为几台 Mac 用同一个词库。": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nachschlagen, Sammlung und Anki-Sync brauchen kein Konto. Synchronisieren zwischen Macs gehört zur Mitgliedschaft; sobald sie startet, meldest du dich hier an."
+            "value": "Nachschlagen, Wortschatz und Anki-Sync brauchen kein Konto; anmelden musst du dich nur, um einen Wortschatz auf mehreren Macs zu nutzen."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Looking up, your library and Anki sync need no account. Syncing your library between Macs is a membership feature; once membership opens, sign in here."
+            "value": "Looking up, your library and Anki sync need no account; signing in is only for sharing one library between Macs."
           }
         }
       }
@@ -8426,6 +9677,38 @@
         }
       }
     },
+    "框一个词或指一个词算一次：讲解、例句补全、拆语法都在这一次里，自动重试不另算。词库里点「补全」另算一次。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Wort markieren oder darauf zeigen ist eine Abfrage: Erklärung, Beispiele und Grammatikzerlegung gehören dazu, automatische Wiederholungen zählen nicht. „Ergänzen“ im Wortschatz zählt als eigene Abfrage."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Framing or pointing at one word is one lookup: the explanation, the examples and the grammar breakdown are all part of it, and automatic retries don't count. Clicking Fill in for a word in your library counts as another."
+          }
+        }
+      }
+    },
+    "框一次词算一次，讲解和补全都在里面": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jedes markierte Wort ist eine Abfrage, Erklärung und Beispiele inklusive"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each framed word is one lookup, explanation and examples included"
+          }
+        }
+      }
+    },
     "框住一个词": {
       "localizations": {
         "de": {
@@ -8550,6 +9833,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Floating button on the desktop"
+          }
+        }
+      }
+    },
+    "检查一下网络，再按一次快捷键。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüf deine Verbindung und drück den Kurzbefehl noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check your connection and press the shortcut again."
           }
         }
       }
@@ -8858,6 +10157,38 @@
         }
       }
     },
+    "正在连接会员服务器…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindung zum Mitgliedschafts-Server …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to the membership server…"
+          }
+        }
+      }
+    },
+    "正在领取…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird abgerufen …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claiming…"
+          }
+        }
+      }
+    },
     "正文（支持 Markdown）": {
       "localizations": {
         "de": {
@@ -8902,6 +10233,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Once a day, in the background"
+          }
+        }
+      }
+    },
+    "每天最多 200 次，北京时间早上 8 点重置": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bis zu 200 Abfragen am Tag, zurückgesetzt um Mitternacht UTC"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to 200 lookups a day, resetting at midnight UTC"
           }
         }
       }
@@ -9098,6 +10445,22 @@
         }
       }
     },
+    "没领到免费试用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein kostenloser Test für diesen Mac"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No free trial for this Mac"
+          }
+        }
+      }
+    },
     "法语": {
       "localizations": {
         "de": {
@@ -9110,6 +10473,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "French"
+          }
+        }
+      }
+    },
+    "注册那天的免费名额满了；可订阅或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An dem Tag waren die Testzugänge vergeben; abonnieren oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That day's free trials were all taken; subscribe or use your own key"
           }
         }
       }
@@ -9190,6 +10569,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add tag…"
+          }
+        }
+      }
+    },
+    "激活": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktivieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activate"
           }
         }
       }
@@ -9434,6 +10829,22 @@
         }
       }
     },
+    "用 Google 登录，登录同一个账号的 Mac 自动同步单词、语境、知识片段和分类。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melde dich mit Google an; Macs mit demselben Konto synchronisieren Wörter, Kontexte, Notizen und Kategorien automatisch."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in with Google; Macs on the same account sync words, contexts, notes and categories automatically."
+          }
+        }
+      }
+    },
     "用 法": {
       "localizations": {
         "de": {
@@ -9446,6 +10857,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Usage"
+          }
+        }
+      }
+    },
+    "用会员时，这台 Mac 向我们的服务器注册一次，用来发免费试用、记剩几次：发的是硬件编号的哈希，不是硬件编号本身。自带 Key 不注册。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Mitgliedschaft meldet sich dieser Mac einmal bei unserem Server an, um den kostenlosen Test zu bekommen und die Abfragen zu zählen. Gesendet wird ein Hash der Hardware-ID, nicht die ID selbst. Mit eigenem Key wird nichts angemeldet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With membership, this Mac registers once with our server to get the free trial and keep count of lookups. It sends a hash of the hardware ID, not the ID itself. With your own key nothing is registered."
           }
         }
       }
@@ -9466,6 +10893,38 @@
         }
       }
     },
+    "用到 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv bis %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active until %@"
+          }
+        }
+      }
+    },
+    "用到 %@，不会自动续费": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktiv bis %@; verlängert sich nicht automatisch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active until %@; doesn't renew automatically"
+          }
+        }
+      }
+    },
     "用哪种 AI 讲解？": {
       "localizations": {
         "de": {
@@ -9478,6 +10937,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Which AI should explain words?"
+          }
+        }
+      }
+    },
+    "用完可以订阅，或填自己的 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Danach abonnieren oder eigenen Key eintragen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After that, subscribe or add your own key"
           }
         }
       }
@@ -9542,6 +11017,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Writing usage, examples and etymology…"
+          }
+        }
+      }
+    },
+    "用自己的 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use my own key"
           }
         }
       }
@@ -9690,6 +11181,22 @@
         }
       }
     },
+    "看会员方案": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitgliedschaft ansehen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See membership"
+          }
+        }
+      }
+    },
     "看到生词，框一下就懂": {
       "localizations": {
         "de": {
@@ -9782,6 +11289,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Notes"
+          }
+        }
+      }
+    },
+    "知道了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verstanden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Got it"
           }
         }
       }
@@ -9978,6 +11501,22 @@
         }
       }
     },
+    "等几秒再按。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warte ein paar Sekunden und drück noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait a few seconds and press again."
+          }
+        }
+      }
+    },
     "等着同步到 Anki": {
       "localizations": {
         "de": {
@@ -10006,6 +11545,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Available once the context sentence is in"
+          }
+        }
+      }
+    },
+    "管理会员": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitgliedschaft verwalten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage membership"
+          }
+        }
+      }
+    },
+    "管理订阅": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abo verwalten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage subscription"
+          }
+        }
+      }
+    },
+    "管理订阅 · 换一张卡": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abo verwalten · Karte wechseln"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage subscription · switch cards"
+          }
+        }
+      }
+    },
+    "粘贴": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einsetzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste"
           }
         }
       }
@@ -10102,6 +11705,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Continue"
+          }
+        }
+      }
+    },
+    "续订或再买一段就能接着查；也可以填自己的 AI Key 免费用。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlängere oder kauf eine weitere Zeit, um weiterzumachen; oder nutze es mit eigenem KI-Key kostenlos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renew or buy more to keep looking up; or add your own AI key to use it for free."
+          }
+        }
+      }
+    },
+    "续订或再买一段，或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlängern, nachkaufen oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renew, buy more, or use your own key"
+          }
+        }
+      }
+    },
+    "续费没扣成": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlängerung nicht bezahlt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renewal payment failed"
+          }
+        }
+      }
+    },
+    "续费没扣成，%@ 前换好卡就不会断。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Verlängerung wurde nicht bezahlt. Hinterleg vor dem %@ eine andere Karte, dann läuft es weiter."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The renewal payment failed. Switch cards before %@ and it won't stop."
           }
         }
       }
@@ -10282,6 +11949,38 @@
         }
       }
     },
+    "自动续费 · 下次 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlängert sich automatisch · nächste %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renews automatically · next %@"
+          }
+        }
+      }
+    },
+    "自动续费，下次扣款 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlängert sich automatisch; nächste Zahlung am %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renews automatically; next payment %@"
+          }
+        }
+      }
+    },
     "自定义": {
       "localizations": {
         "de": {
@@ -10426,6 +12125,22 @@
         }
       }
     },
+    "装好就能用，什么都不用填": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direkt nach der Installation nutzbar, nichts einzutragen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Works right after install, nothing to fill in"
+          }
+        }
+      }
+    },
     "西班牙语": {
       "localizations": {
         "de": {
@@ -10442,18 +12157,82 @@
         }
       }
     },
-    "要注册账号吗？": {
+    "要改月付年付、取消或换卡，打开「管理订阅」。一次买要先在那里取消自动续费。": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Brauche ich ein Konto?"
+            "value": "Zum Wechsel zwischen monatlich und jährlich, zum Kündigen oder Kartenwechsel öffne „Abo verwalten“. Für eine Einmalzahlung kündige dort zuerst die automatische Verlängerung."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Do I need an account?"
+            "value": "To switch between monthly and yearly, cancel or change cards, open Manage subscription. To pay once instead, cancel automatic renewal there first."
+          }
+        }
+      }
+    },
+    "解绑这台电脑": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Computer lösen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlink this computer"
+          }
+        }
+      }
+    },
+    "订阅 · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnieren · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe · %@"
+          }
+        }
+      }
+    },
+    "订阅会员接着用，或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnieren, um weiterzumachen, oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe to keep going, or use your own key"
+          }
+        }
+      }
+    },
+    "订阅会员接着用；也可以填自己的 AI Key，永久免费。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließ ein Abo ab, um weiterzumachen, oder nutze es mit eigenem KI-Key dauerhaft kostenlos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe to keep going, or add your own AI key and use it free forever."
           }
         }
       }
@@ -10730,6 +12509,70 @@
         }
       }
     },
+    "试用中 · 剩 %lld 次": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Test · noch %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On trial · %lld left"
+          }
+        }
+      }
+    },
+    "试用剩 %lld 次": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch %lld Testabfragen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld trial lookups left"
+          }
+        }
+      }
+    },
+    "试用已用完": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test verbraucht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trial used up"
+          }
+        }
+      }
+    },
+    "试用用完了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test verbraucht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trial used up"
+          }
+        }
+      }
+    },
     "语境": {
       "localizations": {
         "de": {
@@ -10890,6 +12733,38 @@
         }
       }
     },
+    "购买还没开通": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kauf noch nicht möglich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buying isn't open yet"
+          }
+        }
+      }
+    },
+    "购买还没开通，过一阵再来；现在可以先用自带 Key。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaufen ist noch nicht möglich. Schau bald wieder vorbei; bis dahin geht ein eigener Key."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buying isn't open yet. Come back a bit later; until then, use your own key."
+          }
+        }
+      }
+    },
     "费用走你自己的账户": {
       "localizations": {
         "de": {
@@ -10998,6 +12873,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open source and free forever; membership buys AI explanations with no setup"
+          }
+        }
+      }
+    },
+    "过一会儿再试。（HTTP %lld）": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Versuch es gleich noch einmal. (HTTP %lld)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again in a little while. (HTTP %lld)"
           }
         }
       }
@@ -11290,6 +13181,38 @@
         }
       }
     },
+    "这个词查得太久了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Abfrage hat zu lange gedauert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This lookup ran too long"
+          }
+        }
+      }
+    },
+    "这个账号还没开通同步": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für dieses Konto ist Sync nicht aktiv"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync isn't on for this account"
+          }
+        }
+      }
+    },
     "这句话": {
       "localizations": {
         "de": {
@@ -11338,6 +13261,38 @@
         }
       }
     },
+    "这台 Mac 的授权码": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lizenzcode auf diesem Mac"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "License code on this Mac"
+          }
+        }
+      }
+    },
+    "这台退回自己的免费试用（剩几次就几次），授权码留给别的电脑用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Mac kehrt zu seinem eigenen kostenlosen Test zurück (mit dem, was übrig ist), und der Code wird für einen anderen Computer frei"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac goes back to its own free trial (whatever is left of it), freeing the code for another computer"
+          }
+        }
+      }
+    },
     "这周新词": {
       "localizations": {
         "de": {
@@ -11350,6 +13305,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "New this week"
+          }
+        }
+      }
+    },
+    "这次查词过期了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Abfrage ist abgelaufen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This lookup has expired"
           }
         }
       }
@@ -11430,6 +13401,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Can't reach %@: %@"
+          }
+        }
+      }
+    },
+    "连不上会员服务器": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitgliedschafts-Server nicht erreichbar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the membership server"
+          }
+        }
+      }
+    },
+    "连不上会员服务器，下面是上次的状态。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitgliedschafts-Server nicht erreichbar; angezeigt wird der letzte Stand."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the membership server; showing the last known status."
+          }
+        }
+      }
+    },
+    "连不上会员服务器，联网后自动重试": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mitgliedschafts-Server nicht erreichbar; neuer Versuch, sobald du online bist"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the membership server; retries when you're online"
           }
         }
       }
@@ -12326,6 +14345,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Needs international access"
+          }
+        }
+      }
+    },
+    "面板开得太久，重新框一次就好。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Fenster war zu lange offen. Markiere das Wort einfach neu."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The panel was open too long. Frame the word again."
           }
         }
       }

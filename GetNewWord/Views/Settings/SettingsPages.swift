@@ -289,12 +289,30 @@ struct ShortcutsSettingsPage: View {
 struct AISettingsPage: View {
     @Bindable var viewModel: SettingsViewModel
     @AppStorage("apiProvider") private var provider: APIProvider = .zhipu
+    @AppStorage(AIPlan.key) private var plan: AIPlan = .member
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("截图里的词交给谁讲解。").font(.system(size: 13)).foregroundStyle(Theme.text2)
             HStack(spacing: 10) {
-                ChoiceCard(selected: true) {} content: {
+                ChoiceCard(selected: plan == .member) { choose(.member) } content: {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 6) {
+                            Text("会员").font(.system(size: 13.5, weight: .semibold))
+                            Tag(text: "免配置")
+                        }
+                        Text("不用申请 Key，用 GetNewWord 官方的 AI").font(.system(size: 12)).foregroundStyle(Theme.text2)
+                        HStack(spacing: 0) {
+                            NodeBadge(icon: .app, label: "GetNewWord", width: 60)
+                            FlowLine(active: plan == .member, width: 16)
+                            NodeBadge(icon: .symbol("cloud"), label: String(localized: "官方 AI"), width: 60)
+                            FlowLine(active: plan == .member, width: 16)
+                            NodeBadge(icon: .symbol("sparkles"), label: String(localized: "讲解"), width: 60)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                ChoiceCard(selected: plan == .own) { choose(.own) } content: {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 6) {
                             Text("自带 Key").font(.system(size: 13.5, weight: .semibold))
@@ -304,28 +322,53 @@ struct AISettingsPage: View {
                         AIRouteIllustration(provider: provider).frame(maxWidth: .infinity)
                     }
                 }
-                ChoiceCard(selected: false, disabled: true) {} content: {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 6) {
-                            Text("会员").font(.system(size: 13.5, weight: .semibold))
-                            Tag(text: "即将开放")
-                        }
-                        Text("不用申请 Key，用 GetNewWord 官方的 AI").font(.system(size: 12)).foregroundStyle(Theme.text2)
-                        HStack(spacing: 0) {
-                            NodeBadge(icon: .app, label: "GetNewWord", width: 60)
-                            FlowLine(active: false, width: 16)
-                            NodeBadge(icon: .symbol("cloud"), label: String(localized: "官方 AI"), width: 60)
-                            FlowLine(active: false, width: 16)
-                            NodeBadge(icon: .symbol("sparkles"), label: String(localized: "讲解"), width: 60)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
             }
             .fixedSize(horizontal: false, vertical: true)
-            ProviderPicker(viewModel: viewModel, selected: $provider)
-            Text("每家的 Key 分开存在钥匙串里，切换后立即生效。").font(.system(size: 12)).foregroundStyle(Theme.text3)
+            if plan == .member {
+                MemberStatusBox()
+            } else {
+                ProviderPicker(viewModel: viewModel, selected: $provider)
+                Text("每家的 Key 分开存在钥匙串里，切换后立即生效。").font(.system(size: 12)).foregroundStyle(Theme.text3)
+            }
         }
+    }
+
+    private func choose(_ p: AIPlan) {
+        guard plan != p else { return }
+        plan = p
+        AppLog.log("[Member] plan → \(p.rawValue)")
+        if p == .member { Task { await MemberService.shared.refresh() } }
+    }
+}
+
+/// 会员用法下的状态：试用剩几次 / 会员到期日、今天剩几次 / 用完了怎么办，和打开方案页的按钮（AI 服务页、欢迎引导共用）
+struct MemberStatusBox: View {
+    @ObservedObject private var member = MemberService.shared
+
+    var body: some View {
+        let card = PlanCard.memberContent(member.state)
+        SettingsGroup(footer: "会员的请求经我们的服务器转给 DeepSeek，只记次数，不存查了什么。") {
+            HStack(spacing: 12) {
+                Image(systemName: card.warn ? "exclamationmark.circle.fill" : "sparkles")
+                    .font(.system(size: 16)).foregroundStyle(card.warn ? Theme.warn : Theme.accent)
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(card.title).font(.system(size: 13, weight: .medium))
+                        if let count = card.count { Text(count).font(.system(size: 13, weight: .semibold)).monospacedDigit() }
+                    }
+                    Text(card.detail).font(.system(size: 12)).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 12)
+                if case .connecting = member.state {
+                    ProgressView().controlSize(.small)
+                }
+                Button(member.isMember ? String(localized: "管理会员") : String(localized: "查看方案")) { PricingWindow.show() }
+                    .buttonStyle(card.warn ? AnyButtonStyle(PrimaryButtonStyle()) : AnyButtonStyle(SecondaryButtonStyle()))
+            }
+            .padding(12)
+        }
+        .task { await member.refresh(maxAge: 30) }
     }
 }
 
@@ -513,10 +556,17 @@ private struct UsageGroup: View {
 private struct PrivacyGroup: View {
     @AppStorage("apiProvider") private var provider: APIProvider = .zhipu
     @AppStorage(UsageConsent.key) private var usageConsent = ""
+    @AppStorage(AIPlan.key) private var plan: AIPlan = .member
 
     var body: some View {
         SettingsGroup(title: "隐私与数据") {
-            SettingsRow(title: "只在取词时截屏", detail: "截下框住的那一块（指词查词是光标附近），发给你选的 AI 服务商讲解，现在是 \(provider.displayName)。能认出字时只发附近几行文字，不发图。", icon: "camera.viewfinder")
+            if plan == .member {
+                SettingsRow(title: "只在取词时截屏", detail: "截下框住的那一块（指词查词是光标附近），经我们的服务器转给 DeepSeek 讲解，服务器只记次数，不存内容。能认出字时只发附近几行文字，不发图。", icon: "camera.viewfinder")
+            } else {
+                SettingsRow(title: "只在取词时截屏", detail: "截下框住的那一块（指词查词是光标附近），发给你选的 AI 服务商讲解，现在是 \(provider.displayName)。能认出字时只发附近几行文字，不发图。", icon: "camera.viewfinder")
+            }
+            Hairline()
+            SettingsRow(title: "会员的设备标识", detail: "用会员时，这台 Mac 向我们的服务器注册一次，用来发免费试用、记剩几次：发的是硬件编号的哈希，不是硬件编号本身。自带 Key 不注册。", icon: "desktopcomputer")
             Hairline()
             SettingsRow(title: "词库存在这台 Mac 上", detail: "单词、语境和截图都在本机。登录同步时只同步词条和语境文字，截图和发音文件不上传。", icon: "internaldrive")
             Hairline()

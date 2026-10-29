@@ -196,7 +196,7 @@ struct ProviderErrorTests {
     }
 
     @Test func descriptionNamesTheProvider() {
-        let ai = APIProvider.current.displayName
+        let ai = AIPlan.current == .member ? ZhipuService.memberName : APIProvider.current.displayName
         #expect(classify(401, #"{"error":{"message":"bad"}}"#).errorDescription?.contains(ai) == true)
         #expect(ZhipuServiceError.truncated.errorDescription?.contains(ai) == true)
     }

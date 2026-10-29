@@ -64,6 +64,14 @@ unconfirmedAnki: [anki_note_id…]   // 从云端拉来、本机 Anki 还没见�
 
 设置里新增「账号」页：未登录显示「用 Google 登录」；登录后显示邮箱、上次同步时间和结果、「立即同步」「退出登录」。主窗口不改。
 
+## 5.1 只给会员（2026-10-29）
+
+多台 Mac 同步是会员功能，卡在 Supabase 里，改 app 绕不过（会员后台规格 docs/multi-product.md §4.9）：
+
+- `supabase/getnewword-sync-access.sql`：表 `getnewword.sync_access`（谁的同步开到哪天）、函数 `sync_allowed()`、四张表各一条限制性 RLS、会员后台用 HMAC 签名调的 `set_sync_access()`。不是会员的账号读到 0 行、写回 42501，Realtime 也收不到。
+- app：账号页只有会员能点「用 Google 登录」；登录后（或登录着成了会员）调会员后台 `POST /v1/getnewword/sync/link`，后台去 Supabase 打开这个账号。每轮同步前问一次 `POST /rest/v1/rpc/sync_allowed`（10 分钟内用上次的结果）：false 就不拉不推，页上写「多台 Mac 同步是会员功能，本机词库不受影响」；PostgREST 回 403 / 42501 时停同步、查一次会员状态。函数还不存在（SQL 没执行，回 404）时照旧同步。
+- 会员到期后云端的词不删；再成会员从原来的游标接着同步。
+
 ## 6. 需要手动配置的地方（一次性）
 
 1. Supabase SQL Editor 执行 `supabase/getnewword-schema.sql`（我用 service 连接串直接执行）。

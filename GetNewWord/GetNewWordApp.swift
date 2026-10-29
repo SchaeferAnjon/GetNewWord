@@ -23,6 +23,8 @@ enum Launcher {
             return
         }
         AppLanguage.keepChineseForExistingUsers()
+        // 用法第一次定下来：1.2.0 以前填过 Key 的照旧自带 Key，新用户默认会员。要赶在界面读它之前
+        AIPlan.settle { APIProvider.allCases.contains { !(ZhipuService.shared.key(for: $0) ?? "").isEmpty } }
         GetNewWordApp.main()
     }
 }
@@ -286,6 +288,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in AppIcons.applyDock() }
         AppLog.log("[Location] in Applications: \(AppLocation.isInApplications)")   // 不在的话自动更新装不上
+        MemberService.shared.start()   // 会员模式查一次状态，回到前台再查（MemberService.swift）
         UsagePing.shared.start()   // 用户同意了才每天匿名报到一次（UsagePing.swift）
     }
 
