@@ -202,11 +202,12 @@ struct WordMatcherOtherTests {
 }
 
 struct TextHighlighterTests {
-    /// 整个 heats 都是重点色加粗，wheat 一个字都不标
+    /// 整个 heats 都是重点色加粗，wheat 一个字都不标；字用 accentText（深色模式亮一档）
     @Test func colorsWholeToken() {
         let attr = TextHighlighter.highlight("heat", in: "wheat heats", language: .english)
         let colored = attr.runs.filter { $0.foregroundColor != nil }.map { String(attr[$0.range].characters) }
         #expect(colored == ["heats"])
+        #expect(attr.runs.compactMap(\.foregroundColor) == [Theme.accentText])
         let bold = attr.runs.filter { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true }
         #expect(bold.count == 1)
     }

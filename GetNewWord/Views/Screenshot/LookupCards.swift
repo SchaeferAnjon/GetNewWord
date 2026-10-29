@@ -257,10 +257,10 @@ struct MeaningList: View {
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
                                 Text("\(i + 1)").font(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.text3)
                                 Text(sense).font(.system(size: 14, weight: isHere ? .semibold : .regular))
-                                    .foregroundStyle(isHere ? Theme.accent : Theme.text)
+                                    .foregroundStyle(isHere ? Theme.accentText : Theme.text)
                                     .fixedSize(horizontal: false, vertical: true)
                                 if isHere {
-                                    Text("这句里").font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.accent)
+                                    Text("这句里").font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.accentText)
                                         .padding(.horizontal, 5).padding(.vertical, 1)
                                         .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 4))
                                 }
@@ -405,7 +405,7 @@ struct FloatingTag: View {
             // 这句里的意思：大字
             Text(w.senseHere)
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(Theme.accentText)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
             if let pos = w.posHere {

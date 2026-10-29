@@ -66,6 +66,9 @@ enum Theme {
     static let text3     = dyn(light: rgb(150, 154, 162), dark: rgb(92, 99, 112))
 
     static let accent    = dyn(light: rgb(84, 96, 210), dark: rgb(94, 106, 210))   // Linear indigo
+    /// 重点色写成字（查的词标紫、这句里的义项）：深色底上 accent 只有 3.3:1，比灰色次要字还暗，字用亮一档的（5.6:1）。
+    /// 开关、填充、选中底色仍用 accent
+    static let accentText = dyn(light: rgb(84, 96, 210), dark: rgb(138, 148, 245))
     static let accentSoft = accent.opacity(0.18)
     static let warn      = dyn(light: rgb(205, 125, 20), dark: rgb(242, 158, 64))
     static let danger    = dyn(light: rgb(200, 60, 60), dark: rgb(230, 92, 92))
@@ -245,7 +248,7 @@ enum TextHighlighter {
             let end = out.characters.index(start, offsetBy: span.count)
             let runs = out[start..<end].runs.map { ($0.range, $0.inlinePresentationIntent) }
             for (range, intent) in runs {
-                out[range].foregroundColor = Theme.accent
+                out[range].foregroundColor = Theme.accentText
                 out[range].inlinePresentationIntent = (intent ?? []).union(.stronglyEmphasized)
             }
         }
@@ -292,7 +295,7 @@ enum TextHighlighter {
             let lower = meaning.distance(from: meaning.startIndex, to: range.lowerBound)
             if let s = attr.index(attr.startIndex, offsetByCharacters: lower) as AttributedString.Index?,
                let e = attr.index(s, offsetByCharacters: sub.count) as AttributedString.Index? {
-                attr[s..<e].foregroundColor = Theme.accent
+                attr[s..<e].foregroundColor = Theme.accentText
                 attr[s..<e].inlinePresentationIntent = .stronglyEmphasized
             }
             return true

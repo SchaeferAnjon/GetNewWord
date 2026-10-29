@@ -439,9 +439,10 @@ struct GrammarBreakdownSection: View {
     private func blockView(_ block: Block) -> some View {
         switch block {
         case .heading(let t):
+            // 小标题（主干、成分、难点…）灰色：紫色留给查的词
             Text(t)
                 .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(Theme.text2)
                 .padding(.top, 6)
         case .line(let l):
             Text(TextHighlighter.mark(word, in: Self.inline(l), language: language, grammar: grammar))

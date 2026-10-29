@@ -67,10 +67,11 @@ struct ClassicWordCard: View {
                         .help("单项移除：只把这个词从本次保存中撤掉（其余保留）")
                     }
                 }
+                // 变化那行：灰字，里面查的词的变形标紫（和讲义卡、浮签、主窗口一样）；字体、位置照 1.1.7
                 if let g = word.grammar, !g.isEmpty {
-                    Text(g)
+                    Text(TextHighlighter.highlight(word.word, in: g, language: language, grammar: g))
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(Theme.text2)
                 }
                 if skippedAsDuplicate {
                     Label("这个词已在词库里，且语境几乎相同，本次未重复添加", systemImage: "info.circle")
@@ -154,7 +155,8 @@ struct ClassicCachedCard: View {
                     Spacer()
                 }
                 if let g = entry.grammar, !g.isEmpty {
-                    Text(g).font(.system(size: 13, weight: .medium, design: .monospaced)).foregroundStyle(Theme.accent)
+                    Text(TextHighlighter.highlight(entry.word, in: g, language: entry.language, grammar: g))
+                        .font(.system(size: 13, weight: .medium, design: .monospaced)).foregroundStyle(Theme.text2)
                 }
                 Label("词库里已有这个词，直接展示；正在核对本次语境是否新增", systemImage: "bolt.fill")
                     .font(.caption).foregroundStyle(Theme.text2)
