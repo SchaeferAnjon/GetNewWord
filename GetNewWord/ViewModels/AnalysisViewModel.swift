@@ -152,6 +152,7 @@ class AnalysisViewModel: ObservableObject {
         isAnalyzing = true
         PanelPerf.mark(.trigger, eventTime: HotkeyManager.lastPressedAt)
         if !resultWindow.isPinned { resultWindow.dismiss() }
+        let tagsTask = AnalysisService.existingTagsInBackground(container: modelContext.container)
 
         // 0. 框选（取消则静默退出，面板保持原样）；指词模式直接取鼠标下的词，没认出词就提示后退出。
         // 两种都尽量拿到「文字版」（本地 OCR 读出目标和附近几行）：有文字就走纯文字请求，比让模型看图快 2–3s
@@ -205,7 +206,7 @@ class AnalysisViewModel: ObservableObject {
 
         categories = (try? modelContext.fetch(FetchDescriptor<Category>())) ?? []
         let categoryTree = analysisService.categoryTreeDescription(categories: categories)
-        let existingTags = analysisService.allExistingTags(context: modelContext)
+        let existingTags = await tagsTask.value
 
         // 有文字版：主分析和补全立刻在后台发出，不等面板首帧（首帧要占主线程约 0.5s）
         let textMain: Task<WordAnalysisResult, Error>?
@@ -704,7 +705,7 @@ class AnalysisViewModel: ObservableObject {
     /// 手动输入时的补全候选：标签库里前缀/包含匹配
     func tagSuggestions(for text: String) -> [String] {
         guard let context = modelContext else { return [] }
-        let all = analysisService.allExistingTags(context: context)
+        let all = AnalysisService.allExistingTags(context: context)
         guard !text.isEmpty else { return Array(all.prefix(6)) }
         return all.filter { $0.localizedCaseInsensitiveContains(text) }.prefix(6).map { $0 }
     }

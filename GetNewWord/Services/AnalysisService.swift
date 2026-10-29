@@ -110,15 +110,21 @@ class AnalysisService {
     // MARK: - 标签库
 
     /// 当前所有已使用的标签（单词 + 知识片段），按使用频次降序，作为模型选标签的唯一来源
-    func allExistingTags(context: ModelContext) -> [String] {
+    nonisolated static func allExistingTags(context: ModelContext) -> [String] {
+        var words = FetchDescriptor<WordEntry>()
+        words.propertiesToFetch = [\.tags]
+        var snippets = FetchDescriptor<KnowledgeSnippet>()
+        snippets.propertiesToFetch = [\.tags]
         var counts: [String: Int] = [:]
-        if let words = try? context.fetch(FetchDescriptor<WordEntry>()) {
-            for w in words { for t in w.tags { counts[t, default: 0] += 1 } }
-        }
-        if let snippets = try? context.fetch(FetchDescriptor<KnowledgeSnippet>()) {
-            for s in snippets { for t in s.tags { counts[t, default: 0] += 1 } }
-        }
+        for w in (try? context.fetch(words)) ?? [] { for t in w.tags { counts[t, default: 0] += 1 } }
+        for s in (try? context.fetch(snippets)) ?? [] { for t in s.tags { counts[t, default: 0] += 1 } }
         return counts.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map { $0.key }
+    }
+
+    /// 同上，在后台另开一个 ModelContext 读：要把全部词条和知识片段过一遍，2000 个词时主线程要卡 0.1 秒（Rosetta 下 0.2 秒），
+    /// 查词一开始就发出去，和框选、本地 OCR 同时跑
+    nonisolated static func existingTagsInBackground(container: ModelContainer) -> Task<[String], Never> {
+        Task.detached(priority: .userInitiated) { allExistingTags(context: ModelContext(container)) }
     }
 
     // MARK: - 保存方法
