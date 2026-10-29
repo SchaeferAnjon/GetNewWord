@@ -425,8 +425,9 @@ class AnalysisViewModel: ObservableObject {
             do {
                 let e = try await withTaskCancellationHandler { try await request.value } onCancel: { request.cancel() }
                 guard self.runID == myRun else { return }
-                if let r = self.analysisResult,
-                   r.analysis.words.first?.word.caseInsensitiveCompare(word) != .orderedSame {
+                // 和主分析回来时同一个判法：框的是 heats、词头是 heat 也算同一个词。
+                // 以前这里要一字不差，主分析先回来时补全被丢掉、又没人重补，用法和例句一直「生成中」
+                if let r = self.analysisResult, !Self.isSameHeadword(r.analysis.words.first?.word ?? "", word) {
                     AppLog.log("[Analysis] pre-enrich '\(word)' 丢弃（实际词头 '\(r.analysis.words.first?.word ?? "-")'）")
                 } else {
                     enrichments[0] = e
