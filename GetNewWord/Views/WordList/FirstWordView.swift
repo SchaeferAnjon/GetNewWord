@@ -26,7 +26,7 @@ struct FirstWordView: View {
     private let demoWord = "Nachhaltigkeit"
 
     /// 会员：领到试用或已是会员；自带 Key：填好了 Key
-    private var aiDone: Bool { plan == .member ? member.status != nil && !member.state.blocked : hasKey }
+    private var aiDone: Bool { plan == .member ? member.state.ready : hasKey }
     private var permDone: Bool { permissions.hasScreenRecording }
     private var ready: Bool { aiDone && permDone }
 
@@ -118,7 +118,7 @@ struct FirstWordView: View {
                  title: "选一个 AI",
                  detail: aiDetail) {
                 if !aiDone {
-                    if plan == .member, member.status != nil {
+                    if plan == .member, member.isAvailable {
                         Button("看会员方案") { PricingWindow.show() }.buttonStyle(PrimaryButtonStyle())
                     } else {
                         Button("去选择") { openAISettings() }

@@ -9,6 +9,7 @@
 --      select vault.create_secret('<GETNEWWORD_SYNC_HMAC 的值>', 'getnewword_sync_hmac', 'GetNewWord 同步资格签名');
 -- 3. 执行这整份。幂等：重复执行无副作用；限制性策略只加不改现有的 auth.uid() = user_id 策略。
 -- 4. 给已经在用同步的账号（维护者自己）开到 2099 年：见文件末尾，把邮箱换成登录用的。
+--    手动开的写在 grant_until，会员后台的推送只改 until，以后这个账号绑了会员授权也盖不掉它。
 -- 5. 跑文件末尾的自检，几项都应该是 true。
 --
 -- 回滚（同步不再限会员）：
@@ -20,11 +21,15 @@ create extension if not exists pgcrypto with schema extensions;
 -- 谁的同步开到什么时候。只有下面两个 security definer 函数读写它，anon / authenticated 直接碰不到
 create table if not exists getnewword.sync_access (
   user_id uuid primary key references auth.users(id) on delete cascade,
+  -- 会员后台推来的：这个用户绑的会员授权里最晚的到期，0 点（1970）= 关
   until timestamptz not null,
+  -- 维护者手动开的（自己的账号开到 2099）：会员后台不碰它
+  grant_until timestamptz,
   -- 上次接受的签名时间戳（秒）：重放旧签名不能把新的设置改回去
   last_ts bigint not null default 0,
   updated_at timestamptz not null default now()
 );
+alter table getnewword.sync_access add column if not exists grant_until timestamptz;
 alter table getnewword.sync_access enable row level security;
 revoke all on getnewword.sync_access from anon, authenticated;
 
@@ -32,7 +37,7 @@ revoke all on getnewword.sync_access from anon, authenticated;
 create or replace function getnewword.sync_allowed() returns boolean
 language sql stable security definer set search_path = ''
 as $$
-  select exists (select 1 from getnewword.sync_access a where a.user_id = auth.uid() and a.until > now())
+  select exists (select 1 from getnewword.sync_access a where a.user_id = auth.uid() and greatest(a.until, a.grant_until) > now())
 $$;
 revoke all on function getnewword.sync_allowed() from public;
 grant execute on function getnewword.sync_allowed() to authenticated;
@@ -81,11 +86,11 @@ begin
   end loop;
 end $$;
 
--- 已经在用同步的账号开到 2099 年（把邮箱换成登录用的再执行这一段）。
--- 注意：这个账号以后在 app 里绑了会员授权的话，会员后台推来的到期会盖掉 2099；要一直留着就别在 app 里登录会员时绑它。
--- insert into getnewword.sync_access (user_id, until, last_ts)
--- select id, '2099-01-01 00:00:00+00', 0 from auth.users where email = '<登录用的邮箱>'
--- on conflict (user_id) do update set until = excluded.until;
+-- 已经在用同步的账号开到 2099 年（把邮箱换成登录用的再执行这一段）。写在 grant_until：
+-- 会员后台的推送只改 until，这个账号以后在 app 里绑了会员授权、会员到期，2099 都还在。
+-- insert into getnewword.sync_access (user_id, until, grant_until)
+-- select id, to_timestamp(0), '2099-01-01 00:00:00+00' from auth.users where email = '<登录用的邮箱>'
+-- on conflict (user_id) do update set grant_until = excluded.grant_until;
 
 -- 自检：每一项都应该是 true
 -- select
@@ -95,4 +100,5 @@ end $$;
 --     = '3799b95a26af6cbbe49b3e986c315b5f0cd76834c40557fe200fde7c8583014f' as vector_2,
 --   (select count(*) from pg_policies where schemaname = 'getnewword' and policyname like '%_members_only' and permissive = 'RESTRICTIVE') = 4 as policies,
 --   exists (select 1 from vault.decrypted_secrets where name = 'getnewword_sync_hmac') as secret_in_vault,
---   not has_table_privilege('anon', 'getnewword.sync_access', 'select') as anon_cannot_read;
+--   not has_table_privilege('anon', 'getnewword.sync_access', 'select') as anon_cannot_read,
+--   (select count(*) from getnewword.sync_access where grant_until > now()) >= 1 as owner_granted;

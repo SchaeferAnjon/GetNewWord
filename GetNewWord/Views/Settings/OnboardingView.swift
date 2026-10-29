@@ -102,7 +102,7 @@ struct OnboardingView: View {
         switch i {
         case 0: return step > 0
         case 1: return permissions.hasScreenRecording
-        case 2: return plan == .member ? !member.state.blocked && member.status != nil : hasKey
+        case 2: return plan == .member ? member.state.ready && member.registered : hasKey
         case 3: return AnkiInstaller.shared.connected
         case 4: return !usageConsent.isEmpty
         default: return false
@@ -161,10 +161,15 @@ struct OnboardingView: View {
                 // 两个一样的按钮，没有主按钮，回车不替人选
                 UsageConsentButtons { go(5) }
             } else {
-                Button(nextTitle) { next() }
+                Button { next() } label: {
+                    HStack(spacing: 6) {
+                        if step == 2, member.claiming { ProgressView().controlSize(.small) }
+                        Text(nextTitle)
+                    }
+                }
                     .buttonStyle(PrimaryButtonStyle())
                     .keyboardShortcut(.return, modifiers: [])
-                    .disabled(step == 2 && plan == .own && !hasKey)
+                    .disabled(step == 2 && (plan == .own ? !hasKey : member.claiming))
             }
         }
     }
@@ -184,7 +189,17 @@ struct OnboardingView: View {
     }
 
     private func next() {
-        if step == steps.count - 1 { finish() } else { go(step + 1) }
+        if step == steps.count - 1 { finish(); return }
+        // 选着会员点「继续」才向后台注册、领试用（选自带 Key 的不注册）。没领到的留在这一步，让人看到原因再选
+        if step == 2, plan == .member, member.isAvailable, !member.registered {
+            Task {
+                await member.claimTrial()
+                if case .trialClosed = member.state { return }
+                go(step + 1)
+            }
+            return
+        }
+        go(step + 1)
     }
 
     private func finish() {
@@ -261,7 +276,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 16) {
             header("用哪种 AI 讲解？", "两种都能查词，之后随时在设置里换。")
             HStack(spacing: 10) {
-                planCard(title: "会员", tag: "前 100 位免费 30 次", big: "免配置", detail: "不用 Key，装好就能查；之后每月 ¥9.9 起",
+                planCard(title: "会员", tag: memberTag, big: "免配置", detail: "不用 Key，装好就能查；之后每月 ¥9.9 起",
                          selected: plan == .member) { choose(.member) }
                 planCard(title: "自带 Key", tag: "永久免费", big: "免费", detail: "填自己的 Key，10 家服务商可选",
                          selected: plan == .own) { choose(.own) }
@@ -272,6 +287,18 @@ struct OnboardingView: View {
             } else {
                 ProviderPicker(viewModel: viewModel, selected: $provider)
             }
+        }
+    }
+
+    /// 会员卡片上的小标签：还没领时写名额，领过以后照这台的情况写
+    private var memberTag: LocalizedStringKey {
+        switch member.state {
+        case .trial(let left, _): return "试用剩 \(left) 次"
+        case .trialUsedUp: return "试用已用完"
+        case .trialClosed: return "这台没领到试用"
+        case .member, .dailyLimit, .paymentFailed: return "已是会员"
+        case .ended: return "会员到期了"
+        default: return "前 100 位免费 30 次"
         }
     }
 

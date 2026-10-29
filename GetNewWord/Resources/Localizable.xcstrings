@@ -75,18 +75,18 @@
         }
       }
     },
-    "%@ 到期，续买一段接着用": {
+    "%@ 到期，点这里续上": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Endet am %@; verlängere, um weiterzumachen"
+            "value": "Endet am %@; hier klicken, um weiterzumachen"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ends %@; buy more to keep going"
+            "value": "Ends %@; click here to continue"
           }
         }
       }
@@ -583,6 +583,22 @@
     "12:41": {
       "shouldTranslate": false
     },
+    "30 天里换绑太多次了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu viele Kontowechsel in 30 Tagen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many account switches in 30 days"
+          }
+        }
+      }
+    },
     "30 次": {
       "localizations": {
         "de": {
@@ -595,6 +611,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "30 lookups"
+          }
+        }
+      }
+    },
+    "AI 不肯讲这段内容": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die KI erklärt diesen Text nicht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI won't explain this text"
           }
         }
       }
@@ -1026,6 +1058,22 @@
     "GitHub ↗": {
       "shouldTranslate": false
     },
+    "Google 登录过期了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Google-Anmeldung ist abgelaufen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Google sign-in has expired"
+          }
+        }
+      }
+    },
     "Key 无效，请检查后重试": {
       "localizations": {
         "de": {
@@ -1261,6 +1309,22 @@
         }
       }
     },
+    "一张授权 30 天里最多换 3 次同步账号，过几天再试。本机词库不受影响。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Lizenz kann das Sync-Konto höchstens 3-mal in 30 Tagen wechseln. Versuch es in ein paar Tagen wieder. Der Wortschatz auf diesem Mac bleibt, wie er ist."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A license can switch its sync account at most 3 times in 30 days. Try again in a few days. The library on this Mac isn't affected."
+          }
+        }
+      }
+    },
     "一整张卡，所有内容分层摆全": {
       "localizations": {
         "de": {
@@ -1273,6 +1337,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "One full card with everything laid out in layers"
+          }
+        }
+      }
+    },
+    "一次买的会员用到 %@。到期前 3 天再开自动续费，接着用不断档。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine einmal gekaufte Mitgliedschaft läuft bis %@. Schalte die automatische Verlängerung in den letzten 3 Tagen davor ein, dann gibt es keine Lücke."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your one-off membership runs until %@. Turn on automatic renewal within 3 days of that date so there's no gap."
           }
         }
       }
@@ -1325,6 +1405,22 @@
         }
       }
     },
+    "一般几秒就好，云端以前的词都还在。一直没好就点「重试」。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das dauert meist ein paar Sekunden, die Wörter in der Cloud sind noch da. Wenn nichts passiert, klick auf „Erneut versuchen“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This usually takes a few seconds, and the words already in the cloud are still there. If nothing happens, click Retry."
+          }
+        }
+      }
+    },
     "一键安装": {
       "localizations": {
         "de": {
@@ -1369,6 +1465,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "The last renewal payment failed. Open Manage subscription and switch cards; it works again right away."
+          }
+        }
+      }
+    },
+    "上一期的续费没扣成，换一张卡就恢复，不用重新订阅。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die letzte Verlängerung wurde nicht bezahlt. Hinterleg eine andere Karte, dann geht es weiter; ein neues Abo brauchst du nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The last renewal payment failed. Switch cards and it works again; no need to subscribe again."
           }
         }
       }
@@ -1981,6 +2093,38 @@
         }
       }
     },
+    "今天用的 AI 量到上限了（框的内容很长时会比次数先到）。%@ 恢复（你这里的时间）。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das KI-Limit für heute ist erreicht (bei langen Ausschnitten kommt es vor der Abfragenzahl). Wieder ab %@ (deine Ortszeit)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's AI usage limit is reached (with long selections it comes before the lookup count). Back at %@ (your time)."
+          }
+        }
+      }
+    },
+    "今天用的 AI 量到上限了（框的内容很长时会比次数先到）。北京时间早上 8 点恢复。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das KI-Limit für heute ist erreicht (bei langen Ausschnitten kommt es vor der Abfragenzahl). Zurückgesetzt wird um Mitternacht UTC."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's AI usage limit is reached (with long selections it comes before the lookup count). It resets at midnight UTC."
+          }
+        }
+      }
+    },
     "今天用的人太多，过一会儿再按一次。": {
       "localizations": {
         "de": {
@@ -2025,6 +2169,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Today's lookups are used up"
+          }
+        }
+      }
+    },
+    "今天的用量到上限了": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Limit für heute ist erreicht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's usage limit is reached"
           }
         }
       }
@@ -2153,6 +2313,70 @@
           "stringUnit": {
             "state": "translated",
             "value": "Payment received. You're a member now. %@"
+          }
+        }
+      }
+    },
+    "付款服务暂时连不上，过一会儿再点一次。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bezahldienst ist gerade nicht erreichbar. Klick gleich noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the payment service right now. Click again in a little while."
+          }
+        }
+      }
+    },
+    "付款服务暂时连不上，过一会儿再试。会员照常能用。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bezahldienst ist gerade nicht erreichbar. Versuch es gleich noch einmal; deine Mitgliedschaft läuft normal weiter."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the payment service right now. Try again in a little while; your membership works as usual."
+          }
+        }
+      }
+    },
+    "付款服务这边还没配好，过一阵再试。会员照常能用。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Bezahlung ist bei uns noch nicht eingerichtet. Versuch es etwas später; deine Mitgliedschaft läuft normal weiter."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payments aren't set up yet on our side. Try again a bit later; your membership works as usual."
+          }
+        }
+      }
+    },
+    "付款页暂时打不开": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Bezahlseite geht gerade nicht auf"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't open the payment page right now"
           }
         }
       }
@@ -2297,6 +2521,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Membership active"
+          }
+        }
+      }
+    },
+    "会员已开通，同步还没开通": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du bist Mitglied; Sync ist noch nicht aktiv"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're a member; sync isn't on yet"
+          }
+        }
+      }
+    },
+    "会员已开通，正在为这个账号打开同步": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du bist Mitglied; Sync wird für dieses Konto eingeschaltet"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're a member; turning on sync for this account"
           }
         }
       }
@@ -3805,6 +4061,22 @@
         }
       }
     },
+    "前 100 位新用户 30 次，第一次查词时领取": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ersten 100 neuen Nutzer bekommen 30; beim ersten Nachschlagen abgeholt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First 100 new users get 30; claimed on your first lookup"
+          }
+        }
+      }
+    },
     "前 100 位新用户每人 30 次，不过期，不用注册。名额发完就没有了，这一栏会照实写。": {
       "localizations": {
         "de": {
@@ -4685,6 +4957,22 @@
         }
       }
     },
+    "同步暂时打不开": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync lässt sich gerade nicht einschalten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync can't be turned on right now"
+          }
+        }
+      }
+    },
     "同步服务 HTTP %lld：%@": {
       "localizations": {
         "de": {
@@ -4697,6 +4985,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sync service HTTP %lld: %@"
+          }
+        }
+      }
+    },
+    "同步服务暂时连不上，不是你的问题。过一会儿点「重试」。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Sync-Dienst ist gerade nicht erreichbar; das liegt nicht an dir. Klick gleich noch einmal auf „Erneut versuchen“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the sync service right now; it's not on your end. Click Retry in a little while."
           }
         }
       }
@@ -6941,6 +7245,38 @@
         }
       }
     },
+    "快到期了，在「管理订阅」里续订就不会断。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Endet bald; verlängere unter „Abo verwalten“, dann gibt es keine Lücke."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ending soon; renew in Manage subscription so there's no gap."
+          }
+        }
+      }
+    },
+    "快到期了，开自动续费接着用。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Endet bald; schalte die automatische Verlängerung ein, um weiterzumachen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ending soon; turn on automatic renewal to keep going."
+          }
+        }
+      }
+    },
     "快到期了，续买一段接着用。": {
       "localizations": {
         "de": {
@@ -7241,6 +7577,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Our AI service is down for the moment; it's not your setup. Try again in a little while."
+          }
+        }
+      }
+    },
+    "我们这边的同步服务还没配好，配好后自动打开，不用再买。本机词库不受影响。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unser Sync-Dienst ist noch nicht eingerichtet. Sobald er es ist, schaltet sich Sync von selbst ein; du musst nichts mehr kaufen. Der Wortschatz auf diesem Mac bleibt, wie er ist."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Our sync service isn't set up yet. Sync turns on by itself once it is; there's nothing more to buy. The library on this Mac isn't affected."
           }
         }
       }
@@ -8281,6 +8633,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Switch to membership"
+          }
+        }
+      }
+    },
+    "换成这个账号": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu diesem Konto wechseln"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to this account"
+          }
+        }
+      }
+    },
+    "换成这个账号？换了以后原来那个账号就不能用这张授权同步了。30 天里最多换 3 次。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu diesem Konto wechseln? Das andere Konto kann dann mit dieser Lizenz nicht mehr synchronisieren. Bis zu 3 Wechsel in 30 Tagen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to this account? The other account then can't sync with this license any more. You can switch up to 3 times in 30 days."
           }
         }
       }
@@ -10477,18 +10861,50 @@
         }
       }
     },
-    "注册那天的免费名额满了；可订阅或换自带 Key": {
+    "注册时没领到；可订阅或换自带 Key": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "An dem Tag waren die Testzugänge vergeben; abonnieren oder eigenen Key nutzen"
+            "value": "Bei der Anmeldung keine bekommen; abonnieren oder eigenen Key nutzen"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "That day's free trials were all taken; subscribe or use your own key"
+            "value": "None given when it registered; subscribe or use your own key"
+          }
+        }
+      }
+    },
+    "注册那天同一网络或全站领的人太多；可订阅或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An dem Tag haben zu viele im Netzwerk oder insgesamt abgeholt; abonnieren oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many claimed that day on your network or overall; subscribe or use your own key"
+          }
+        }
+      }
+    },
+    "注册那天同一网络（或全站）领免费次数的人太多，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am Tag der Anmeldung haben zu viele im selben Netzwerk (oder insgesamt) kostenlose Abfragen abgeholt, dieser Mac hat keine bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many people on the same network (or overall) claimed free lookups the day this Mac registered, so it didn't get any. Subscribe, or add your own AI key to use it for free."
           }
         }
       }
@@ -11485,6 +11901,22 @@
         }
       }
     },
+    "第一次查词时领取": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim ersten Nachschlagen abgeholt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claimed on your first lookup"
+          }
+        }
+      }
+    },
     "第一次遇到 %@": {
       "localizations": {
         "de": {
@@ -11593,6 +12025,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Manage subscription · switch cards"
+          }
+        }
+      }
+    },
+    "管理订阅暂时打不开": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„Abo verwalten“ geht gerade nicht auf"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't open Manage subscription right now"
           }
         }
       }
@@ -13261,6 +13709,38 @@
         }
       }
     },
+    "这台 Mac 没领到免费次数": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Mac hat keine Gratis-Abfragen bekommen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac got no free lookups"
+          }
+        }
+      }
+    },
+    "这台 Mac 注册时没领到免费次数。订阅会员，或者填自己的 AI Key 免费用。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Mac hat bei der Anmeldung keine kostenlosen Abfragen bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac didn't get free lookups when it registered. Subscribe, or add your own AI key to use it for free."
+          }
+        }
+      }
+    },
     "这台 Mac 的授权码": {
       "localizations": {
         "de": {
@@ -13273,6 +13753,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "License code on this Mac"
+          }
+        }
+      }
+    },
+    "这台没领到试用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Test für diesen Mac"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No trial for this Mac"
           }
         }
       }
@@ -13305,6 +13801,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "New this week"
+          }
+        }
+      }
+    },
+    "这张授权的同步绑的是 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Lizenz synchronisiert mit %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This license syncs with %@"
           }
         }
       }
@@ -13353,6 +13865,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "The explanation got too long and stopped midway. Try again or select a smaller area; if it keeps happening, switch AI."
+          }
+        }
+      }
+    },
+    "这段内容没过 AI 服务商的内容审核，换一段再框。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Text hat die Inhaltsprüfung des KI-Anbieters nicht bestanden. Rahme einen anderen Ausschnitt ein."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This text didn't pass the AI provider's content check. Frame a different part."
           }
         }
       }
@@ -13609,6 +14137,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sign out"
+          }
+        }
+      }
+    },
+    "退出登录再用 Google 登录一次就好。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Melde dich ab und noch einmal mit Google an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out and sign in with Google again."
           }
         }
       }

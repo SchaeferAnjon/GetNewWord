@@ -123,12 +123,12 @@ struct PricingView: View {
                                                                      : String(localized: "在浏览器里付款，付完这里自动生效。")) {
                 Button("不等了") { member.cancelPurchase() }.buttonStyle(SecondaryButtonStyle())
             }
-        } else if let e = actionError {
+        } else if let e = actionError ?? member.notice {
             bannerRow(icon: "exclamationmark.circle.fill", color: Theme.warn, text: "\(MemberText.title(e))：\(MemberText.detail(e))") {
                 if ["already-subscribed", "payment-failed"].contains(e.code) {
                     Button("管理订阅") { portal() }.buttonStyle(SecondaryButtonStyle())
                 }
-                Button("知道了") { actionError = nil }.buttonStyle(SecondaryButtonStyle())
+                Button("知道了") { actionError = nil; member.notice = nil }.buttonStyle(SecondaryButtonStyle())
             }
         } else if member.lastError != nil, status != nil {
             bannerRow(icon: "wifi.slash", color: Theme.text3, text: String(localized: "连不上会员服务器，下面是上次的状态。")) { EmptyView() }
@@ -175,11 +175,12 @@ struct PricingView: View {
     private var trialButtonTitle: String {
         switch state {
         case .unavailable: return String(localized: "开发版没连会员服务器")
+        case .notClaimed: return String(localized: "第一次查词时领取")
         case .connecting: return String(localized: "正在领取…")
         case .offline: return String(localized: "连不上会员服务器")
         case .trial(let left, _): return String(localized: "试用中 · 剩 \(left) 次")
         case .trialUsedUp: return String(localized: "试用已用完")
-        case .trialClosed: return String(localized: "名额已发完，这台没领到")
+        case .trialClosed(let miss): return miss == .full ? String(localized: "名额已发完，这台没领到") : String(localized: "这台没领到试用")
         case .member, .dailyLimit: return String(localized: "已是会员")
         case .paymentFailed, .ended: return (status?.trial.left ?? 0) > 0 ? String(localized: "试用剩 \(status?.trial.left ?? 0) 次") : String(localized: "试用已用完")
         }
@@ -246,7 +247,12 @@ struct PricingView: View {
                 }
                 (period == "year" ? Text("年付约等于 10 个月的钱") : Text("不用申请任何 Key，买了就能用")).font(.system(size: 12)).foregroundStyle(Theme.text2)
             }
-            if member.isAvailable, status != nil, !pricesReady {
+            if state == .paymentFailed {
+                // 续费没扣成（Stripe 还在重试）：再开一单后台也不收，换一张卡就恢复
+                Text("上一期的续费没扣成，换一张卡就恢复，不用重新订阅。").font(.system(size: 12)).foregroundStyle(Theme.warn)
+                    .fixedSize(horizontal: false, vertical: true)
+                portalButton(pastDue: true)
+            } else if member.isAvailable, status != nil, !pricesReady {
                 Text("购买还没开通，过一阵再来；现在可以先用自带 Key。").font(.system(size: 12)).foregroundStyle(Theme.warn)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
@@ -306,33 +312,47 @@ struct PricingView: View {
                 }
             }
             if status?.subscription != nil {
-                Button { portal() } label: {
-                    HStack(spacing: 6) {
-                        if busy == "portal" { ProgressView().controlSize(.small) }
-                        pastDue ? Text("管理订阅 · 换一张卡") : Text("管理订阅")
-                        Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(pastDue ? AnyButtonStyle(PrimaryButtonStyle()) : AnyButtonStyle(SecondaryButtonStyle()))
-                .disabled(busy != nil)
+                portalButton(pastDue: pastDue)
             }
-            if !autoRenew {
+            // 续费没扣成的（还在宽限里）：只给「管理订阅 · 换一张卡」，一次买、开订阅后台都不收
+            if !autoRenew, !pastDue {
                 // 一次买的、点了到期取消的：续买接在现在的会员后面，天数不白过。点了到期取消的订阅在「管理订阅」里续订
-                if currency == "cny", passReady {
+                let canPass = currency == "cny" && passReady
+                let canSub = !canPass && status?.subscription == nil
+                if canPass {
                     Picker("", selection: $period) {
                         Text("1 个月").tag("month")
                         Text("1 年").tag("year")
                     }
                     .pickerStyle(.segmented).labelsHidden()
                     passButton
-                } else if status?.subscription == nil {
+                } else if canSub {
                     Button { buy(mode: "sub") } label: { Text("开自动续费 · \(priceText)").frame(maxWidth: .infinity) }
                         .buttonStyle(SecondaryButtonStyle()).disabled(!canBuy)
                 }
-                if expiring { Text("快到期了，续买一段接着用。").font(.system(size: 11.5)).foregroundStyle(Theme.warn) }
+                if expiring {
+                    Group {
+                        if canPass { Text("快到期了，续买一段接着用。") }
+                        else if canSub { Text("快到期了，开自动续费接着用。") }
+                        else { Text("快到期了，在「管理订阅」里续订就不会断。") }
+                    }
+                    .font(.system(size: 11.5)).foregroundStyle(Theme.warn)
+                }
             }
         }
+    }
+
+    private func portalButton(pastDue: Bool) -> some View {
+        Button { portal() } label: {
+            HStack(spacing: 6) {
+                if busy == "portal" { ProgressView().controlSize(.small) }
+                pastDue ? Text("管理订阅 · 换一张卡") : Text("管理订阅")
+                Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .semibold))
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(pastDue ? AnyButtonStyle(PrimaryButtonStyle()) : AnyButtonStyle(SecondaryButtonStyle()))
+        .disabled(busy != nil)
     }
 
     private func memberLine(until: Date?, autoRenew: Bool, pastDue: Bool) -> String {
@@ -486,25 +506,25 @@ struct PricingView: View {
 
     private func buy(mode: String) {
         actionError = nil
+        member.notice = nil
         busy = mode
         Task {
             defer { busy = nil }
             do {
                 try await member.buy(plan: period, currency: mode == "pass" ? "cny" : currency, mode: mode)
-            } catch let e as MemberError {
-                actionError = e
             } catch {
-                actionError = .network
+                actionError = member.explain(error as? MemberError ?? .network)
             }
         }
     }
 
     private func portal() {
         actionError = nil
+        member.notice = nil
         busy = "portal"
         Task {
             defer { busy = nil }
-            do { try await member.openPortal() } catch { actionError = error as? MemberError ?? .network }
+            do { try await member.openPortal() } catch { actionError = member.explain(error as? MemberError ?? .network) }
         }
     }
 
@@ -521,7 +541,7 @@ struct PricingView: View {
                 if plan == .own { plan = .member }
                 codeMessage = nil
             } catch {
-                let e = error as? MemberError ?? .network
+                let e = member.explain(error as? MemberError ?? .network)
                 codeMessage = "\(MemberText.title(e))：\(MemberText.detail(e))"
             }
         }

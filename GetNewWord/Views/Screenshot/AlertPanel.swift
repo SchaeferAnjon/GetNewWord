@@ -189,6 +189,9 @@ class ErrorPanelController {
     /// 在鼠标附近（刚取词的地方）显示报错
     func show(_ failure: LookupFailure) {
         dismiss()
+        // 会员的报错按这台的状态补上原因（没领到试用为什么、是不是成本上限）
+        var failure = failure
+        if case .member(let e) = failure { failure = .member(MemberService.shared.explain(e)) }
         let provider = APIProvider.current
         let panelSize = NSSize(width: 380, height: failure.hasActions ? 166 : 112)
         let view = ErrorPanelView(failure: failure, provider: provider,
@@ -327,12 +330,25 @@ struct ErrorPanelView: View {
                     Button("看会员方案") { onDismiss(); PricingWindow.show() }.buttonStyle(PrimaryButtonStyle())
                     Button("用自己的 Key") { onDismiss(); SettingsOpener.open(.ai) }.buttonStyle(SecondaryButtonStyle())
                 case "payment-failed":
-                    Button("管理订阅") { onDismiss(); Task { try? await MemberService.shared.openPortal() } }.buttonStyle(PrimaryButtonStyle())
+                    Button("管理订阅") { onDismiss(); openPortal() }.buttonStyle(PrimaryButtonStyle())
                 default:
                     EmptyView()
                 }
             case .noWord, .other:
                 EmptyView()
+            }
+        }
+    }
+
+    /// 「管理订阅」打不开（门户没配好、断网）：打开会员页，把原因写在上面，不是点了没反应
+    private func openPortal() {
+        Task { @MainActor in
+            let member = MemberService.shared
+            do {
+                try await member.openPortal()
+            } catch {
+                member.notice = member.explain(error as? MemberError ?? .network)
+                PricingWindow.show()
             }
         }
     }

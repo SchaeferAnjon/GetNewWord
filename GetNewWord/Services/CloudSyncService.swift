@@ -277,7 +277,7 @@ final class CloudSyncService: ObservableObject {
         if isSyncing { rerunRequested = true; return }
         isSyncing = true
         loadState(userId: session.userId)
-        guard await syncAllowed(userId: session.userId) else {
+        guard await syncAllowed(session) else {
             realtime.stop()
             lastResult = Self.deniedText
             isSyncing = false
@@ -315,13 +315,16 @@ final class CloudSyncService: ObservableObject {
 
     // MARK: - 能不能同步（会员才有）
 
-    /// 问 Supabase 这个账号能不能同步，10 分钟内问过就用上次的。不让同步时，会员后台说是会员的话请它再推一次
-    private func syncAllowed(userId: String) async -> Bool {
+    /// 问 Supabase 这个账号能不能同步，10 分钟内问过就用上次的。不让同步、会员后台又说这张授权是会员时：
+    /// 没绑过，或绑的就是这个账号（推送还没到 Supabase），请后台再推一次；绑的是别的账号不动，等人在「账号与同步」里点了才换
+    private func syncAllowed(_ session: SupabaseSession) async -> Bool {
+        let userId = session.userId
         if accessUser != userId { accessUser = userId; accessCheckedAt = nil; access = .unknown }
         if let at = accessCheckedAt, Date().timeIntervalSince(at) < 600 { return access != .denied }
         access = await askAccess()
         accessCheckedAt = Date()
-        if access == .denied, MemberService.shared.status?.sync?.allowed == true,
+        if access == .denied, let link = MemberService.shared.status?.sync, link.allowed,
+           Self.shouldAskPushAgain(link: link, email: session.email),
            (relinkedAt.map { Date().timeIntervalSince($0) > 600 } ?? true) {
             relinkedAt = Date()
             AppLog.log("[Cloud] member says sync allowed but Supabase not yet; asking the member server to push again")
@@ -330,6 +333,11 @@ final class CloudSyncService: ObservableObject {
         }
         if access == .denied { AppLog.log("[Cloud] sync not allowed for this account (not a member)") }
         return access != .denied
+    }
+
+    /// 会员后台说能同步、Supabase 还不让时，要不要请后台再推：没绑过，或绑的就是这个账号
+    nonisolated static func shouldAskPushAgain(link: MemberStatus.Sync, email: String?) -> Bool {
+        !link.linked || MemberService.sameEmail(link.email, email)
     }
 
     private func askAccess() async -> SyncAccess {
@@ -586,13 +594,28 @@ final class CloudSyncService: ObservableObject {
         let body = try JSONSerialization.data(withJSONObject: ["deleted_at": CloudDate.format(Date())])
         for start in stride(from: 0, to: gone.count, by: 100) {
             let chunk = Array(gone[start..<min(start + 100, gone.count)])
-            _ = try await rest("PATCH", table,
-                               query: [URLQueryItem(name: "id", value: "in.(\(chunk.joined(separator: ",")))")],
-                               body: body, prefer: "return=minimal")
+            // 要回改到的行（只要 id）：RLS 不让改时 PATCH 不报错、只是改了 0 行，不看回话就会把没推上去的删除当成推好了
+            let data = try await rest("PATCH", table,
+                                      query: [URLQueryItem(name: "id", value: "in.(\(chunk.joined(separator: ",")))"),
+                                              URLQueryItem(name: "select", value: "id")],
+                                      body: body, prefer: "return=representation")
+            if Self.updatedRows(data) == 0 {
+                // 一行都没改到：先问能不能同步。不让就是 RLS 拦了；问不到这一轮先不算推好，下一轮再推
+                switch await askAccess() {
+                case .denied: throw CloudSyncError.denied
+                case .unknown: throw CloudSyncError.http(0, "tombstones not confirmed")
+                case .allowed: break   // 云端真的没有这几行了
+                }
+            }
             for id in chunk { state.known.removeValue(forKey: prefix + id) }
             saveState()
         }
         return gone.count
+    }
+
+    /// PATCH（return=representation）回了几行；读不懂回 nil
+    nonisolated static func updatedRows(_ data: Data) -> Int? {
+        (try? JSONSerialization.jsonObject(with: data) as? [Any])?.count
     }
 
     // MARK: - 拉到的一行怎么处理

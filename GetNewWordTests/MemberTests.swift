@@ -75,17 +75,24 @@ struct MemberStatusTests {
 
     @Test func states() {
         let later = Date().addingTimeInterval(20 * 86_400)
-        func state(_ s: MemberStatus?, trialResult: String? = nil, available: Bool = true, failed: Bool = false) -> MemberState {
-            MemberState.of(s, available: available, failed: failed, trialResult: trialResult)
+        func state(_ s: MemberStatus?, trialResult: String? = nil, available: Bool = true, failed: Bool = false, registered: Bool = true) -> MemberState {
+            MemberState.of(s, available: available, failed: failed, trialResult: trialResult, registered: registered)
         }
         #expect(state(nil, available: false) == .unavailable)
         #expect(state(nil) == .connecting)
         #expect(state(nil, failed: true) == .offline)
+        // 还没注册：第一次查词时领，连不上过也一样（到时候再领）
+        #expect(state(nil, registered: false) == .notClaimed)
+        #expect(state(nil, failed: true, registered: false) == .notClaimed)
+        #expect(MemberState.notClaimed.ready && !MemberState.notClaimed.blocked)
         #expect(state(makeStatus(plan: "trial", left: 27)) == .trial(left: 27, total: 30))
         #expect(state(makeStatus(plan: "none", reason: "trial-used-up")) == .trialUsedUp)
-        // 名额发完：照实说；注册那天同网络 / 全站当天满了的另说
-        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed")) == .trialClosed(daily: false))
-        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "ip-limit") == .trialClosed(daily: true))
+        // 没领到试用：名额发完、注册那天同网络 / 全站当天满了、说不准（重新注册过）各说各的
+        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "closed") == .trialClosed(.full))
+        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "ip-limit") == .trialClosed(.busy))
+        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "daily-limit") == .trialClosed(.busy))
+        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed")) == .trialClosed(.unknown))
+        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "existing") == .trialClosed(.unknown))
         #expect(state(makeStatus(plan: "none", reason: "sub-ended")) == .ended)
         #expect(state(makeStatus(plan: "none", reason: "payment-failed")) == .paymentFailed)
         let member = state(makeStatus(plan: "member", until: later, autoRenew: true, todayLeft: 188, subscription: "active"))
@@ -131,7 +138,9 @@ struct MemberStatusTests {
         let trial = PlanCard.memberContent(.trial(left: 27, total: 30))
         #expect(trial.count?.contains("27") == true && !trial.warn)
         #expect(PlanCard.memberContent(.trialUsedUp).warn)
-        #expect(PlanCard.memberContent(.trialClosed(daily: false)).warn)
+        #expect(PlanCard.memberContent(.trialClosed(.full)).warn)
+        #expect(PlanCard.memberContent(.trialClosed(.busy)).detail != PlanCard.memberContent(.trialClosed(.full)).detail)
+        #expect(!PlanCard.memberContent(.notClaimed).warn && PlanCard.memberContent(.notClaimed).count == nil)
         #expect(PlanCard.memberContent(.paymentFailed).warn)
         #expect(PlanCard.memberContent(.ended).warn)
         #expect(PlanCard.memberContent(.dailyLimit(reset: later)).warn)
@@ -170,7 +179,7 @@ struct MemberErrorTests {
     @Test func everyCodeHasWords() {
         let codes = ["trial-used-up", "trial-closed", "sub-ended", "payment-failed", "daily-limit", "use-limit", "use-expired",
                      "busy", "upstream", "rate", "network", "unavailable", "bad-code", "too-many-devices", "already-subscribed",
-                     "pass-active", "not-ready"]
+                     "not-ready", "portal-not-ready", "portal-upstream", "pay-upstream"]
         let generic = MemberText.title(MemberError(code: "zzz"))
         for code in codes {
             let e = MemberError(code: code, message: "后台原话")
@@ -181,6 +190,19 @@ struct MemberErrorTests {
         #expect(caseName(LookupFailure.from(ZhipuServiceError.member(MemberError(code: "trial-used-up")))) == "member")
         #expect(caseName(LookupFailure.from(MemberError.network)) == "member")
         #expect(!LookupFailure.member(MemberError(code: "trial-used-up")).autoDismiss)
+    }
+
+    /// DeepSeek 回 400（内容审核没过之类）：后台转来的是上游原文，只留里面那句；内容审核换成白话
+    @Test func upstreamRejectionIsReadable() {
+        let raw = #"{"error":{"code":"bad-request","message":"{\"error\":{\"message\":\"Content Exists Risk\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_request_error\"}}"}}"#
+        let e = MemberError.from(status: 400, body: Data(raw.utf8))
+        #expect(e.code == "bad-request" && e.message == "Content Exists Risk")
+        #expect(e.isContentRisk)
+        #expect(!MemberText.detail(e).contains("{") && !MemberText.detail(e).contains("Risk"))
+        #expect(MemberText.title(e) != MemberText.title(MemberError(code: "bad-request")))
+        let other = MemberError.from(status: 400, body: Data(#"{"error":{"code":"bad-request","message":"{\"error\":{\"message\":\"Invalid max_tokens value\"}}"}}"#.utf8))
+        #expect(MemberText.detail(other) == "Invalid max_tokens value")
+        #expect(MemberError.from(status: 400, body: Data(#"{"error":{"code":"bad-json","message":"请求体不是 JSON"}}"#.utf8)).message == "请求体不是 JSON")
     }
 
     @Test func prices() {
@@ -285,6 +307,14 @@ private func trialStatus(left: Int) -> String {
 }
 private let memberStatusBody = #"{"plan":"member","code":"GW-AAAA-BBBB-CCCC","trialOnly":false,"trial":{"granted":true,"total":30,"used":3,"left":27},"subscription":{"status":"active","plan":"month","currency":"cny","amount":990,"periodEnd":1795824000000,"cancelAtPeriodEnd":false,"accessUntil":1795910400000},"memberUntil":1795910400000,"autoRenew":true,"today":{"limit":200,"used":0,"left":200,"resetAt":1793318400000},"canUse":true}"#
 
+/// 会员的状态：今天剩几次、什么原因、几点重置；sync 是同步绑定（nil = 后台没开同步资格）
+private func memberBody(todayLeft: Int = 200, reason: String? = nil, resetAt: Date = Date().addingTimeInterval(3600), sync: String? = nil) -> String {
+    let reset = Int(resetAt.timeIntervalSince1970 * 1000)
+    return #"{"plan":"member","code":"GW-AAAA-BBBB-CCCC","trialOnly":false,"trial":{"granted":true,"total":30,"used":3,"left":27},"subscription":{"status":"active","plan":"month","currency":"cny","amount":990,"periodEnd":1795824000000,"cancelAtPeriodEnd":false,"accessUntil":1795910400000},"memberUntil":1795910400000,"autoRenew":true,"today":{"limit":200,"used":\#(200 - todayLeft),"left":\#(todayLeft),"resetAt":\#(reset)},"canUse":\#(reason == nil),"reason":\#(reason.map { "\"\($0)\"" } ?? "null"),"sync":\#(sync ?? "null")}"#
+}
+
+private let sessionB = SupabaseSession(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, userId: "user-b", email: "b@example.com")
+
 @MainActor
 @Suite(.serialized)
 struct MemberServiceTests {
@@ -310,29 +340,77 @@ struct MemberServiceTests {
         return m
     }
 
-    @Test func firstRefreshRegistersThenAsksStatus() async throws {
+    /// 没注册过的：查状态、启动、回到前台都不注册（不替还没用会员的人占名额）；领试用时才注册一次
+    @Test func registersOnlyWhenClaimed() async throws {
         server.on("POST", "/v1/getnewword/device", .init(status: 200, body: registration()))
         server.on("GET", "/v1/getnewword/status", .init(status: 200, body: trialStatus(left: 30)))
         let m = make()
+        m.start()
         await m.refresh()
-        #expect(server.paths == ["POST /v1/getnewword/device", "GET /v1/getnewword/status"])
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(server.requests.isEmpty)
+        #expect(m.state == .notClaimed && !m.registered)
+
+        await m.claimTrial()
+        #expect(server.paths == ["POST /v1/getnewword/device"])
         let register = server.requests[0]
         #expect(register.value(forHTTPHeaderField: "Authorization") == nil)
         let body = try #require(try JSONSerialization.jsonObject(with: register.httpBody ?? Data()) as? [String: String])
         #expect(body["device"] == String(repeating: "ab", count: 32))
         #expect(body["platform"] == "darwin")
         #expect(["arm64", "x64"].contains(body["arch"]))
-        #expect(server.requests[1].value(forHTTPHeaderField: "Authorization") == "Bearer gwd_one")
-        #expect(server.requests[1].timeoutInterval == 20)
-        #expect(m.trialResult == "granted")
+        #expect(m.registered && m.trialResult == "granted")
         #expect(m.state == .trial(left: 30, total: 30))
 
-        // 60 秒内回到前台不再问；不节流的再问一次，不重新注册
-        await m.refresh(maxAge: 60)
-        #expect(server.requests.count == 2)
+        // 注册过以后：查状态带令牌，不再注册；60 秒内回到前台不再问
         await m.refresh()
         #expect(server.paths.last == "GET /v1/getnewword/status")
+        #expect(server.requests[1].value(forHTTPHeaderField: "Authorization") == "Bearer gwd_one")
+        #expect(server.requests[1].timeoutInterval == 20)
+        await m.refresh(maxAge: 60)
+        #expect(server.requests.count == 2)
+        await m.claimTrial()
         #expect(server.paths.filter { $0.hasSuffix("/device") }.count == 1)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 第一次用会员查词时注册（查词要令牌）
+    @Test func firstLookupRegisters() async throws {
+        server.on("POST", "/v1/getnewword/device", .init(status: 200, body: registration(token: "gwd_new")))
+        let m = make()
+        let c = try await m.credentials()
+        #expect(c.token == "gwd_new")
+        #expect(server.paths == ["POST /v1/getnewword/device"])
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 自带 Key 但注册过的（以前用过会员）：启动时不查；会员用法、注册过的启动时查一次
+    @Test func startOnlyAsksForMembers() async throws {
+        server.on("GET", "/v1/getnewword/status", .init(status: 200, body: trialStatus(left: 5)))
+        make(token: "gwd_one", member: false).start()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(server.requests.isEmpty)
+        let m = make(token: "gwd_one")
+        m.start()
+        for _ in 0..<100 where server.requests.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(server.paths == ["GET /v1/getnewword/status"])
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 没领到试用时，原因按第一次注册的结果说；令牌丢了重新注册（后台回 existing）也不忘
+    @Test func trialMissSurvivesReRegistering() async throws {
+        server.on("POST", "/v1/getnewword/device",
+                  .init(status: 200, body: #"{"token":"gwd_one","trial":"ip-limit","trialUses":{"granted":false,"total":0,"used":0,"left":0},"plan":"none","canUse":false,"reason":"trial-closed"}"#),
+                  .init(status: 200, body: #"{"token":"gwd_two","trial":"existing","trialUses":{"granted":false,"total":0,"used":0,"left":0},"plan":"none","canUse":false,"reason":"trial-closed"}"#))
+        let m = make()
+        await m.claimTrial()
+        #expect(m.state == .trialClosed(.busy))
+        #expect(await m.renewToken("gwd_one"))
+        #expect(m.trialResult == "ip-limit")
+        #expect(m.state == .trialClosed(.busy))
+        let e = m.explain(MemberError(code: "trial-closed", message: "免费试用名额已经发完了。", status: 402))
+        #expect(e.miss == .busy)
+        #expect(MemberText.detail(e) != MemberText.detail(MemberError(code: "trial-closed", miss: .full)))
         defaults.removePersistentDomain(forName: suite)
     }
 
@@ -361,7 +439,10 @@ struct MemberServiceTests {
 
     /// 自带 Key、没注册过的：不去后台注册（不替没选会员的人占名额）；开发版没地址时什么都不发
     @Test func ownKeyAndDevBuildsStayQuiet() async throws {
-        await make(member: false).refresh()
+        let own = make(member: false)
+        own.start()
+        await own.refresh()
+        try await Task.sleep(for: .milliseconds(50))
         #expect(server.requests.isEmpty)
         let dev = make(api: nil)
         await dev.refresh()
@@ -463,6 +544,172 @@ struct MemberServiceTests {
         let before = server.requests.count
         await m.noteResponse(headers: [:], error: MemberError(code: "trial-used-up", status: 402))
         #expect(server.requests.count == before + 1)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 「不等了」以后再点同一个方案：1 小时内重新打开同一个付款页、接着等，不另开一单（免得两个都付了扣两份）
+    @Test func cancelledCheckoutIsReopened() async throws {
+        server.on("POST", "/v1/getnewword/checkout", .init(status: 200, body: #"{"url":"https://checkout.stripe.test/cs_3","claim":"gwc_3"}"#),
+                  .init(status: 200, body: #"{"url":"https://checkout.stripe.test/cs_4","claim":"gwc_4"}"#))
+        server.on("GET", "/v1/getnewword/checkout/gwc_3", .init(status: 200, body: #"{"status":"pending"}"#))
+        let m = make(token: "gwd_one")
+        m.pollInterval = .seconds(60)   // 这个测试不等轮询
+        let cs3 = URL(string: "https://checkout.stripe.test/cs_3")!
+        try await m.buy(plan: "month", currency: "cny", mode: "sub")
+        m.cancelPurchase()
+        #expect(m.purchase == nil)
+        try await m.buy(plan: "month", currency: "cny", mode: "sub")
+        #expect(server.paths.filter { $0 == "POST /v1/getnewword/checkout" }.count == 1)
+        #expect(server.paths.contains("GET /v1/getnewword/checkout/gwc_3"))
+        #expect(opened == [cs3, cs3])
+        #expect(m.purchase?.claim == "gwc_3")
+        // 换成年付是另一单
+        m.cancelPurchase()
+        try await m.buy(plan: "year", currency: "cny", mode: "sub")
+        #expect(server.paths.filter { $0 == "POST /v1/getnewword/checkout" }.count == 2)
+        #expect(opened.last == URL(string: "https://checkout.stripe.test/cs_4")!)
+        m.cancelPurchase()
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 「不等了」以后在浏览器里付了：再点同一个方案时先问一次那单，付了就直接是会员，不再开付款页；过期了就另开一单
+    @Test func reopenChecksTheOldCheckoutFirst() async throws {
+        server.on("POST", "/v1/getnewword/checkout", .init(status: 200, body: #"{"url":"https://checkout.stripe.test/cs_5","claim":"gwc_5"}"#),
+                  .init(status: 200, body: #"{"url":"https://checkout.stripe.test/cs_6","claim":"gwc_6"}"#))
+        server.on("GET", "/v1/getnewword/checkout/gwc_5", .init(status: 200, body: #"{"status":"paid",\#(memberStatusBody.dropFirst())"#))
+        server.on("GET", "/v1/getnewword/checkout/gwc_6", .init(status: 200, body: #"{"status":"expired"}"#))
+        let m = make(token: "gwd_one")
+        m.pollInterval = .seconds(60)
+        try await m.buy(plan: "year", currency: "usd", mode: "sub")
+        m.cancelPurchase()
+        try await m.buy(plan: "year", currency: "usd", mode: "sub")
+        #expect(opened.count == 1)
+        #expect(m.justPaid && m.isMember && m.purchase == nil)
+
+        try await m.buy(plan: "month", currency: "cny", mode: "pass")
+        m.cancelPurchase()
+        try await m.buy(plan: "month", currency: "cny", mode: "pass")   // cs_6 过期了：另开一单（假后台第二次还回 cs_6）
+        #expect(server.paths.filter { $0 == "POST /v1/getnewword/checkout" }.count == 3)
+        m.cancelPurchase()
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 门户、付款页打不开说的是付款服务，不是「购买还没开通」「会员 AI 连不上」
+    @Test func portalAndCheckoutErrorsSayWhatBroke() async throws {
+        server.on("POST", "/v1/getnewword/portal", .init(status: 503, body: #"{"error":{"code":"not-ready","message":"门户还没配好"}}"#))
+        server.on("POST", "/v1/getnewword/checkout", .init(status: 503, body: #"{"error":{"code":"upstream","message":"付款服务暂时连不上，稍后再试"}}"#))
+        let m = make(token: "gwd_one")
+        await #expect(throws: MemberError(code: "portal-not-ready", message: "门户还没配好", status: 503)) { try await m.openPortal() }
+        await #expect(throws: MemberError(code: "pay-upstream", message: "付款服务暂时连不上，稍后再试", status: 503)) {
+            try await m.buy(plan: "month", currency: "cny", mode: "sub")
+        }
+        #expect(MemberText.title(MemberError(code: "portal-not-ready")) != MemberText.title(MemberError(code: "not-ready")))
+        #expect(MemberText.title(MemberError(code: "pay-upstream")) != MemberText.title(MemberError(code: "upstream")))
+        #expect(opened.isEmpty && m.purchase == nil)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 报错前补上原因：成本上限（次数还有）不说成次数用完；一次买还没到期写到期日
+    @Test func explainFillsTheRealReason() async throws {
+        server.on("GET", "/v1/getnewword/status", .init(status: 200, body: memberBody(todayLeft: 150)))
+        let m = make(token: "gwd_one")
+        await m.refresh()
+        let reset = Date().addingTimeInterval(3600)
+        let cap = m.explain(MemberError(code: "daily-limit", message: "今天的用量到上限了，北京时间早上 8 点重置", status: 429, resetAt: reset))
+        #expect(cap.costCap)
+        #expect(MemberText.title(cap) != MemberText.title(MemberError(code: "daily-limit")))
+        #expect(MemberText.detail(cap).contains(reset.formatted(date: .omitted, time: .shortened)))
+        let until = Date(timeIntervalSince1970: 1_795_910_400)
+        let pass = m.explain(MemberError(code: "pass-active", message: "一次买的会员用到2026年11月28日（北京时间）", status: 409))
+        #expect(pass.until == until)
+        #expect(MemberText.detail(pass).contains(MemberText.day(until)))
+        // 没有到期日时用后台原话（写了到期日）
+        #expect(MemberText.detail(MemberError(code: "pass-active", message: "一次买的会员用到2026年11月28日")) == "一次买的会员用到2026年11月28日")
+        // 今天真的用完了（剩 0）：是次数用完
+        await m.noteResponse(headers: ["X-Uses-Kind": "sub", "X-Uses-Left": "0"], error: nil)
+        #expect(!m.explain(MemberError(code: "daily-limit", status: 429)).costCap)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 昨天用满了、今天第一次查词成功：「用完了」清掉，侧栏不再说用完；用到 0 才记用完
+    @Test func newDayClearsDailyLimit() async throws {
+        server.on("GET", "/v1/getnewword/status", .init(status: 200, body: memberBody(todayLeft: 0, reason: "daily-limit", resetAt: Date().addingTimeInterval(-60))))
+        let m = make(token: "gwd_one")
+        await m.refresh()
+        let tonight = Date().addingTimeInterval(20 * 3600)
+        let tonightMs = String(Int(tonight.timeIntervalSince1970 * 1000))
+        await m.noteResponse(headers: ["X-Uses-Kind": "sub", "X-Uses-Left": "199", "X-Uses-Reset": tonightMs], error: nil)
+        guard case .member(_, _, _, _, let left, _) = m.state else {
+            Issue.record("应为会员：\(m.state)")
+            return
+        }
+        #expect(left == 199)
+        #expect(m.status?.reason == nil && m.status?.canUse == true)
+        await m.noteResponse(headers: ["X-Uses-Kind": "sub", "X-Uses-Left": "0", "X-Uses-Reset": tonightMs], error: nil)
+        guard case .dailyLimit(let reset) = m.state else {
+            Issue.record("应为今天用完：\(m.state)")
+            return
+        }
+        #expect(abs((reset ?? .distantPast).timeIntervalSince(tonight)) < 1)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 同步绑定：绑了别的账号不自动换（两台 Mac 同一个授权码、登不同 Google 账号时不来回抢），点了「换成这个账号」才换
+    @Test func linkedElsewhereNeedsAClick() async throws {
+        server.on("GET", "/v1/getnewword/status",
+                  .init(status: 200, body: memberBody(sync: #"{"allowed":true,"linked":true,"email":"a@example.com","until":1795910400000}"#)))
+        server.on("POST", "/v1/getnewword/sync/link", .init(status: 200, body: #"{"sync":{"allowed":true,"linked":true,"email":"b@example.com","until":1795910400000}}"#))
+        let m = make(token: "gwd_one")
+        m.syncSession = { sessionB }
+        m.supabaseToken = { "sb-token-b" }
+        await m.refresh()
+        await m.noteResponse(headers: ["X-Uses-Kind": "sub", "X-Uses-Left": "150"], error: nil)   // 每次查词后状态都会更新
+        try await Task.sleep(for: .milliseconds(50))
+        await m.linkSync()   // 登录后的那一次也不换
+        #expect(!server.paths.contains("POST /v1/getnewword/sync/link"))
+        await m.linkSync(replacing: true)
+        #expect(server.paths.filter { $0.hasSuffix("/sync/link") }.count == 1)
+        let body = try #require(try JSONSerialization.jsonObject(with: server.requests.last?.httpBody ?? Data()) as? [String: String])
+        #expect(body["supabaseToken"] == "sb-token-b")
+        #expect(m.status?.sync?.email == "b@example.com")
+        // 绑的就是这个账号：再绑一次只是请后台再推（不算换绑）
+        await m.linkSync()
+        #expect(server.paths.filter { $0.hasSuffix("/sync/link") }.count == 2)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 没绑过的会员自动绑一次；失败了记下原因，10 分钟内不再每次拿到状态都去试
+    @Test func unlinkedMemberLinksOnceAndBacksOff() async throws {
+        server.on("GET", "/v1/getnewword/status", .init(status: 200, body: memberBody(sync: #"{"allowed":true,"linked":false,"email":null,"until":null}"#)))
+        server.on("POST", "/v1/getnewword/sync/link", .init(status: 409, body: #"{"error":{"code":"link-limit","message":"30 天里换绑 Google 账号太多次了"}}"#))
+        let m = make(token: "gwd_one")
+        m.syncSession = { sessionB }
+        m.supabaseToken = { "sb-token-b" }
+        await m.refresh()
+        for _ in 0..<100 where m.linkFailure == nil { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(m.currentLinkFailure?.code == "link-limit")
+        await m.refresh()
+        await m.noteResponse(headers: ["X-Uses-Kind": "sub", "X-Uses-Left": "150"], error: nil)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(server.paths.filter { $0.hasSuffix("/sync/link") }.count == 1)
+        // 换了登录的账号：上一个账号的失败不算
+        m.syncSession = { SupabaseSession(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture, userId: "user-c", email: "c@example.com") }
+        #expect(m.currentLinkFailure == nil)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    /// 不是会员、后台没开同步资格：不去绑
+    @Test func noLinkWithoutMembershipOrServerSupport() async throws {
+        server.on("GET", "/v1/getnewword/status", .init(status: 200, body: memberBody()), .init(status: 200, body: trialStatus(left: 5)))
+        let m = make(token: "gwd_one")
+        m.syncSession = { sessionB }
+        m.supabaseToken = { "sb-token-b" }
+        await m.refresh()      // 会员，但 sync 是 null
+        await m.linkSync()
+        await m.refresh()      // 试用
+        await m.linkSync()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!server.paths.contains("POST /v1/getnewword/sync/link"))
         defaults.removePersistentDomain(forName: suite)
     }
 
@@ -652,5 +899,45 @@ final class MemberChatTests {
         #expect(sent.headers["X-Use-Id"] == run.uuidString.lowercased())
         #expect(sent.body["stream"] as? Bool == true)
         #expect(sent.body["response_format"] == nil)
+    }
+}
+
+// MARK: - 账号与同步：不让同步时写什么
+
+struct SyncNoticeTests {
+    /// 付了钱的不引去「开通会员」：后台没开同步、绑的是别的账号、正在打开、绑定出错各说各的
+    @Test func paidMembersAreNotSentToBuy() {
+        let linkedA = MemberStatus.Sync(allowed: true, linked: true, email: "a@example.com", until: nil)
+        let limit = MemberError(code: "link-limit", status: 409)
+        #expect(SyncNotice.of(isMember: false, sync: linkedA, sessionEmail: "a@example.com", linkError: nil) == .notMember)
+        #expect(SyncNotice.of(isMember: true, sync: nil, sessionEmail: "a@example.com", linkError: nil) == .notReady)
+        #expect(SyncNotice.of(isMember: true, sync: linkedA, sessionEmail: "A@Example.com", linkError: nil) == .opening)
+        #expect(SyncNotice.of(isMember: true, sync: .init(allowed: true, linked: false), sessionEmail: "b@example.com", linkError: nil) == .opening)
+        #expect(SyncNotice.of(isMember: true, sync: linkedA, sessionEmail: "b@example.com", linkError: nil) == .linkedElsewhere("a@example.com"))
+        #expect(SyncNotice.of(isMember: true, sync: linkedA, sessionEmail: "b@example.com", linkError: limit) == .failed(limit))
+        #expect(SyncNotice.of(isMember: true, sync: linkedA, sessionEmail: "a@example.com", linkError: MemberError(code: "not-ready", status: 503)) == .notReady)
+        let all: [SyncNotice] = [.notMember, .notReady, .linkedElsewhere("a@example.com"), .opening, .failed(limit),
+                                 .failed(MemberError(code: "bad-supabase-token", status: 401)), .failed(.network)]
+        #expect(Set(all.map(\.title)).count == all.count)
+        #expect(Set(all.map(\.detail)).count == all.count)
+        // 别人的邮箱只露头一个字
+        #expect(SyncNotice.linkedElsewhere("someone@example.com").title.contains("s…@example.com"))
+        #expect(!SyncNotice.linkedElsewhere("someone@example.com").title.contains("someone"))
+        #expect(SyncNotice.masked("no-at-sign") == "no-at-sign")
+    }
+
+    /// Supabase 不让同步、会员后台说能：只在没绑过、或绑的就是这个账号时请后台再推；绑的是别的账号不动
+    @Test func cloudAsksPushAgainOnlyForThisAccount() {
+        #expect(CloudSyncService.shouldAskPushAgain(link: .init(allowed: true, linked: false), email: "b@example.com"))
+        #expect(CloudSyncService.shouldAskPushAgain(link: .init(allowed: true, linked: true, email: "B@example.com"), email: "b@example.com"))
+        #expect(!CloudSyncService.shouldAskPushAgain(link: .init(allowed: true, linked: true, email: "a@example.com"), email: "b@example.com"))
+        #expect(!CloudSyncService.shouldAskPushAgain(link: .init(allowed: true, linked: true, email: nil), email: "b@example.com"))
+    }
+
+    /// 标删除的 PATCH 回改到了几行：RLS 拦了时是 0 行、不报错
+    @Test func tombstoneReplies() {
+        #expect(CloudSyncService.updatedRows(Data("[]".utf8)) == 0)
+        #expect(CloudSyncService.updatedRows(Data(#"[{"id":"0b2c"}]"#.utf8)) == 1)
+        #expect(CloudSyncService.updatedRows(Data()) == nil)
     }
 }

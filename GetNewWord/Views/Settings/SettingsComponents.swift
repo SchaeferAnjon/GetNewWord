@@ -259,6 +259,8 @@ struct PlanCard: View {
         switch state {
         case .unavailable:
             return (String(localized: "会员"), String(localized: "开发版没连会员服务器"), nil, true)
+        case .notClaimed:
+            return (String(localized: "免费试用"), String(localized: "前 100 位新用户 30 次，第一次查词时领取"), nil, false)
         case .connecting:
             return (String(localized: "会员"), String(localized: "正在连接会员服务器…"), nil, false)
         case .offline:
@@ -267,14 +269,19 @@ struct PlanCard: View {
             return (String(localized: "免费试用"), String(localized: "共 \(total) 次，用完可订阅或换自带 Key"), String(localized: "剩 \(left) 次"), false)
         case .trialUsedUp:
             return (String(localized: "试用用完了"), String(localized: "订阅会员接着用，或换自带 Key"), nil, true)
-        case .trialClosed(let daily):
-            return (String(localized: "没领到免费试用"),
-                    daily ? String(localized: "注册那天的免费名额满了；可订阅或换自带 Key") : String(localized: "前 100 位的名额发完了；可订阅或换自带 Key"), nil, true)
+        case .trialClosed(let miss):
+            let why: String
+            switch miss {
+            case .full: why = String(localized: "前 100 位的名额发完了；可订阅或换自带 Key")
+            case .busy: why = String(localized: "注册那天同一网络或全站领的人太多；可订阅或换自带 Key")
+            case .unknown: why = String(localized: "注册时没领到；可订阅或换自带 Key")
+            }
+            return (String(localized: "没领到免费试用"), why, nil, true)
         case .member(let until, let autoRenew, let expiring, let pastDue, let left, _):
             if pastDue { return (String(localized: "续费没扣成"), String(localized: "打开「管理订阅」换一张卡"), nil, true) }
             let count = left.map { String(localized: "今天剩 \($0)") }
             guard let until else { return (String(localized: "会员"), String(localized: "会员在用"), count, false) }
-            if expiring { return (String(localized: "会员快到期了"), String(localized: "\(MemberText.day(until)) 到期，续买一段接着用"), count, true) }
+            if expiring { return (String(localized: "会员快到期了"), String(localized: "\(MemberText.day(until)) 到期，点这里续上"), count, true) }
             return (String(localized: "会员"), autoRenew ? String(localized: "自动续费 · 下次 \(MemberText.day(until))") : String(localized: "用到 \(MemberText.day(until))"), count, false)
         case .dailyLimit(let reset):
             return (String(localized: "今天的次数用完了"),

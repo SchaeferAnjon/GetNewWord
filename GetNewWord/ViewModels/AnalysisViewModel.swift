@@ -362,7 +362,10 @@ class AnalysisViewModel: ObservableObject {
             resultWindow.dismiss()
             showResultPanel = false
             AppLog.log("[Analysis] ✗ \(error)")
-            errorMessage = String(localized: "分析失败：\(error.localizedDescription)")
+            // 会员的报错和浮窗一样按这台的状态补上原因（成本上限、没领到试用为什么）
+            var detail = error.localizedDescription
+            if case ZhipuServiceError.member(let e) = error { detail = MemberText.detail(MemberService.shared.explain(e)) }
+            errorMessage = String(localized: "分析失败：\(detail)")
             ErrorPanelController.shared.show(LookupFailure.from(error))
         }
     }
