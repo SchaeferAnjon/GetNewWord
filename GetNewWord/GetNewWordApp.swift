@@ -81,7 +81,7 @@ struct GetNewWordApp: App {
 
         // 状态栏菜单栏图标
         MenuBarExtra(isInserted: $showMenuBarIcon) {
-            MenuBarView(analysisVM: analysisVM)
+            MenuBarView(analysisVM: analysisVM, container: container)
         } label: {
             Image(nsImage: MenuBarIcon.image)
         }
@@ -122,7 +122,9 @@ enum MenuBarIcon {
 struct MenuBarView: View {
     /// 只调用不订阅：查词时的状态变化不用重算菜单
     let analysisVM: AnalysisViewModel
-    @Environment(\.modelContext) private var modelContext
+    /// 词库：菜单栏这个场景没挂词库，环境里的 modelContext 不是应用的那个（从菜单截图取词存的词会丢、同步 Anki 找不到要同步的词），
+    /// 查词和同步一律用 container.mainContext，和快捷键、主窗口同一个
+    let container: ModelContainer
     @Environment(\.openSettings) private var openSettings
 
     @Query(
@@ -137,10 +139,10 @@ struct MenuBarView: View {
     var body: some View {
         // 截图取词
         Button("截图取词（自动保存）") {
-            Task { await analysisVM.triggerAnalysis(modelContext: modelContext, mode: .capture) }
+            Task { await analysisVM.triggerAnalysis(modelContext: container.mainContext, mode: .capture) }
         }
         Button("快速查词（不保存）") {
-            Task { await analysisVM.triggerAnalysis(modelContext: modelContext, mode: .lookup) }
+            Task { await analysisVM.triggerAnalysis(modelContext: container.mainContext, mode: .lookup) }
         }
 
         Divider()
@@ -164,7 +166,7 @@ struct MenuBarView: View {
         Button(isSyncing ? "同步中..." : "同步 Anki") {
             Task {
                 isSyncing = true
-                await AnkiService.shared.syncEverythingPending(context: modelContext)
+                await AnkiService.shared.syncEverythingPending(context: container.mainContext)
                 isSyncing = false
             }
         }
