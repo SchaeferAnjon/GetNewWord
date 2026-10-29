@@ -18,8 +18,10 @@ struct CategorySidebar: View {
     @Query(sort: [SortDescriptor<Category>(\.name)])
     private var categories: [Category]
 
-    @Query private var allWords: [WordEntry]
-    @Query private var allSnippets: [KnowledgeSnippet]
+    /// 单词、片段、等着同步的数量。不用 @Query 把整个词库拉进来：@Query 每次重算 body 都重新取一遍，
+    /// 侧栏一次 body 要读好几遍（搜索框每打一个字都重算），2000 个词时打字就卡；这里存盘后才用 fetchCount 数一遍
+    @State private var counts = SidebarCounts()
+    @State private var countsVersion = 0
     @Environment(\.modelContext) private var modelContext
 
     /// nil = 还没查过；Anki 开着才连得上
@@ -127,7 +129,10 @@ struct CategorySidebar: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await refreshAnki() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in countsVersion += 1 }
     }
+
+    private var tally: SidebarCounts { counts.refresh(version: countsVersion, context: modelContext) }
 
     /// 三个增删改弹窗（拆出来避免 body 表达式过长导致编译器超时）
     private var crudAlerts: CategoryCRUDAlerts {
@@ -200,10 +205,7 @@ struct CategorySidebar: View {
     }
 
     /// 还没推给 Anki 的单词和知识片段（失败过的也算，下次同步会重试）
-    private var pendingCount: Int {
-        allWords.filter { $0.syncStatus == .notSynced || $0.syncStatus == .syncFailed }.count
-            + allSnippets.filter { $0.syncStatus == .notSynced || $0.syncStatus == .syncFailed }.count
-    }
+    private var pendingCount: Int { tally.pending }
 
     private var ankiLine: some View {
         HStack(spacing: 8) {
@@ -217,7 +219,7 @@ struct CategorySidebar: View {
                 Text("Anki").foregroundStyle(Theme.text2)
                 Spacer(minLength: 4)
                 Group {
-                    if allWords.isEmpty && allSnippets.isEmpty { Text("没连上，可以以后再连") } else { Text("没连上") }
+                    if tally.words == 0 && tally.snippets == 0 { Text("没连上，可以以后再连") } else { Text("没连上") }
                 }
                 .foregroundStyle(Theme.text3)
             }
@@ -257,8 +259,8 @@ struct CategorySidebar: View {
         let selected = selectedTab == tab
         let count: Int? = {
             switch tab {
-            case .words: return allWords.count
-            case .snippets: return allSnippets.count
+            case .words: return tally.words
+            case .snippets: return tally.snippets
             case .stats: return nil
             }
         }()
@@ -349,10 +351,31 @@ struct CategorySidebar: View {
 
     private var itemCount: Int {
         switch selectedTab {
-        case .words: return allWords.count
-        case .snippets: return allSnippets.count
-        case .stats: return allWords.count + allSnippets.count
+        case .words: return tally.words
+        case .snippets: return tally.snippets
+        case .stats: return tally.words + tally.snippets
         }
+    }
+}
+
+/// 侧栏的数量：存盘一次数一遍（version 变了才重数）
+@MainActor
+final class SidebarCounts {
+    private(set) var words = 0
+    private(set) var snippets = 0
+    /// 还没推给 Anki 的单词和知识片段（失败过的也算，下次同步会重试）
+    private(set) var pending = 0
+    private var version: Int?
+
+    func refresh(version v: Int, context: ModelContext) -> SidebarCounts {
+        guard version != v else { return self }
+        version = v
+        let waiting = SyncStatus.notSynced.rawValue, failed = SyncStatus.syncFailed.rawValue
+        words = (try? context.fetchCount(FetchDescriptor<WordEntry>())) ?? 0
+        snippets = (try? context.fetchCount(FetchDescriptor<KnowledgeSnippet>())) ?? 0
+        pending = ((try? context.fetchCount(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.syncStatusRaw == waiting || $0.syncStatusRaw == failed }))) ?? 0)
+            + ((try? context.fetchCount(FetchDescriptor<KnowledgeSnippet>(predicate: #Predicate { $0.syncStatusRaw == waiting || $0.syncStatusRaw == failed }))) ?? 0)
+        return self
     }
 }
 
