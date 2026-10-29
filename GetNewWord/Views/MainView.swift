@@ -273,7 +273,7 @@ struct MainView: View {
         let dbManager = DatabaseManager(context: modelContext)
         dbManager.seedDefaultCategories()
         // 合并历史上重复保存的同一个单词（保留各自语境）
-        AnalysisService.shared.mergeDuplicateWords(context: modelContext)
+        AnalysisService.shared.mergeDuplicateWordsIfAny(context: modelContext)
         // 给没有发音文件的旧单词补下载（英/德/日/韩…）
         AnalysisService.shared.backfillAudio(context: modelContext)
         // 每次启动做一次全量 JSON 备份（词库意外损坏时可恢复；保留最近 14 份）

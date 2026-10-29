@@ -248,22 +248,42 @@ class AnalysisService {
     }
 
     /// 启动时给所有还没有发音文件的单词补下载（并发 3 个，避免刷接口）
+    /// 哪些词缺发音文件在后台查（要读全部词、逐个看文件在不在，2000 个词时主线程要卡 0.2 秒），主线程只碰缺的那几个
     func backfillAudio(context: ModelContext) {
-        guard let words = try? context.fetch(FetchDescriptor<WordEntry>()) else { return }
-        let missing = words.filter { w in
-            guard let p = w.audioPath else { return true }
-            return !FileManager.default.fileExists(atPath: p)
-        }
-        guard !missing.isEmpty else { return }
-        AppLog.log("[Audio] backfill \(missing.count) words")
+        let container = context.container
         Task { @MainActor in
+            let missingIDs = await Task.detached(priority: .utility) { () -> [PersistentIdentifier] in
+                var d = FetchDescriptor<WordEntry>()
+                d.propertiesToFetch = [\.audioPath]
+                let words = (try? ModelContext(container).fetch(d)) ?? []
+                return words.filter { w in
+                    guard let p = w.audioPath else { return true }
+                    return !FileManager.default.fileExists(atPath: p)
+                }.map(\.persistentModelID)
+            }.value
+            guard !missingIDs.isEmpty else { return }
+            AppLog.log("[Audio] backfill \(missingIDs.count) words")
             // 顺序下载（每个 <1s），避免刷接口；SwiftData 对象只在主线程碰
-            for w in missing {
+            for id in missingIDs {
+                guard let w = context.model(for: id) as? WordEntry, !w.isDeleted else { continue }
                 if let path = await AudioService.shared.generateAudioFile(for: w.word, language: w.language) {
                     w.audioPath = path
                 }
             }
             try? context.save()
+        }
+    }
+
+    /// 启动时用：先在后台看有没有重复（要读全部词，2000 个词时主线程要卡 0.25 秒），真有才回主线程合并
+    func mergeDuplicateWordsIfAny(context: ModelContext) {
+        let container = context.container
+        Task { @MainActor in
+            let found = await Task.detached(priority: .utility) { () -> Bool in
+                let words = (try? ModelContext(container).fetch(FetchDescriptor<WordEntry>())) ?? []
+                var seen = Set<String>()
+                return words.contains { !seen.insert($0.dedupeKey).inserted }
+            }.value
+            if found { self.mergeDuplicateWords(context: context) }
         }
     }
 

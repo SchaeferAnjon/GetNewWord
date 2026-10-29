@@ -13,9 +13,17 @@ class ImportExportService: @unchecked Sendable {
 
     // MARK: - 启动自动备份
 
-    /// 全量备份（词+语境+片段+分类）到 App Support/GetNewWord/backups，保留最近 14 份
+    /// 全量备份（词+语境+片段+分类）到 App Support/GetNewWord/backups，保留最近 14 份。
+    /// 每次打开主窗口都做：在后台用自己的 ModelContext 读、写文件，不占主线程（2000 个词时主线程要卡 0.3 秒）
     @MainActor
     func autoBackup(context: ModelContext) {
+        let container = context.container
+        Task.detached(priority: .utility) {
+            Self.writeBackup(context: ModelContext(container))
+        }
+    }
+
+    private static func writeBackup(context: ModelContext) {
         do {
             let words = try context.fetch(FetchDescriptor<WordEntry>())
             let snippets = try context.fetch(FetchDescriptor<KnowledgeSnippet>())
