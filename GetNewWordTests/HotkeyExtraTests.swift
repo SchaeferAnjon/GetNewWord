@@ -24,6 +24,8 @@ struct ExtraModifierTests {
         #expect(HotkeyPrefs.extraModifiers(base: cmd | shift, extra: .option) == cmd | shift | opt)
         #expect(HotkeyPrefs.extraModifiers(base: cmd | shift, extra: .control) == cmd | shift | ctrl)
         #expect(HotkeyPrefs.display(keyCode: keyA, modifiers: cmd | shift | ctrl) == "⌃⇧⌘A")
+        // F13 以上的键也有名字（以前显示成 ?）
+        #expect(HotkeyPrefs.display(keyCode: 80, modifiers: cmd | shift | opt) == "⌥⇧⌘F19")
     }
 
     /// 组合键里已经有这个键（⌘⇧A 选 ⇧）、或选了「不用」：没有这一组
