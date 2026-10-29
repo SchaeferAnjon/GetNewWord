@@ -67,20 +67,11 @@ struct PricingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                Button { onClose() } label: {
-                    Image(systemName: "xmark").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.text2)
-                        .frame(width: 24, height: 24).background(Theme.selected, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 14)
+            // 关窗用左上角的红点；Esc 也能关
+            Button("") { onClose() }.keyboardShortcut(.cancelAction).hidden().frame(height: 0)
             ScrollView {
                 VStack(spacing: 0) {
-                    hero.padding(.bottom, 18)
+                    hero.padding(.top, 36).padding(.bottom, 18)
                     banner
                     HStack(alignment: .top, spacing: 14) {
                         trialColumn
@@ -145,10 +136,8 @@ struct PricingView: View {
     }
 
     private var paidText: String {
-        if let until = MemberStatus.date(status?.memberUntil) {
-            return String(localized: "付款成功，已经是会员了，用到 \(MemberText.day(until))。")
-        }
-        return String(localized: "付款成功，已经是会员了。")
+        guard case .member(let until, let autoRenew, _, let pastDue, _, _) = state else { return String(localized: "付款成功，已经是会员了。") }
+        return String(localized: "付款成功，已经是会员了。\(memberLine(until: until, autoRenew: autoRenew, pastDue: pastDue))")
     }
 
     private func bannerRow<Trailing: View>(icon: String?, color: Color, text: String, @ViewBuilder trailing: () -> Trailing) -> some View {
@@ -220,8 +209,9 @@ struct PricingView: View {
             if case .member(let until, let autoRenew, let expiring, let pastDue, let left, let limit) = state {
                 memberNow(until: until, autoRenew: autoRenew, expiring: expiring, pastDue: pastDue, left: left, limit: limit)
             } else if case .dailyLimit(let reset) = state {
-                memberNow(until: MemberStatus.date(status?.memberUntil), autoRenew: status?.autoRenew ?? false, expiring: status?.expiring ?? false,
-                          pastDue: false, left: 0, limit: status?.today?.limit, reset: reset)
+                let autoRenew = status?.autoRenew ?? false
+                memberNow(until: MemberStatus.date(autoRenew ? status?.subscription?.periodEnd ?? status?.memberUntil : status?.memberUntil),
+                          autoRenew: autoRenew, expiring: status?.expiring ?? false, pastDue: false, left: 0, limit: status?.today?.limit, reset: reset)
             } else {
                 buyArea
             }

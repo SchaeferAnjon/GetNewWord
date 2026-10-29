@@ -109,6 +109,22 @@ struct MemberStatusTests {
         }
     }
 
+    /// 自动续费的写下次扣款日（当期结束），不是带 1 天宽限的会员到期
+    @Test func autoRenewShowsPeriodEnd() {
+        let periodEnd = Date().addingTimeInterval(30 * 86_400)
+        var s = makeStatus(plan: "member", until: periodEnd.addingTimeInterval(86_400), autoRenew: true, todayLeft: 200, subscription: "active")
+        s.subscription?.periodEnd = periodEnd.timeIntervalSince1970 * 1000
+        guard case .member(let until, _, _, _, _, _) = MemberState.of(s, available: true, failed: false, trialResult: nil) else {
+            Issue.record("应为会员")
+            return
+        }
+        #expect(abs((until ?? .distantPast).timeIntervalSince(periodEnd)) < 1)
+        // 不自动续费（一次买、点了到期取消）写用到哪天
+        s.autoRenew = false
+        guard case .member(let until2, _, _, _, _, _) = MemberState.of(s, available: true, failed: false, trialResult: nil) else { return }
+        #expect(abs((until2 ?? .distantPast).timeIntervalSince(periodEnd.addingTimeInterval(86_400))) < 1)
+    }
+
     /// 侧栏卡片：用完、欠费、快到期标黄；试用和今天剩几次写数字
     @Test func cardContent() {
         let later = Date().addingTimeInterval(20 * 86_400)

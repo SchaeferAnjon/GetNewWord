@@ -187,6 +187,22 @@
         }
       }
     },
+    "%@ 恢复（你这里的时间），到时候再按一次就行。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wieder ab %@ (deine Ortszeit); drück dann einfach noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back at %@ (your time); just press again then."
+          }
+        }
+      }
+    },
     "%@ 找不到这个模型": {
       "localizations": {
         "de": {
@@ -2013,38 +2029,6 @@
         }
       }
     },
-    "今天能查的次数用完了，%@ 恢复（你这里的时间）。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Abfragen für heute sind verbraucht; wieder ab %@ (deine Ortszeit)."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today's lookups are used up; back at %@ (your time)."
-          }
-        }
-      }
-    },
-    "今天能查的次数用完了，北京时间早上 8 点恢复。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Abfragen für heute sind verbraucht; zurückgesetzt wird um Mitternacht UTC."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today's lookups are used up; they reset at midnight UTC."
-          }
-        }
-      }
-    },
     "今天还能查 %lld 次（每天 %lld 次）": {
       "localizations": {
         "de": {
@@ -2157,18 +2141,18 @@
         }
       }
     },
-    "付款成功，已经是会员了，用到 %@。": {
+    "付款成功，已经是会员了。%@": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zahlung erhalten. Du bist Mitglied bis %@."
+            "value": "Zahlung erhalten. Du bist jetzt Mitglied. %@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Payment received. You're a member until %@."
+            "value": "Payment received. You're a member now. %@"
           }
         }
       }
@@ -3897,6 +3881,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Resets at midnight UTC"
+          }
+        }
+      }
+    },
+    "北京时间早上 8 点恢复，到时候再按一次就行。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurückgesetzt wird um Mitternacht UTC; drück dann einfach noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It resets at midnight UTC; just press again then."
           }
         }
       }

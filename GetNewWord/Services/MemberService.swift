@@ -225,9 +225,9 @@ enum MemberText {
         case "payment-failed": return String(localized: "上一期的续费没扣成。打开「管理订阅」换一张卡，换好马上恢复。")
         case "daily-limit":
             if let reset = e.resetAt {
-                return String(localized: "今天能查的次数用完了，\(reset.formatted(date: .omitted, time: .shortened)) 恢复（你这里的时间）。")
+                return String(localized: "\(reset.formatted(date: .omitted, time: .shortened)) 恢复（你这里的时间），到时候再按一次就行。")
             }
-            return String(localized: "今天能查的次数用完了，北京时间早上 8 点恢复。")
+            return String(localized: "北京时间早上 8 点恢复，到时候再按一次就行。")
         case "use-limit": return String(localized: "一次查词里请求太多了。关掉面板，重新框一次。")
         case "use-expired": return String(localized: "面板开得太久，重新框一次就好。")
         case "busy": return String(localized: "今天用的人太多，过一会儿再按一次。")
@@ -279,7 +279,9 @@ enum MemberState: Equatable {
         if s.isMember {
             let reset = MemberStatus.date(s.today?.resetAt)
             if s.reason == "daily-limit", (reset ?? .distantFuture) > now { return .dailyLimit(reset: reset) }
-            return .member(until: MemberStatus.date(s.memberUntil), autoRenew: s.autoRenew, expiring: s.expiring,
+            // 自动续费的写下次扣款日（当期结束）；其余写用到哪天（含续费没扣成的宽限）
+            let until = s.autoRenew ? MemberStatus.date(s.subscription?.periodEnd ?? s.memberUntil) : MemberStatus.date(s.memberUntil)
+            return .member(until: until, autoRenew: s.autoRenew, expiring: s.expiring,
                            pastDue: s.subscription?.status == "past_due", todayLeft: s.today?.left, limit: s.today?.limit)
         }
         if s.plan == "trial", s.trial.left > 0 { return .trial(left: s.trial.left, total: s.trial.total) }
