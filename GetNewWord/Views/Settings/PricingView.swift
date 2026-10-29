@@ -135,9 +135,11 @@ struct PricingView: View {
         }
     }
 
+    /// 付完款的那一句：自动续费的写下次扣款日，一次买的写用到哪天（今天的次数用完了也照样写）
     private var paidText: String {
-        guard case .member(let until, let autoRenew, _, let pastDue, _, _) = state else { return String(localized: "付款成功，已经是会员了。") }
-        return String(localized: "付款成功，已经是会员了。\(memberLine(until: until, autoRenew: autoRenew, pastDue: pastDue))")
+        guard let s = status, s.isMember else { return String(localized: "付款成功，已经是会员了。") }
+        let until = MemberStatus.date(s.autoRenew ? s.subscription?.periodEnd ?? s.memberUntil : s.memberUntil)
+        return String(localized: "付款成功，已经是会员了。\(memberLine(until: until, autoRenew: s.autoRenew, pastDue: s.subscription?.status == "past_due"))")
     }
 
     private func bannerRow<Trailing: View>(icon: String?, color: Color, text: String, @ViewBuilder trailing: () -> Trailing) -> some View {
