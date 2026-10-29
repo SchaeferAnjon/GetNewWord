@@ -682,9 +682,12 @@ final class MemberService: ObservableObject, MemberRoute {
         switch e.code {
         case "trial-closed": e.miss = .of(status?.trialResult ?? trialResult)
         case "pass-active": e.until = MemberStatus.date(status?.memberUntil)
-        // 后台每天的上限有两种：200 次用完、或这张授权当天的成本到顶。/status 的 limitBy 写了是哪种；旧后台没有，按今天还剩不剩次数猜
+        // 后台每天的上限有两种：200 次用完、或这张授权当天的成本到顶。/status 的 limitBy 写了是哪种；
+        // 还没问到（刚被 429 拦下）时：试用没有每天的次数，一定是成本；会员按今天还剩不剩次数猜
         case "daily-limit":
-            if let by = status?.limitBy { e.costCap = by == "cost" } else { e.costCap = (status?.today?.left ?? 0) > 0 }
+            if let by = status?.limitBy, status?.reason == "daily-limit" { e.costCap = by == "cost" }
+            else if status?.isMember != true { e.costCap = true }
+            else { e.costCap = (status?.today?.left ?? 0) > 0 }
         default: break
         }
         return e
