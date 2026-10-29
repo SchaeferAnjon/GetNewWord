@@ -144,6 +144,7 @@ private struct ClassicMiniCard: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 10))
+        .compositingGroup()   // 阴影只给整张卡，里面的灰底框和字不各带一圈
         .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
     }
 }
@@ -175,6 +176,7 @@ private struct LectureMiniCard: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 10))
+        .compositingGroup()   // 阴影只给整张卡，里面的灰底框和字不各带一圈
         .shadow(color: .black.opacity(0.14), radius: 12, y: 5)
     }
 }
