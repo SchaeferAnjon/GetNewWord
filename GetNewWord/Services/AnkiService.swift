@@ -40,7 +40,12 @@ enum AnkiError: LocalizedError {
 final class AnkiService: @unchecked Sendable {
     static let shared = AnkiService()
 
+    #if DEBUG
+    /// 开发版量卡顿时可以指到假的 AnkiConnect（GNW_ANKI_URL），不碰本机真开着的 Anki
+    private let baseURL = ProcessInfo.processInfo.environment["GNW_ANKI_URL"] ?? "http://127.0.0.1:8765"
+    #else
     private let baseURL = "http://127.0.0.1:8765"
+    #endif
     /// 单元测试换成假的 AnkiConnect，不碰本机真开着的 Anki
     var session = URLSession.shared
     private let modelName = AppVariant.ankiName
