@@ -273,7 +273,8 @@ struct PlanCard: View {
             let why: String
             switch miss {
             case .full: why = String(localized: "前 100 位的名额发完了；可订阅或换自带 Key")
-            case .busy: why = String(localized: "注册那天同一网络或全站领的人太多；可订阅或换自带 Key")
+            case .network: why = String(localized: "注册那天同一网络领的人太多；可订阅或换自带 Key")
+            case .dayFull: why = String(localized: "注册那天当天的份数发完了；可订阅或换自带 Key")
             case .unknown: why = String(localized: "注册时没领到；可订阅或换自带 Key")
             }
             return (String(localized: "没领到免费试用"), why, nil, true)

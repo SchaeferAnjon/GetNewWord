@@ -10909,34 +10909,66 @@
         }
       }
     },
-    "注册那天同一网络或全站领的人太多；可订阅或换自带 Key": {
+    "注册那天同一个网络里领的人太多，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "An dem Tag haben zu viele im Netzwerk oder insgesamt abgeholt; abonnieren oder eigenen Key nutzen"
+            "value": "Am Tag der Anmeldung haben zu viele im selben Netzwerk kostenlose Abfragen abgeholt, dieser Mac hat keine bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Too many claimed that day on your network or overall; subscribe or use your own key"
+            "value": "Too many Macs on the same network claimed free lookups the day this Mac registered, so it didn't get any. Subscribe, or add your own AI key to use it for free."
           }
         }
       }
     },
-    "注册那天同一网络（或全站）领免费次数的人太多，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。": {
+    "注册那天同一网络领的人太多；可订阅或换自带 Key": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Am Tag der Anmeldung haben zu viele im selben Netzwerk (oder insgesamt) kostenlose Abfragen abgeholt, dieser Mac hat keine bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
+            "value": "An dem Tag haben zu viele im Netzwerk abgeholt; abonnieren oder eigenen Key nutzen"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Too many people on the same network (or overall) claimed free lookups the day this Mac registered, so it didn't get any. Subscribe, or add your own AI key to use it for free."
+            "value": "Too many claimed that day on your network; subscribe or use your own key"
+          }
+        }
+      }
+    },
+    "注册那天当天的份数发完了；可订阅或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Tagesmenge war an dem Tag vergeben; abonnieren oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That day's free share ran out; subscribe or use your own key"
+          }
+        }
+      }
+    },
+    "注册那天领的人太多，当天的份数发完了，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Am Tag der Anmeldung waren die kostenlosen Abfragen für diesen Tag schon vergeben, dieser Mac hat keine bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So many people claimed free lookups the day this Mac registered that the day's share ran out, so it didn't get any. Subscribe, or add your own AI key to use it for free."
           }
         }
       }

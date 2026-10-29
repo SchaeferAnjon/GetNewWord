@@ -248,7 +248,8 @@ enum MemberText {
         case "trial-closed":
             switch e.miss {
             case .full: return String(localized: "前 100 位新用户的免费次数已经发完，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。")
-            case .busy: return String(localized: "注册那天同一网络（或全站）领免费次数的人太多，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。")
+            case .network: return String(localized: "注册那天同一个网络里领的人太多，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。")
+            case .dayFull: return String(localized: "注册那天领的人太多，当天的份数发完了，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。")
             default: return String(localized: "这台 Mac 注册时没领到免费次数。订阅会员，或者填自己的 AI Key 免费用。")
             }
         case "sub-ended": return String(localized: "续订或再买一段就能接着查；也可以填自己的 AI Key 免费用。")
@@ -303,15 +304,18 @@ enum MemberText {
 enum TrialMiss: Equatable, Sendable {
     /// 前 100 位的名额发完了
     case full
-    /// 注册那天同一网络（ip-limit）或全站当天（daily-limit）领的人太多
-    case busy
+    /// 注册那天同一网络领的人太多（ip-limit）
+    case network
+    /// 注册那天全站当天的份数发完了（daily-limit）
+    case dayFull
     /// 说不准：比如重新注册过，后台只回「老设备」
     case unknown
 
     static func of(_ trialResult: String?) -> TrialMiss {
         switch trialResult {
         case "closed": return .full
-        case "ip-limit", "daily-limit": return .busy
+        case "ip-limit": return .network
+        case "daily-limit": return .dayFull
         default: return .unknown
         }
     }

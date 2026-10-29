@@ -133,7 +133,7 @@ class AnalysisViewModel: ObservableObject {
             let member = MemberService.shared
             if member.state.blocked, member.isAvailable { await member.refresh() }
             if let code = member.state.blockCode {
-                ErrorPanelController.shared.show(.member(MemberError(code: code, resetAt: MemberStatus.date(member.status?.today?.resetAt))))
+                ErrorPanelController.shared.show(.member(MemberError(code: code, resetAt: MemberStatus.date(member.status?.resetAt ?? member.status?.today?.resetAt))))
                 return
             }
         } else if !ZhipuService.shared.isConfigured {
