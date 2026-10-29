@@ -285,6 +285,7 @@ enum AppIcons {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in AppIcons.applyDock() }
+        WordMatcher.warmUp()   // 查词卡片标紫要用的词元模型先在后台读进来，第一张卡出来时主线程不等它
         AppLog.log("[Location] in Applications: \(AppLocation.isInApplications)")   // 不在的话自动更新装不上
         UsagePing.shared.start()   // 用户同意了才每天匿名报到一次（UsagePing.swift）
     }

@@ -378,9 +378,12 @@ struct GrammarBreakdownState: Equatable {
     var error: String?
 }
 
-/// 「分解语法」小节：小灰标题 + 流式 Markdown；每来一段就长高，把释义及以下内容平滑推下去
+/// 「分解语法」小节：小灰标题 + 流式 Markdown；每来一段就长高，把释义及以下内容平滑推下去。
+/// 讲解里引到查的那个词（和它的变形）也标紫
 struct GrammarBreakdownSection: View {
     let state: GrammarBreakdownState
+    let word: String
+    let language: Language
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -439,7 +442,7 @@ struct GrammarBreakdownSection: View {
                 .foregroundStyle(Theme.accent)
                 .padding(.top, 6)
         case .line(let l):
-            Text(Self.inline(l))
+            Text(TextHighlighter.mark(word, in: Self.inline(l), language: language))
                 .font(.system(size: 13.5))
                 .lineSpacing(3)
                 .foregroundStyle(Theme.text)
@@ -478,14 +481,14 @@ func aiSection(_ title: String, _ body: String) -> some View {
     .frame(maxWidth: .infinity, alignment: .leading)
 }
 
-/// 例句一条："外语原句 —— 中文"拆两行：原句斜体高亮，译文灰色小字
+/// 例句一条："外语原句 —— 中文"拆两行：原句斜体、查的词标紫，译文灰色小字
 @ViewBuilder
-func exampleView(_ line: String, word: String) -> some View {
+func exampleView(_ line: String, word: String, language: Language) -> some View {
     let parts = line.components(separatedBy: "——")
     let foreign = parts.first?.trimmingCharacters(in: .whitespaces) ?? line
     let chinese = parts.count > 1 ? parts.dropFirst().joined(separator: "——").trimmingCharacters(in: .whitespaces) : nil
     VStack(alignment: .leading, spacing: 2) {
-        Text(TextHighlighter.highlight(word, in: foreign))
+        Text(TextHighlighter.highlight(word, in: foreign, language: language))
             .font(.system(size: 13.5))
             .italic()
             .fixedSize(horizontal: false, vertical: true)

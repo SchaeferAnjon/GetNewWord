@@ -173,7 +173,8 @@ struct LookupHead: View {
                     Text(TextHighlighter.ipa(p)).font(.system(size: 13, design: .monospaced)).foregroundStyle(Theme.text2)
                 }
                 if let g = w.grammar, !g.isEmpty {
-                    Text(g).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.text2).lineLimit(2)
+                    Text(TextHighlighter.highlight(w.word, in: g, language: w.language))
+                        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.text2).lineLimit(2)
                 }
             }
         }
@@ -217,7 +218,7 @@ struct SentenceBlock: View {
                     .help("把这句话的语法从头到尾拆开讲一遍")
                 }
             }
-            Text(TextHighlighter.highlight(w.word, in: w.sentence))
+            Text(TextHighlighter.highlight(w.word, in: w.sentence, language: w.language))
                 .font(.system(size: 14.5))
                 .lineSpacing(2)
                 .textSelection(.enabled)
@@ -230,7 +231,7 @@ struct SentenceBlock: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if let grammar {
-                GrammarBreakdownSection(state: grammar).padding(.top, 4)
+                GrammarBreakdownSection(state: grammar, word: w.word, language: w.language).padding(.top, 4)
             }
         }
         .padding(12)
@@ -286,23 +287,24 @@ struct LookupExtras: View {
         VStack(alignment: .leading, spacing: 16) {
             if showUsage, let u = w.usage, !u.isEmpty {
                 LookupSection(title: "用法") {
-                    Text(TextHighlighter.highlight(w.word, in: u)).font(.system(size: 13.5)).lineSpacing(3)
+                    Text(TextHighlighter.highlight(w.word, in: u, language: w.language)).font(.system(size: 13.5)).lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if showExamples, let c = w.collocations, !c.isEmpty {
                 LookupSection(title: "搭配") {
-                    VStack(alignment: .leading, spacing: 6) { ForEach(c, id: \.self) { exampleView($0, word: w.word) } }
+                    VStack(alignment: .leading, spacing: 6) { ForEach(c, id: \.self) { exampleView($0, word: w.word, language: w.language) } }
                 }
             }
             if showExamples, let ex = w.examples, !ex.isEmpty {
                 LookupSection(title: "例句") {
-                    VStack(alignment: .leading, spacing: 6) { ForEach(ex, id: \.self) { exampleView($0, word: w.word) } }
+                    VStack(alignment: .leading, spacing: 6) { ForEach(ex, id: \.self) { exampleView($0, word: w.word, language: w.language) } }
                 }
             }
             if showEtymology, let e = w.etymology, !e.isEmpty {
                 LookupSection(title: "构词和来历") {
-                    Text(e).font(.system(size: 13)).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
+                    Text(TextHighlighter.highlight(w.word, in: e, language: w.language)).font(.system(size: 13)).foregroundStyle(Theme.text2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if w.extrasPending {
@@ -407,7 +409,8 @@ struct FloatingTag: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
             if let pos = w.posHere {
-                Text(pos + (w.grammar.map { "  " + $0 } ?? "")).font(.system(size: 12)).foregroundStyle(Theme.text3).lineLimit(1)
+                Text(TextHighlighter.highlight(w.word, in: pos + (w.grammar.map { "  " + $0 } ?? ""), language: w.language))
+                    .font(.system(size: 12)).foregroundStyle(Theme.text3).lineLimit(1)
             }
             if !w.translation.isEmpty {
                 Text(TextHighlighter.emphasizeTranslation(w.translationKeyword, sense: w.contextMeaning, in: w.translation))
@@ -451,7 +454,7 @@ struct FloatingTag: View {
                 case .examples: LookupExtras(w: w, showUsage: false, showEtymology: false)
                 case .etymology: LookupExtras(w: w, showUsage: false, showExamples: false)
                 case .grammar:
-                    if let grammar { GrammarBreakdownSection(state: grammar) }
+                    if let grammar { GrammarBreakdownSection(state: grammar, word: w.word, language: w.language) }
                     else { Text("等语境句出来后可用").font(.system(size: 12.5)).foregroundStyle(Theme.text3) }
                 }
             }

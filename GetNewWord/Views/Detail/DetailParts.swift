@@ -160,16 +160,6 @@ struct DetailIconButton: View {
     }
 }
 
-extension TextHighlighter {
-    /// 用法、搭配、例句里的词头：只加粗，不上强调色（强调色留给原句里被查的词、这句里的意思和图表）
-    static func quietHighlight(_ word: String, in text: String) -> AttributedString {
-        var attr = highlight(word, in: text)
-        let ranges = attr.runs.filter { $0.foregroundColor != nil }.map(\.range)
-        for r in ranges { attr[r].foregroundColor = Theme.text }
-        return attr
-    }
-}
-
 /// 同步状态的小圆点：已同步绿、等着同步黄、失败红
 struct SyncDot: View {
     let status: SyncStatus

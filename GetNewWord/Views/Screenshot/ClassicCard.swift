@@ -81,7 +81,7 @@ struct ClassicWordCard: View {
 
             Hairline()
 
-            if let grammar { GrammarBreakdownSection(state: grammar) }
+            if let grammar { GrammarBreakdownSection(state: grammar, word: word.word, language: language) }
 
             ClassicSection("释义") {
                 Text(TextHighlighter.emphasizeMeaning(word.contextMeaning, in: word.meaning))
@@ -91,8 +91,8 @@ struct ClassicWordCard: View {
 
             if !word.contextSentence.isEmpty {
                 ClassicSection("语境") {
-                    ClassicContext(word: word.word, sentence: word.contextSentence, translation: word.contextTranslation,
-                                   keyword: word.translationKeyword, sense: word.contextMeaning)
+                    ClassicContext(word: word.word, language: language, sentence: word.contextSentence,
+                                   translation: word.contextTranslation, keyword: word.translationKeyword, sense: word.contextMeaning)
                 }
             }
 
@@ -102,7 +102,7 @@ struct ClassicWordCard: View {
 
             if let usage, !usage.isEmpty {
                 ClassicSection("用法") {
-                    Text(TextHighlighter.highlight(word.word, in: usage))
+                    Text(TextHighlighter.highlight(word.word, in: usage, language: language))
                         .font(.system(size: 14))
                         .lineSpacing(3)
                         .foregroundStyle(Theme.text)
@@ -118,7 +118,7 @@ struct ClassicWordCard: View {
                 }
             }
 
-            ClassicExtras(word: word.word, collocations: collocations, examples: examples, etymology: etymology)
+            ClassicExtras(word: word.word, language: language, collocations: collocations, examples: examples, etymology: etymology)
 
             categoryPicker()
         }
@@ -159,25 +159,25 @@ struct ClassicCachedCard: View {
                     .font(.caption).foregroundStyle(Theme.text2)
             }
             Hairline()
-            if let grammar { GrammarBreakdownSection(state: grammar) }
+            if let grammar { GrammarBreakdownSection(state: grammar, word: entry.word, language: entry.language) }
             ClassicSection("释义") {
                 Text(TextHighlighter.emphasizeMeaning(entry.contextMeaning, in: entry.meaning))
                     .font(.system(size: 15.5)).fixedSize(horizontal: false, vertical: true)
             }
             if let ctx = entry.sortedContexts.last {
                 ClassicSection("语境") {
-                    ClassicContext(word: entry.word, sentence: ctx.sentence, translation: ctx.translation,
-                                   keyword: entry.translationKeyword, sense: entry.contextMeaning)
+                    ClassicContext(word: entry.word, language: entry.language, sentence: ctx.sentence,
+                                   translation: ctx.translation, keyword: entry.translationKeyword, sense: entry.contextMeaning)
                 }
             }
             if let u = enrichment?.usage, !u.isEmpty {
                 ClassicSection("用法") {
-                    Text(TextHighlighter.highlight(entry.word, in: u)).font(.system(size: 14)).lineSpacing(3)
+                    Text(TextHighlighter.highlight(entry.word, in: u, language: entry.language)).font(.system(size: 14)).lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            ClassicExtras(word: entry.word, collocations: enrichment?.collocations, examples: enrichment?.examples,
-                          etymology: enrichment?.etymology)
+            ClassicExtras(word: entry.word, language: entry.language, collocations: enrichment?.collocations,
+                          examples: enrichment?.examples, etymology: enrichment?.etymology)
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 6)
@@ -282,13 +282,14 @@ private struct ClassicSection<Content: View>: View {
 /// 语境：左竖线 + 斜体原句（被查的词高亮）+ 灰色译文（对应的词标出来）
 private struct ClassicContext: View {
     let word: String
+    let language: Language
     let sentence: String
     let translation: String
     let keyword: String?
     let sense: String?
     var body: some View {
         QuoteBlock {
-            Text(TextHighlighter.highlight(word, in: sentence))
+            Text(TextHighlighter.highlight(word, in: sentence, language: language))
                 .font(.system(size: 14.5))
                 .italic()
                 .fixedSize(horizontal: false, vertical: true)
@@ -302,26 +303,28 @@ private struct ClassicContext: View {
     }
 }
 
-/// 搭配、例句、词根词源
+/// 搭配、例句、词根词源（查的词在里面出现也标紫）
 private struct ClassicExtras: View {
     let word: String
+    let language: Language
     let collocations: [String]?
     let examples: [String]?
     let etymology: String?
     var body: some View {
         if let c = collocations, !c.isEmpty {
             ClassicSection("搭配") {
-                VStack(alignment: .leading, spacing: 6) { ForEach(c, id: \.self) { exampleView($0, word: word) } }
+                VStack(alignment: .leading, spacing: 6) { ForEach(c, id: \.self) { exampleView($0, word: word, language: language) } }
             }
         }
         if let ex = examples, !ex.isEmpty {
             ClassicSection("例句") {
-                VStack(alignment: .leading, spacing: 6) { ForEach(ex, id: \.self) { exampleView($0, word: word) } }
+                VStack(alignment: .leading, spacing: 6) { ForEach(ex, id: \.self) { exampleView($0, word: word, language: language) } }
             }
         }
         if let e = etymology, !e.isEmpty {
             ClassicSection("词根词源") {
-                Text(e).font(.system(size: 13)).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
+                Text(TextHighlighter.highlight(word, in: e, language: language)).font(.system(size: 13)).foregroundStyle(Theme.text2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
