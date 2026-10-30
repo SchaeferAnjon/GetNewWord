@@ -66,6 +66,9 @@ enum Theme {
     static let text3     = dyn(light: rgb(150, 154, 162), dark: rgb(92, 99, 112))
 
     static let accent    = dyn(light: rgb(84, 96, 210), dark: rgb(94, 106, 210))   // Linear indigo
+    /// 重点色写成字（查的词标紫、这句里的义项）：深色底上 accent 只有 3.3:1，比灰色次要字还暗，字用亮一档的（5.6:1）。
+    /// 开关、填充、选中底色仍用 accent
+    static let accentText = dyn(light: rgb(84, 96, 210), dark: rgb(138, 148, 245))
     static let accentSoft = accent.opacity(0.18)
     static let warn      = dyn(light: rgb(205, 125, 20), dark: rgb(242, 158, 64))
     static let danger    = dyn(light: rgb(200, 60, 60), dark: rgb(230, 92, 92))
@@ -75,6 +78,10 @@ enum Theme {
     static let radius: CGFloat = 6
     static let radiusLg: CGFloat = 10
     static let gutter: CGFloat = 14
+
+    /// 查词卡分区小标题（释义、语境……）的字距：中文界面照 1.1.7 拉开 1.2；
+    /// 英文德文拉开字距读起来像「M e a n i n g」，不拉
+    static let sectionTracking: CGFloat = Bundle.main.preferredLocalizations.first?.hasPrefix("zh") == true ? 1.2 : 0
 
     // MARK: 字体（带缩放）
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular, scale: CGFloat) -> Font {
@@ -221,63 +228,31 @@ extension View {
     func rowHover(selected: Bool) -> some View { modifier(RowHover(selected: selected)) }
 }
 
-// MARK: - 语境句关键词高亮
+// MARK: - 查的词标紫
 
 enum TextHighlighter {
-    /// 把句中出现的目标词（大小写不敏感；找不到完整词就按 4 字符以上共同前缀近似匹配词形变化）
-    /// 标成 accent 色 + semibold
-    static func highlight(_ word: String, in sentence: String) -> AttributedString {
-        var attr = AttributedString(sentence)
-        let target = word.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !target.isEmpty else { return attr }
+    /// 查的词每次出现都标重点色、加粗不改字号：整个词才算，变形、短语也算（规则在 WordMatcher）。
+    /// 语境、用法、搭配、例句、词根词源、语法分解、词头下的变化那行都用它；中文译文另有 emphasizeTranslation。
+    /// grammar 是词头下面变化那行：德语写着「trennbar · hält an」时，词头 halten 的 anhalten、hält … an 也标
+    static func highlight(_ word: String, in text: String, language: Language, grammar: String? = nil) -> AttributedString {
+        mark(word, in: AttributedString(text), language: language, grammar: grammar)
+    }
 
-        var matched = false
-        // 1) 完整出现（可多处）
-        var searchStart = attr.startIndex
-        let lowerSentence = sentence.lowercased()
-        let lowerTarget = target.lowercased()
-        var offset = lowerSentence.startIndex
-        while let r = lowerSentence.range(of: lowerTarget, range: offset..<lowerSentence.endIndex) {
-            let lower = lowerSentence.distance(from: lowerSentence.startIndex, to: r.lowerBound)
-            let length = lowerSentence.distance(from: r.lowerBound, to: r.upperBound)
-            if let start = attr.index(attr.startIndex, offsetByCharacters: lower) as AttributedString.Index?,
-               let end = attr.index(start, offsetByCharacters: length) as AttributedString.Index? {
-                attr[start..<end].foregroundColor = Theme.accent
-                attr[start..<end].inlinePresentationIntent = .stronglyEmphasized   // 加粗但不改字号
-                matched = true
-            }
-            offset = r.upperBound
-        }
-        _ = searchStart
-        if matched { return attr }
-
-        // 2) 词形变化：句子里找与目标词共享 ≥4 字符前缀的词
-        let stem = String(lowerTarget.prefix(max(4, lowerTarget.count - 2)))
-        guard stem.count >= 4 else { return attr }
-        var idx = lowerSentence.startIndex
-        var charPos = 0
-        while idx < lowerSentence.endIndex {
-            // 找到一个词的起点
-            if lowerSentence[idx].isLetter {
-                var end = idx
-                while end < lowerSentence.endIndex, lowerSentence[end].isLetter { end = lowerSentence.index(after: end) }
-                let token = String(lowerSentence[idx..<end])
-                if token.hasPrefix(stem) {
-                    let length = token.count
-                    if let s = attr.index(attr.startIndex, offsetByCharacters: charPos) as AttributedString.Index?,
-                       let e = attr.index(s, offsetByCharacters: length) as AttributedString.Index? {
-                        attr[s..<e].foregroundColor = Theme.accent
-                        attr[s..<e].inlinePresentationIntent = .stronglyEmphasized
-                    }
-                }
-                charPos += lowerSentence.distance(from: idx, to: end)
-                idx = end
-            } else {
-                idx = lowerSentence.index(after: idx)
-                charPos += 1
+    /// 已经带格式的字（语法分解的行内 Markdown）里再标：原来的加粗、代码样式留着
+    static func mark(_ word: String, in attr: AttributedString, language: Language, grammar: String? = nil) -> AttributedString {
+        let spans = WordMatcher.spans(of: word, language: language, in: String(attr.characters), grammar: grammar)
+        guard !spans.isEmpty else { return attr }
+        var out = attr
+        for span in spans {
+            let start = out.characters.index(out.startIndex, offsetBy: span.lowerBound)
+            let end = out.characters.index(start, offsetBy: span.count)
+            let runs = out[start..<end].runs.map { ($0.range, $0.inlinePresentationIntent) }
+            for (range, intent) in runs {
+                out[range].foregroundColor = Theme.accentText
+                out[range].inlinePresentationIntent = (intent ?? []).union(.stronglyEmphasized)
             }
         }
-        return attr
+        return out
     }
 
     /// 音标只套一层斜杠：模型有时自己带了 /…/ 或 […]
@@ -320,7 +295,7 @@ enum TextHighlighter {
             let lower = meaning.distance(from: meaning.startIndex, to: range.lowerBound)
             if let s = attr.index(attr.startIndex, offsetByCharacters: lower) as AttributedString.Index?,
                let e = attr.index(s, offsetByCharacters: sub.count) as AttributedString.Index? {
-                attr[s..<e].foregroundColor = Theme.accent
+                attr[s..<e].foregroundColor = Theme.accentText
                 attr[s..<e].inlinePresentationIntent = .stronglyEmphasized
             }
             return true

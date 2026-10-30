@@ -111,6 +111,60 @@ struct LibraryTests {
         #expect(AnalysisService.mergeTags(["A", " b ", ""], ["a", "C", "b"]) == ["A", "b", "C"])
     }
 
+    /// 查重按词筛：不分大小写、首尾空格，只认同一种语言；只是包含这个词的别的词不算
+    @Test func existingEntryMatchesWholeWordOnly() throws {
+        let context = try makeLibrary()
+        let german = try existing(context, word: "Straße", language: .german, sentence: "Die Straße ist frei.")
+        _ = try existing(context, word: "Straßenbahn", language: .german, sentence: "Die Straßenbahn kommt.")
+        _ = try existing(context, word: "confluences", sentence: "Two confluences.")
+        #expect(service.existingEntry(word: " straße ", languageRaw: "de", context: context)?.id == german.id)
+        #expect(service.existingEntry(word: "Straße", languageRaw: "en", context: context) == nil)
+        #expect(service.existingEntry(word: "confluence", languageRaw: "en", context: context) == nil)
+    }
+
+    /// OCR 读到的字查词库：词形变化也认（driving → drive），原样那个词形优先
+    @Test func cachedEntryFromOCR() throws {
+        let context = try makeLibrary()
+        let drive = try existing(context, word: "drive", sentence: "We drive home.")
+        _ = try existing(context, word: "driver", sentence: "The driver waved.")
+        #expect(service.cachedEntry(candidates: LocalOCR.lookupCandidates("Driving,"), context: context)?.id == drive.id)
+        let driving = try existing(context, word: "Driving", sentence: "Driving is fun.")
+        #expect(service.cachedEntry(candidates: LocalOCR.lookupCandidates("driving"), context: context)?.id == driving.id)
+        #expect(service.cachedEntry(candidates: LocalOCR.lookupCandidates("drove"), context: context) == nil)
+    }
+
+    /// 主窗口自己存的盘：新词按时间插到列表里、删掉的拿掉，不用重取；别的 ModelContext 存的照旧整个重取
+    @Test func wordListAbsorbsOwnSaves() throws {
+        let context = try makeLibrary()
+        let old = try existing(context, word: "old", sentence: "An old one.")
+        old.createdAt = Date(timeIntervalSinceNow: -86_400)
+        try context.save()
+        let cache = WordListCache()
+        _ = cache.refresh(version: 0, edits: 0, category: nil, search: nil, group: .all, context: context)
+        #expect(cache.all.map(\.word) == ["old"])
+
+        final class Saves: @unchecked Sendable { var last: Notification? }
+        let saves = Saves()
+        let token = NotificationCenter.default.addObserver(forName: ModelContext.didSave, object: nil, queue: nil) { saves.last = $0 }
+        defer { NotificationCenter.default.removeObserver(token) }
+        let fresh = try existing(context, word: "fresh", sentence: "A fresh one.")
+        #expect(cache.absorb(try #require(saves.last), context: context))
+        _ = cache.refresh(version: 0, edits: 1, category: nil, search: nil, group: .all, context: context)
+        #expect(cache.all.map(\.word) == ["fresh", "old"])
+        #expect(cache.orderIDs == [fresh.id, old.id])
+
+        context.delete(old)
+        try context.save()
+        #expect(cache.absorb(try #require(saves.last), context: context))
+        _ = cache.refresh(version: 0, edits: 2, category: nil, search: nil, group: .all, context: context)
+        #expect(cache.all.map(\.word) == ["fresh"])
+
+        let other = ModelContext(context.container)
+        other.insert(WordEntry(word: "synced", meaning: "m", contextSentence: "", contextTranslation: "", analysisNote: ""))
+        try other.save()
+        #expect(!cache.absorb(try #require(saves.last), context: context))
+    }
+
     @Test func ocrCandidates() {
         #expect(LocalOCR.lookupCandidates("Driving,") == ["driving", "driv", "drive"])
         #expect(LocalOCR.lookupCandidates("“Rivers”").contains("river"))

@@ -40,7 +40,12 @@ enum AnkiError: LocalizedError {
 final class AnkiService: @unchecked Sendable {
     static let shared = AnkiService()
 
+    #if DEBUG
+    /// 开发版量卡顿时可以指到假的 AnkiConnect（GNW_ANKI_URL），不碰本机真开着的 Anki
+    private let baseURL = ProcessInfo.processInfo.environment["GNW_ANKI_URL"] ?? "http://127.0.0.1:8765"
+    #else
     private let baseURL = "http://127.0.0.1:8765"
+    #endif
     /// 单元测试换成假的 AnkiConnect，不碰本机真开着的 Anki
     var session = URLSession.shared
     private let modelName = AppVariant.ankiName
@@ -713,11 +718,17 @@ final class AnkiService: @unchecked Sendable {
 
     /// 反向同步：Anki 里已被删掉的卡（notesInfo 返回空对象），本地单词也删掉，保持两端一致
     private struct NoteInfoLite: Codable { let noteId: Int? }
+    /// 要看全部同步过的词：只要卡号，在后台另开一个 ModelContext 读。以前在主线程把这些词全取成对象，
+    /// 2000 个词时卡 0.2–0.3 秒，查完词 Anki 一开着就同步，正好卡在用户读卡、点关面板的时候
     @MainActor
     func pruneDeletedNotes(context: ModelContext) async {
-        let words = (try? context.fetch(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil }))) ?? []
-        guard !words.isEmpty else { return }
-        let ids = words.compactMap { $0.ankiNoteId }
+        let container = context.container
+        let ids = await Task.detached(priority: .utility) { () -> [Int] in
+            var d = FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil })
+            d.propertiesToFetch = [\.ankiNoteId]
+            return ((try? ModelContext(container).fetch(d)) ?? []).compactMap(\.ankiNoteId)
+        }.value
+        guard !ids.isEmpty else { return }
         guard let infos: [NoteInfoLite] = try? await send(action: "notesInfo", params: ["notes": ids], as: [NoteInfoLite].self),
               infos.count == ids.count else { return }
         // 熔断：绝大多数本地卡都在 Anki 中不存在 = 换库/换配置/新账号，绝不能当成用户删卡
@@ -731,7 +742,10 @@ final class AnkiService: @unchecked Sendable {
         for (i, info) in infos.enumerated() where info.noteId == nil {
             // 从另一台电脑同步来、本机 Anki 还没经 AnkiWeb 拿到的卡：不是用户删卡
             guard !CloudSyncService.shared.isUnconfirmedAnkiNote(ids[i]) else { continue }
-            if let w = words.first(where: { $0.ankiNoteId == ids[i] }) {
+            // 按卡号在主线程的词库里重新取：等 Anki 回话的这段时间里用户可能已经删了这个词并存了盘，
+            // 拿后台读到的对象 ID 去取会拿到已失效的对象，一读属性就崩
+            let noteId: Int? = ids[i]
+            for w in (try? context.fetch(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId == noteId }))) ?? [] {
                 AppLog.log("[Anki] '\(w.word)' deleted in Anki → remove locally")
                 context.delete(w)
                 removed += 1

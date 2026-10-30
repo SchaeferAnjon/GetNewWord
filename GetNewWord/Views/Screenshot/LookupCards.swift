@@ -1,9 +1,10 @@
 // LookupCards.swift
 // GetNewWord
 //
-// 查词面板的内容（design/panels）：两种样式共用一份展示数据和同一套部件。
+// 查词面板的内容（design/panels）：浮签和讲义卡共用一份展示数据和同一套部件；默认的「经典卡片」在 ClassicCard.swift。
 // - 跟词浮签（B）：先只给这句里的意思和整句译文，点「展开讲解」再用页签看释义、用法、例句、构词、语法
 // - 讲义卡（A）：一整张卡分层摆全：这句话 → 释义（这句里的义项整行高亮）→ 用法 → 搭配和例句 → 构词和来历
+// - 经典卡片（默认）：1.1.7 那版，一整张卡带取词截图和红框
 // 设置 → 翻译与学习 里选，浮签还能设成默认展开。
 
 import SwiftUI
@@ -11,17 +12,18 @@ import SwiftUI
 // MARK: - 样式
 
 enum LookupPanelStyle: String, CaseIterable, Identifiable {
-    case tag, tagExpanded, lecture
+    case classic, tag, tagExpanded, lecture
 
     static let key = "lookupPanelStyle"
     static var current: LookupPanelStyle {
-        LookupPanelStyle(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .tag
+        LookupPanelStyle(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .classic
     }
 
     var id: String { rawValue }
 
     var title: LocalizedStringKey {
         switch self {
+        case .classic: return "经典卡片"
         case .tag: return "跟词浮签"
         case .tagExpanded: return "浮签，默认展开"
         case .lecture: return "讲义卡"
@@ -30,15 +32,20 @@ enum LookupPanelStyle: String, CaseIterable, Identifiable {
 
     var detail: LocalizedStringKey {
         switch self {
+        case .classic: return "从上往下一张卡：释义、语境、取词截图、用法、例句"
         case .tag: return "先只给这句里的意思和整句译文，想细看再展开"
         case .tagExpanded: return "一出来就带页签：释义、用法、例句、构词、语法"
         case .lecture: return "一整张卡，所有内容分层摆全"
         }
     }
 
-    /// 弹出时面板的大小：浮签收起时矮，展开和讲义卡高
+    /// 有顶上状态条（钉住、主窗口、找图、关闭在上面）的样式；浮签把这些放在底栏
+    var hasStatusBar: Bool { self == .classic || self == .lecture }
+
+    /// 弹出时面板的大小：浮签收起时矮，展开和讲义卡高；经典卡片和 1.1.7 一样 520 宽、最高 780（窗口控制器再按屏幕收）
     func panelSize(expanded: Bool) -> NSSize {
         switch self {
+        case .classic: return NSSize(width: 520, height: 780)
         case .lecture: return NSSize(width: 480, height: 640)
         case .tag, .tagExpanded: return expanded ? NSSize(width: 440, height: 520) : NSSize(width: 400, height: 250)
         }
@@ -166,7 +173,8 @@ struct LookupHead: View {
                     Text(TextHighlighter.ipa(p)).font(.system(size: 13, design: .monospaced)).foregroundStyle(Theme.text2)
                 }
                 if let g = w.grammar, !g.isEmpty {
-                    Text(g).font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.text2).lineLimit(2)
+                    Text(TextHighlighter.highlight(w.word, in: g, language: w.language, grammar: w.grammar))
+                        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(Theme.text2).lineLimit(2)
                 }
             }
         }
@@ -210,7 +218,7 @@ struct SentenceBlock: View {
                     .help("把这句话的语法从头到尾拆开讲一遍")
                 }
             }
-            Text(TextHighlighter.highlight(w.word, in: w.sentence))
+            Text(TextHighlighter.highlight(w.word, in: w.sentence, language: w.language, grammar: w.grammar))
                 .font(.system(size: 14.5))
                 .lineSpacing(2)
                 .textSelection(.enabled)
@@ -223,7 +231,7 @@ struct SentenceBlock: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if let grammar {
-                GrammarBreakdownSection(state: grammar).padding(.top, 4)
+                GrammarBreakdownSection(state: grammar, word: w.word, language: w.language, grammar: w.grammar).padding(.top, 4)
             }
         }
         .padding(12)
@@ -249,10 +257,10 @@ struct MeaningList: View {
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
                                 Text("\(i + 1)").font(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.text3)
                                 Text(sense).font(.system(size: 14, weight: isHere ? .semibold : .regular))
-                                    .foregroundStyle(isHere ? Theme.accent : Theme.text)
+                                    .foregroundStyle(isHere ? Theme.accentText : Theme.text)
                                     .fixedSize(horizontal: false, vertical: true)
                                 if isHere {
-                                    Text("这句里").font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.accent)
+                                    Text("这句里").font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.accentText)
                                         .padding(.horizontal, 5).padding(.vertical, 1)
                                         .background(Theme.accentSoft, in: RoundedRectangle(cornerRadius: 4))
                                 }
@@ -279,23 +287,24 @@ struct LookupExtras: View {
         VStack(alignment: .leading, spacing: 16) {
             if showUsage, let u = w.usage, !u.isEmpty {
                 LookupSection(title: "用法") {
-                    Text(TextHighlighter.highlight(w.word, in: u)).font(.system(size: 13.5)).lineSpacing(3)
+                    Text(TextHighlighter.highlight(w.word, in: u, language: w.language, grammar: w.grammar)).font(.system(size: 13.5)).lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if showExamples, let c = w.collocations, !c.isEmpty {
                 LookupSection(title: "搭配") {
-                    VStack(alignment: .leading, spacing: 6) { ForEach(c, id: \.self) { exampleView($0, word: w.word) } }
+                    VStack(alignment: .leading, spacing: 6) { ForEach(c, id: \.self) { exampleView($0, word: w.word, language: w.language, grammar: w.grammar) } }
                 }
             }
             if showExamples, let ex = w.examples, !ex.isEmpty {
                 LookupSection(title: "例句") {
-                    VStack(alignment: .leading, spacing: 6) { ForEach(ex, id: \.self) { exampleView($0, word: w.word) } }
+                    VStack(alignment: .leading, spacing: 6) { ForEach(ex, id: \.self) { exampleView($0, word: w.word, language: w.language, grammar: w.grammar) } }
                 }
             }
             if showEtymology, let e = w.etymology, !e.isEmpty {
                 LookupSection(title: "构词和来历") {
-                    Text(e).font(.system(size: 13)).foregroundStyle(Theme.text2).fixedSize(horizontal: false, vertical: true)
+                    Text(TextHighlighter.highlight(w.word, in: e, language: w.language, grammar: w.grammar)).font(.system(size: 13)).foregroundStyle(Theme.text2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if w.extrasPending {
@@ -396,11 +405,12 @@ struct FloatingTag: View {
             // 这句里的意思：大字
             Text(w.senseHere)
                 .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(Theme.accentText)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
             if let pos = w.posHere {
-                Text(pos + (w.grammar.map { "  " + $0 } ?? "")).font(.system(size: 12)).foregroundStyle(Theme.text3).lineLimit(1)
+                Text(TextHighlighter.highlight(w.word, in: pos + (w.grammar.map { "  " + $0 } ?? ""), language: w.language, grammar: w.grammar))
+                    .font(.system(size: 12)).foregroundStyle(Theme.text3).lineLimit(1)
             }
             if !w.translation.isEmpty {
                 Text(TextHighlighter.emphasizeTranslation(w.translationKeyword, sense: w.contextMeaning, in: w.translation))
@@ -444,7 +454,7 @@ struct FloatingTag: View {
                 case .examples: LookupExtras(w: w, showUsage: false, showEtymology: false)
                 case .etymology: LookupExtras(w: w, showUsage: false, showExamples: false)
                 case .grammar:
-                    if let grammar { GrammarBreakdownSection(state: grammar) }
+                    if let grammar { GrammarBreakdownSection(state: grammar, word: w.word, language: w.language, grammar: w.grammar) }
                     else { Text("等语境句出来后可用").font(.system(size: 12.5)).foregroundStyle(Theme.text3) }
                 }
             }

@@ -101,6 +101,9 @@ struct ScreenshotThumb: View {
     }
 
     private func load() async {
+        // 换词时这张图跟着换：先回到占位，不留着上一个词的截图
+        image = nil
+        missing = false
         let p = path, w = width ?? 480
         let thumb = await Task.detached(priority: .utility) { () -> NSImage? in
             guard let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: p) as CFURL, nil) else { return nil }
@@ -154,16 +157,6 @@ struct DetailIconButton: View {
         .focusable(false)
         .onHover { hovering = $0 }
         .help(help)
-    }
-}
-
-extension TextHighlighter {
-    /// 用法、搭配、例句里的词头：只加粗，不上强调色（强调色留给原句里被查的词、这句里的意思和图表）
-    static func quietHighlight(_ word: String, in text: String) -> AttributedString {
-        var attr = highlight(word, in: text)
-        let ranges = attr.runs.filter { $0.foregroundColor != nil }.map(\.range)
-        for r in ranges { attr[r].foregroundColor = Theme.text }
-        return attr
     }
 }
 

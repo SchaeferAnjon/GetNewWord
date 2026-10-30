@@ -24,6 +24,15 @@ class AnalysisResultWindowController {
 
     /// 用户拖边缘调过的大小，下次弹出沿用（按样式分开记；收起的浮签每次都用默认的小尺寸）
     private static func sizeKey(_ style: LookupPanelStyle) -> String { "resultPanelSize.\(style.rawValue)" }
+    /// 1.1.x 只有一种面板，大小记在这里；经典卡片就是那一种，没调过经典卡片的大小时沿用它
+    static let legacySizeKey = "resultPanelSize"
+
+    /// 这种样式上次关面板时的大小（收起的浮签不记）
+    static func savedSize(_ style: LookupPanelStyle, defaults: UserDefaults = .standard) -> NSSize? {
+        guard style != .tag else { return nil }
+        let raw = defaults.string(forKey: sizeKey(style)) ?? (style == .classic ? defaults.string(forKey: legacySizeKey) : nil)
+        return raw.map(NSSizeFromString).flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil }
+    }
     private static let minSize = NSSize(width: 360, height: 200)
 
     /// 显示分析结果浮动面板
@@ -45,8 +54,10 @@ class AnalysisResultWindowController {
         let vf = mouseScreen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let style = LookupPanelStyle.current
         openedStyle = style
-        let saved = style == .tag ? nil : UserDefaults.standard.string(forKey: Self.sizeKey(style)).map(NSSizeFromString)
-        let wanted = preservedFrame?.size ?? saved ?? style.panelSize(expanded: style != .tag)
+        var fresh = style.panelSize(expanded: style != .tag)
+        // 经典卡片和 1.1.7 一样：高度最多 780，离屏幕上下各留 60
+        if style == .classic { fresh.height = min(fresh.height, vf.height - 120) }
+        let wanted = preservedFrame?.size ?? Self.savedSize(style) ?? fresh
         let panelSize = NSSize(width: max(Self.minSize.width, min(wanted.width, vf.width - 20)),
                                height: max(Self.minSize.height, min(wanted.height, vf.height - 20)))
 
@@ -59,6 +70,7 @@ class AnalysisResultWindowController {
                 self.dismiss()
             },
             onDismiss: { [weak self] in
+                PanelPerf.mark(.closeInput("x"), eventTime: NSApp.currentEvent?.timestamp)
                 viewModel.dismissPanel()
                 self?.dismiss()
             },
@@ -158,7 +170,7 @@ class AnalysisResultWindowController {
     }
 
     /// 这个面板按哪种样式打开的：关的时候按它记尺寸（中途在设置里换了样式也不记错）
-    private var openedStyle: LookupPanelStyle = .tag
+    private var openedStyle: LookupPanelStyle = .classic
 
     /// 关掉面板前记下大小
     private func closePanel() {
@@ -168,6 +180,7 @@ class AnalysisResultWindowController {
         // 关的时候不播 utilityWindow 的淡出：点外面要立刻消失
         panel.animationBehavior = .none
         panel.orderOut(nil)
+        PanelPerf.mark(.orderedOut)
         self.panel = nil
     }
 
@@ -185,13 +198,21 @@ class AnalysisResultWindowController {
         }
         guard !escOnly else { return }
         // 点了别的 app：关（钉住时不装这个）
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { _ in
-            Task { @MainActor in onDismiss() }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+            let at = event.timestamp
+            Task { @MainActor in
+                PanelPerf.mark(.closeInput("click other app"), eventTime: at)
+                onDismiss()
+            }
         }
         // 本 app 内点面板外也关
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak panel] event in
             if event.window !== panel {
-                Task { @MainActor in onDismiss() }
+                let at = event.timestamp
+                Task { @MainActor in
+                    PanelPerf.mark(.closeInput("click own window"), eventTime: at)
+                    onDismiss()
+                }
             }
             return event
         }
@@ -202,6 +223,7 @@ class AnalysisResultWindowController {
         if let overlay = NSApp.windows.first(where: { $0 is OverlayWindow && $0.isVisible }) {
             overlay.contentView?.cancelOperation(nil)
         } else {
+            PanelPerf.mark(.closeInput("esc"), eventTime: HotkeyManager.lastPressedAt)
             pendingDismiss?()
         }
     }

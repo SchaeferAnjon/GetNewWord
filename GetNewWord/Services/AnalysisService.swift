@@ -60,10 +60,15 @@ class AnalysisService {
         return (image, path, shot.1)
     }
 
-    /// 框选取词的文字版：框里的字和红框图里的上下文并行 OCR（约 0.1–0.2s）；框里读不出字返回 nil，交给识图
-    func regionText(context: NSImage, selection: NSImage?) async -> TextLookup? {
+    /// 框选取词的文字版：框里的字和红框图里的上下文并行 OCR（约 0.1–0.2s，Rosetta 下更久）；框里读不出字得到 nil，交给识图。
+    /// 当场在后台开始认字，返回等结果的 Task：面板先弹出来，不等 OCR
+    func startRegionText(context: NSImage, selection: NSImage?) -> Task<TextLookup?, Never> {
         guard let selCG = selection?.cgImage(forProposedRect: nil, context: nil, hints: nil),
-              let ctxCG = context.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+              let ctxCG = context.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return Task { nil } }
+        return Task.detached(priority: .userInitiated) { await Self.regionText(selection: selCG, context: ctxCG) }
+    }
+
+    private nonisolated static func regionText(selection selCG: CGImage, context ctxCG: CGImage) async -> TextLookup? {
         async let selLines = HoverWordCapture.recognizeLines(in: selCG)
         async let ctxLines = HoverWordCapture.recognizeLines(in: ctxCG)
         let raw = await selLines.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -110,15 +115,42 @@ class AnalysisService {
     // MARK: - 标签库
 
     /// 当前所有已使用的标签（单词 + 知识片段），按使用频次降序，作为模型选标签的唯一来源
-    func allExistingTags(context: ModelContext) -> [String] {
+    nonisolated static func allExistingTags(context: ModelContext) -> [String] {
+        var words = FetchDescriptor<WordEntry>()
+        words.propertiesToFetch = [\.tags]
+        var snippets = FetchDescriptor<KnowledgeSnippet>()
+        snippets.propertiesToFetch = [\.tags]
         var counts: [String: Int] = [:]
-        if let words = try? context.fetch(FetchDescriptor<WordEntry>()) {
-            for w in words { for t in w.tags { counts[t, default: 0] += 1 } }
-        }
-        if let snippets = try? context.fetch(FetchDescriptor<KnowledgeSnippet>()) {
-            for s in snippets { for t in s.tags { counts[t, default: 0] += 1 } }
-        }
+        for w in (try? context.fetch(words)) ?? [] { for t in w.tags { counts[t, default: 0] += 1 } }
+        for s in (try? context.fetch(snippets)) ?? [] { for t in s.tags { counts[t, default: 0] += 1 } }
         return counts.sorted { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }.map { $0.key }
+    }
+
+    /// 同上，在后台另开一个 ModelContext 读：要把全部词条和知识片段过一遍，2000 个词时主线程要卡 0.1 秒（Rosetta 下 0.2 秒），
+    /// 查词一开始就发出去，和框选、本地 OCR 同时跑
+    nonisolated static func existingTagsInBackground(container: ModelContainer) -> Task<[String], Never> {
+        Task.detached(priority: .userInitiated) { allExistingTags(context: ModelContext(container)) }
+    }
+
+    // MARK: - 词库里找同一个词
+
+    /// 同词同语言（dedupeKey 一样）的已存词条。先让 SQLite 按词粗筛（包含、不分大小写和重音），只把筛出来的几条取成对象再精确比；
+    /// 以前把整个词库取成对象逐条比，2000 个词时主线程每次卡 0.1–0.2 秒（Rosetta 下翻倍）
+    func existingEntry(word: String, languageRaw: String, context: ModelContext) -> WordEntry? {
+        let term = word.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = "\(term.lowercased())|\(languageRaw)"
+        guard !term.isEmpty else { return (try? context.fetch(FetchDescriptor<WordEntry>()))?.first { $0.dedupeKey == key } }
+        let d = FetchDescriptor<WordEntry>(predicate: #Predicate { $0.languageRaw == languageRaw && $0.word.localizedStandardContains(term) })
+        return (try? context.fetch(d))?.first { $0.dedupeKey == key }
+    }
+
+    /// 本地 OCR 读到的字存过没有：哪个候选词形和词条小写后一样（不分语言）；同样先按词粗筛。原样那个词形优先
+    func cachedEntry(candidates: Set<String>, context: ModelContext) -> WordEntry? {
+        for c in candidates.sorted(by: { $0.count == $1.count ? $0 < $1 : $0.count > $1.count }) where !c.isEmpty {
+            let d = FetchDescriptor<WordEntry>(predicate: #Predicate { $0.word.localizedStandardContains(c) })
+            if let hit = (try? context.fetch(d))?.first(where: { candidates.contains($0.word.lowercased()) }) { return hit }
+        }
+        return nil
     }
 
     // MARK: - 保存方法
@@ -153,9 +185,7 @@ class AnalysisService {
         let finalTags = Self.mergeTags(word.tags, approvedNewTags)
 
         // 同词同语言已存在：不新建条目，只追加一条语境（基础含义相同，语境不同）
-        let key = "\(word.word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())|\(language.rawValue)"
-        let existingDescriptor = FetchDescriptor<WordEntry>()
-        if let existing = (try? context.fetch(existingDescriptor))?.first(where: { $0.dedupeKey == key }) {
+        if let existing = existingEntry(word: word.word, languageRaw: language.rawValue, context: context) {
             // 语境相似去重：同一页截两次、只差标点/空格/大小写的句子不再重复存
             if let dup = existing.sortedContexts.first(where: { Self.isSimilarSentence($0.sentence, word.contextSentence) }) {
                 AppLog.log("[Analysis] context for '\(existing.word)' looks like an existing one (\(dup.sentence.prefix(30))…), skipped")
@@ -248,22 +278,42 @@ class AnalysisService {
     }
 
     /// 启动时给所有还没有发音文件的单词补下载（并发 3 个，避免刷接口）
+    /// 哪些词缺发音文件在后台查（要读全部词、逐个看文件在不在，2000 个词时主线程要卡 0.2 秒），主线程只碰缺的那几个
     func backfillAudio(context: ModelContext) {
-        guard let words = try? context.fetch(FetchDescriptor<WordEntry>()) else { return }
-        let missing = words.filter { w in
-            guard let p = w.audioPath else { return true }
-            return !FileManager.default.fileExists(atPath: p)
-        }
-        guard !missing.isEmpty else { return }
-        AppLog.log("[Audio] backfill \(missing.count) words")
+        let container = context.container
         Task { @MainActor in
+            let missingIDs = await Task.detached(priority: .utility) { () -> [PersistentIdentifier] in
+                var d = FetchDescriptor<WordEntry>()
+                d.propertiesToFetch = [\.audioPath]
+                let words = (try? ModelContext(container).fetch(d)) ?? []
+                return words.filter { w in
+                    guard let p = w.audioPath else { return true }
+                    return !FileManager.default.fileExists(atPath: p)
+                }.map(\.persistentModelID)
+            }.value
+            guard !missingIDs.isEmpty else { return }
+            AppLog.log("[Audio] backfill \(missingIDs.count) words")
             // 顺序下载（每个 <1s），避免刷接口；SwiftData 对象只在主线程碰
-            for w in missing {
+            for id in missingIDs {
+                guard let w = context.model(for: id) as? WordEntry, !w.isDeleted else { continue }
                 if let path = await AudioService.shared.generateAudioFile(for: w.word, language: w.language) {
                     w.audioPath = path
                 }
             }
             try? context.save()
+        }
+    }
+
+    /// 启动时用：先在后台看有没有重复（要读全部词，2000 个词时主线程要卡 0.25 秒），真有才回主线程合并
+    func mergeDuplicateWordsIfAny(context: ModelContext) {
+        let container = context.container
+        Task { @MainActor in
+            let found = await Task.detached(priority: .utility) { () -> Bool in
+                let words = (try? ModelContext(container).fetch(FetchDescriptor<WordEntry>())) ?? []
+                var seen = Set<String>()
+                return words.contains { !seen.insert($0.dedupeKey).inserted }
+            }.value
+            if found { self.mergeDuplicateWords(context: context) }
         }
     }
 

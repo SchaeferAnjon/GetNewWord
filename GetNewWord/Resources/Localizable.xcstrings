@@ -749,6 +749,22 @@
         }
       }
     },
+    "Anki 稍后同步": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anki-Sync folgt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "syncs to Anki shortly"
+          }
+        }
+      }
+    },
     "Anki 返回了无效的响应数据": {
       "localizations": {
         "de": {
@@ -1097,6 +1113,22 @@
     },
     "⌘+ / ⌘− / ⌘0": {
       "shouldTranslate": false
+    },
+    "⌥ 不好按就换成 ⇧、⌃ 或 ⌘；选「不用」就没有这一组。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ist ⌥ schwer zu erreichen, nimm ⇧, ⌃ oder ⌘; mit „Keine“ fällt diese Kombination weg."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If ⌥ is hard to reach, use ⇧, ⌃ or ⌘ instead; pick “None” to drop this shortcut."
+          }
+        }
+      }
     },
     "一个 Key 用多家模型": {
       "localizations": {
@@ -1466,6 +1498,22 @@
         }
       }
     },
+    "不用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        }
+      }
+    },
     "不用 Key，官方 AI": {
       "localizations": {
         "de": {
@@ -1510,6 +1558,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "No thanks"
+          }
+        }
+      }
+    },
+    "不用多按的这一组": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Kombination mit Zusatztaste"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No extra-key shortcut"
           }
         }
       }
@@ -1798,6 +1862,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Added today (%lld)"
+          }
+        }
+      }
+    },
+    "从上往下一张卡：释义、语境、取词截图、用法、例句": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Karte von oben nach unten: Bedeutung, Kontext, Bildausschnitt, Gebrauch, Beispiele"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One card, top to bottom: meaning, context, screenshot, usage, examples"
           }
         }
       }
@@ -2799,13 +2879,13 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Grammatik zerlegen"
+            "value": "Grammatik"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Break down grammar"
+            "value": "Grammar"
           }
         }
       }
@@ -3626,22 +3706,6 @@
         }
       }
     },
-    "只查不存，这一次不进词库": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nur nachschlagen; dieses Mal nicht in die Sammlung"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Look up without saving; this one stays out of your library"
-          }
-        }
-      }
-    },
     "只查看，没存": {
       "localizations": {
         "de": {
@@ -4154,18 +4218,18 @@
         }
       }
     },
-    "和下面的开关相反：开关关着就保存这一次": {
+    "和%@的 %@ 撞了，没生效": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Macht das Gegenteil des Schalters unten: Ist er aus, wird dieses eine Mal gesichert"
+            "value": "Kollidiert mit „%1$@“ (%2$@), nicht aktiv"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Does the opposite of the switch below: with it off, this one is saved"
+            "value": "Clashes with “%1$@” (%2$@), not active"
           }
         }
       }
@@ -4618,6 +4682,22 @@
         }
       }
     },
+    "多按一个 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add %@"
+          }
+        }
+      }
+    },
     "多按一个 ⌥": {
       "localizations": {
         "de": {
@@ -4630,6 +4710,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add ⌥"
+          }
+        }
+      }
+    },
+    "多按一个键": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Taste dazu"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add one more key"
+          }
+        }
+      }
+    },
+    "多按这个键：这一次也存进词库": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taste dazu: diesmal auch sichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add this key: save this one too"
+          }
+        }
+      }
+    },
+    "多按这个键：这一次只查不存": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taste dazu: nur nachschlagen, nicht sichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add this key: look up only, don’t save"
           }
         }
       }
@@ -5306,6 +5434,22 @@
         }
       }
     },
+    "已在词库里": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schon in deiner Sammlung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already in your library"
+          }
+        }
+      }
+    },
     "已填 Key": {
       "localizations": {
         "de": {
@@ -5370,22 +5514,6 @@
         }
       }
     },
-    "已存进 %@ · Anki 稍后同步": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gesichert in %@ · Anki-Sync folgt"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved to %@ · syncs to Anki shortly"
-          }
-        }
-      }
-    },
     "已存进词库": {
       "localizations": {
         "de": {
@@ -5398,22 +5526,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Saved to library"
-          }
-        }
-      }
-    },
-    "已存进词库 · Anki 稍后同步": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In Sammlung gesichert · Anki-Sync folgt"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved to library · syncs to Anki shortly"
           }
         }
       }
@@ -6314,6 +6426,22 @@
         }
       }
     },
+    "截图取词时多按": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusatztaste bei der Auswahl"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra key while capturing"
+          }
+        }
+      }
+    },
     "截图取词时多按 ⌥": {
       "localizations": {
         "de": {
@@ -6998,6 +7126,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Point to look up"
+          }
+        }
+      }
+    },
+    "指词查词时多按": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zusatztaste beim Zeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extra key while pointing"
           }
         }
       }
@@ -8778,6 +8922,22 @@
         }
       }
     },
+    "正在核对语境…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "prüft den Kontext …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "checking the context…"
+          }
+        }
+      }
+    },
     "正在检测连接…": {
       "localizations": {
         "de": {
@@ -9398,6 +9558,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "It wasn't opened from the Applications folder, so updates can't be installed and you'd stay on this version. Drag it there and open it again, or use the button on the right."
+          }
+        }
+      }
+    },
+    "现在是 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jetzt: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Now: %@"
           }
         }
       }
@@ -10058,6 +10234,54 @@
         }
       }
     },
+    "组合键里已经有 %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Kombination enthält schon %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortcut already has %@"
+          }
+        }
+      }
+    },
+    "组合键里已经有 %@，换一个键": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Kombination enthält schon %@; wähle eine andere Taste"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortcut already has %@; pick another key"
+          }
+        }
+      }
+    },
+    "经典卡片": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klassische Karte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Classic card"
+          }
+        }
+      }
+    },
     "统计": {
       "localizations": {
         "de": {
@@ -10618,18 +10842,18 @@
         }
       }
     },
-    "词库直出 · 正在核对语境…": {
+    "词库直出": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Aus deiner Sammlung · prüft den Kontext …"
+            "value": "Aus deiner Sammlung"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "From your library · checking the context…"
+            "value": "From your library"
           }
         }
       }
@@ -10742,6 +10966,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Context"
+          }
+        }
+      }
+    },
+    "语境相同，没再存": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gleicher Kontext, nicht erneut gesichert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "same context, not saved again"
           }
         }
       }

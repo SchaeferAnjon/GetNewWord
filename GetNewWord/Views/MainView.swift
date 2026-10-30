@@ -22,6 +22,7 @@ struct MainView: View {
     @State private var consentReady = false
 
     // MARK: - 导航状态
+    // 关掉主窗口只是把窗口藏起来（Window 场景），这些状态留着，从菜单栏再打开还是关之前那一页、那个词
     @State private var selectedTab: CategorySidebar.SelectedTab = .words
     @State private var selectedCategory: Category? = nil
     @State private var groupMode: CategorySidebar.GroupMode = .byDay
@@ -60,23 +61,31 @@ struct MainView: View {
         }
         .onAppear {
             MainWindowOpener.openWindow = openWindow
-            // 快捷键注册放在这里，不受 onboarding 状态影响，确保应用启动即注册
-            setupHotkeys()
+            // 下面这些一个进程只做一次：主窗口关了再开还会走 onAppear，不重来
+            guard !MainWindowOpener.launched else { return }
+            MainWindowOpener.launched = true
+            // 快捷键注册放在这里，不受 onboarding 状态影响，确保应用启动即注册；
+            // 设置里改了组合键就重新注册（register 会先注销旧的），主窗口关着时也要改得了
+            let hotkeyVM = analysisVM, hotkeyContainer = modelContext.container
+            Self.registerHotkeys(vm: hotkeyVM, container: hotkeyContainer)
+            NotificationCenter.default.addObserver(forName: .hotkeyChanged, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { Self.registerHotkeys(vm: hotkeyVM, container: hotkeyContainer) }
+            }
             HoverWordCapture.warmUp()
             #if DEBUG
             DemoMode.start(analysisVM, context: modelContext)
+            PerfProbe.startIfRequested()
             #endif
+            // 悬浮球也只配一次：闭包里直接拿视图模型和词库，不经过这个窗口的环境
+            let vm = analysisVM, container = modelContext.container
             FloatingButtonController.shared.configure(
                 onCapture: {
-                    Task { @MainActor in await analysisVM.triggerAnalysis(modelContext: modelContext, mode: .capture) }
+                    Task { @MainActor in await vm.triggerAnalysis(modelContext: container.mainContext, mode: .capture) }
                 },
                 onLookup: {
-                    Task { @MainActor in await analysisVM.triggerAnalysis(modelContext: modelContext, mode: .lookup) }
+                    Task { @MainActor in await vm.triggerAnalysis(modelContext: container.mainContext, mode: .lookup) }
                 }
             )
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .hotkeyChanged)) { _ in
-            setupHotkeys()   // 设置里改了组合键 → 重新注册（register 会先注销旧的）
         }
     }
 
@@ -136,6 +145,9 @@ struct MainView: View {
                 }
         }
         .onAppear {
+            // 走完引导、第一次看到词库时做一次；主窗口关了再开不重来（全量备份、云同步、启动时的 Anki 同步都只要一次）
+            guard !MainWindowOpener.libraryReady else { return }
+            MainWindowOpener.libraryReady = true
             seedDefaultCategoriesIfNeeded()
         }
         // 同步 Anki 的快捷键（侧栏收起时按钮不在，快捷键照样有用）
@@ -240,28 +252,29 @@ struct MainView: View {
         }
     }
 
-    /// 注册全局快捷键
-    private func setupHotkeys() {
+    /// 注册全局快捷键。只在启动时注册一次，闭包里直接拿视图模型和词库、不经过这个窗口的环境：
+    /// 主窗口关着（或以后被重建）时快捷键照常查词
+    private static func registerHotkeys(vm: AnalysisViewModel, container: ModelContainer) {
         HotkeyManager.shared.registerDefaultHotkeys(
             screenshotHandler: {
                 Task { @MainActor in
-                    await analysisVM.triggerAnalysis(modelContext: modelContext, mode: .capture)
+                    await vm.triggerAnalysis(modelContext: container.mainContext, mode: .capture)
                 }
             },
             lookupHandler: {
                 Task { @MainActor in
-                    await analysisVM.triggerAnalysis(modelContext: modelContext, mode: .lookup)
+                    await vm.triggerAnalysis(modelContext: container.mainContext, mode: .lookup)
                 }
             },
             hoverHandler: {
                 Task { @MainActor in
-                    await analysisVM.triggerAnalysis(modelContext: modelContext, mode: AnalysisViewModel.hoverMode, source: .hover)
+                    await vm.triggerAnalysis(modelContext: container.mainContext, mode: AnalysisViewModel.hoverMode, source: .hover)
                 }
             },
             hoverOptionHandler: {
                 Task { @MainActor in
                     let mode: AnalysisViewModel.Mode = AnalysisViewModel.hoverMode == .capture ? .lookup : .capture
-                    await analysisVM.triggerAnalysis(modelContext: modelContext, mode: mode, source: .hover)
+                    await vm.triggerAnalysis(modelContext: container.mainContext, mode: mode, source: .hover)
                 }
             }
         )
@@ -272,7 +285,7 @@ struct MainView: View {
         let dbManager = DatabaseManager(context: modelContext)
         dbManager.seedDefaultCategories()
         // 合并历史上重复保存的同一个单词（保留各自语境）
-        AnalysisService.shared.mergeDuplicateWords(context: modelContext)
+        AnalysisService.shared.mergeDuplicateWordsIfAny(context: modelContext)
         // 给没有发音文件的旧单词补下载（英/德/日/韩…）
         AnalysisService.shared.backfillAudio(context: modelContext)
         // 每次启动做一次全量 JSON 备份（词库意外损坏时可恢复；保留最近 14 份）
@@ -292,8 +305,8 @@ struct MainView: View {
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(8))
             // 灾难恢复：本地没有任何已同步的单词而 Anki 里有卡 → 自动反向导入
-            let synced = (try? modelContext.fetch(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil }))) ?? []
-            if synced.isEmpty {
+            let synced = (try? modelContext.fetchCount(FetchDescriptor<WordEntry>(predicate: #Predicate { $0.ankiNoteId != nil }))) ?? 0
+            if synced == 0 {
                 _ = await AnkiService.shared.restoreFromAnki(context: modelContext)
             }
             await AnkiService.shared.syncEverythingPending(context: modelContext)
@@ -496,11 +509,12 @@ private struct WordsPage: View {
         }
     }
 
-    /// 当前多选对应的单词对象
+    /// 当前多选对应的单词对象：只取选中的那几个（框选时每拖一下都要算，取整个词库再筛 2000 个词时每下卡 0.25 秒）
     private var wordsForSelection: [WordEntry] {
-        let descriptor = FetchDescriptor<WordEntry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        let all = (try? modelContext.fetch(descriptor)) ?? []
-        return all.filter { selectedIDs.contains($0.id) }
+        let ids = Array(selectedIDs)
+        let descriptor = FetchDescriptor<WordEntry>(predicate: #Predicate { ids.contains($0.id) },
+                                                    sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 }
 

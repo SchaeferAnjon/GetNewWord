@@ -34,6 +34,7 @@ struct WordDetailView: View {
     @State private var dContexts: [UUID: (String, String)] = [:]
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header
@@ -51,10 +52,19 @@ struct WordDetailView: View {
             .padding(.bottom, 40)
             .frame(maxWidth: 792, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .id(Self.top)   // 整块内容（连顶上的留白）的顶
+        }
+        // 换词时不整个重建（.id 换掉会把滚动视图连同里面的一切拆了重搭，按住 ↓ 时跟不上），
+        // 只把这个词自己的状态清掉、回到顶上
+        .onChange(of: word.id) { _, _ in
+            isEditing = false
+            ctxIndex = 0
+            isSpeaking = false
+            // 等新词的内容排好再滚：同一轮里滚，排版时又按旧的位置放回去了
+            DispatchQueue.main.async { proxy.scrollTo(Self.top, anchor: .top) }
+        }
         }
         .background(Theme.bg)
-        .id(word.id)                       // 切换单词时重置编辑状态和页签
-        .onChange(of: word.id) { _, _ in isEditing = false }
         // ⌘⌫ 删除；编辑时让出给输入框（⌘⌫ 在输入框里是删到行首）
         .background {
             if !isEditing {
@@ -81,6 +91,8 @@ struct WordDetailView: View {
             Text("连同它的 \(word.sortedContexts.count) 条语境一起删除，不可撤销。「仅本地」保留 Anki 里的卡和复习进度。")
         }
     }
+
+    private static let top = "top"
 
     // MARK: - 编辑
 
@@ -156,7 +168,7 @@ struct WordDetailView: View {
                     Tag(text: LocalizedStringKey(word.language.displayName))
                 }
                 if let g = word.grammar, !g.isEmpty {
-                    Text(g)
+                    Text(TextHighlighter.highlight(word.word, in: g, language: word.language, grammar: word.grammar))
                         .font(Theme.font(12, scale: fs))
                         .foregroundStyle(Theme.text2)
                         .textSelection(.enabled)
@@ -296,7 +308,7 @@ struct WordDetailView: View {
 
     private func contextText(_ ctx: WordContext) -> some View {
             VStack(alignment: .leading, spacing: 4) {
-                Text(TextHighlighter.highlight(word.word, in: ctx.sentence))
+                Text(TextHighlighter.highlight(word.word, in: ctx.sentence, language: word.language, grammar: word.grammar))
                     .font(Theme.font(15, scale: fs))
                     .lineSpacing(3)
                     .foregroundStyle(Theme.text)
@@ -362,7 +374,7 @@ struct WordDetailView: View {
                     .editField()
                     .lineLimit(2...8)
             } else {
-                Text(TextHighlighter.quietHighlight(word.word, in: word.analysisNote))
+                Text(TextHighlighter.highlight(word.word, in: word.analysisNote, language: word.language, grammar: word.grammar))
                     .font(Theme.font(13, scale: fs))
                     .lineSpacing(4)
                     .foregroundStyle(Theme.text)
@@ -392,7 +404,7 @@ struct WordDetailView: View {
                     ForEach(colls, id: \.self) { line in
                         let (phrase, tr) = pair(line)
                         GridRow {
-                            Text(TextHighlighter.quietHighlight(word.word, in: phrase))
+                            Text(TextHighlighter.highlight(word.word, in: phrase, language: word.language, grammar: word.grammar))
                                 .font(Theme.font(13, scale: fs))
                                 .foregroundStyle(Theme.text)
                                 .textSelection(.enabled)
@@ -413,7 +425,7 @@ struct WordDetailView: View {
                     ForEach(exs, id: \.self) { line in
                         let (sentence, tr) = pair(line)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(TextHighlighter.quietHighlight(word.word, in: sentence))
+                            Text(TextHighlighter.highlight(word.word, in: sentence, language: word.language, grammar: word.grammar))
                                 .font(Theme.font(13, scale: fs))
                                 .foregroundStyle(Theme.text)
                                 .textSelection(.enabled)
@@ -428,7 +440,7 @@ struct WordDetailView: View {
         }
         if let e = word.etymology, !e.isEmpty {
             DetailSection(title: "构词和来历") {
-                Text(e)
+                Text(TextHighlighter.highlight(word.word, in: e, language: word.language, grammar: word.grammar))
                     .font(Theme.font(13, scale: fs))
                     .lineSpacing(3)
                     .foregroundStyle(Theme.text2)

@@ -4,7 +4,9 @@
 // README 截图用的演示模式，只编进 Debug 版（scripts/readme-shots.mjs 用它）。没人操作、锁着屏的 Mac 上也能走一遍
 // 真的框选取词：整屏截图换成给定的图片，拖框换成给定的矩形，按快捷键换成启动后依次自动框一遍。
 // 后面的本地 OCR、AI 请求、面板、存词库、发音、同步 Anki 都走正常流程。
-//   GNW_DEMO=<plan.json>  {"lookups": [{"screen": "/path/screen.png", "select": [x, y, w, h]}, …], "pause": 15}
+//   GNW_DEMO=<plan.json>  {"lookups": [{"screen": "/path/screen.png", "select": [x, y, w, h]}, …], "pause": 15, "onHotkey": false, "closeAfter": 9}
+//                         onHotkey 为 true 时启动后不自动框，等真按快捷键（含多按一个键的那组），每按一次框掉下一个
+//                         closeAfter：自动框时每个词框完这么多秒后像按 Esc 一样关面板（开发版打点量关面板），不写就一直开到下一个
 //                         screen 是整屏大小的图（像素 = 屏幕 point × 缩放），select 按 point 算、左上角原点
 //   GNW_DEMO_KEY=<key>    当前 AI 服务商的 Key，只在环境变量里，不写钥匙串
 
@@ -22,6 +24,8 @@ enum DemoMode {
     private struct Plan: Decodable {
         let lookups: [Lookup]
         let pause: Double?
+        let onHotkey: Bool?
+        let closeAfter: Double?
     }
 
     private static let plan: Plan? = {
@@ -40,11 +44,14 @@ enum DemoMode {
     private static var started = false
     /// 正在框的那一个
     private static var current: Lookup?
+    /// onHotkey：还没被快捷键用掉的
+    private static var pending: [Lookup] = []
 
     /// 主窗口出现后依次框 plan 里的每一个；每框完一个等 pause 秒（补全、发音、Anki 同步都在这段时间里跑完）
     static func start(_ vm: AnalysisViewModel, context: ModelContext) {
         guard let plan, !started else { return }
         started = true
+        if plan.onHotkey == true { pending = plan.lookups; return }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(3))
             for (i, lookup) in plan.lookups.enumerated() {
@@ -52,7 +59,15 @@ enum DemoMode {
                 await vm.triggerAnalysis(modelContext: context, mode: .capture)
                 current = nil
                 AppLog.log("[Demo] \(i + 1)/\(plan.lookups.count) done")
-                try? await Task.sleep(for: .seconds(plan.pause ?? 15))
+                let pause = plan.pause ?? 15
+                if let close = plan.closeAfter, close < pause {
+                    try? await Task.sleep(for: .seconds(close))
+                    PanelPerf.mark(.closeInput("demo"))
+                    vm.dismissPanel()
+                    try? await Task.sleep(for: .seconds(pause - close))
+                } else {
+                    try? await Task.sleep(for: .seconds(pause))
+                }
             }
             AppLog.log("[Demo] all done")
         }
@@ -60,7 +75,13 @@ enum DemoMode {
 
     /// 代替框选，返回和框选一样的 (带红框的语境图, 选区小图)；没在演示就是 nil
     static func capture() -> (NSImage, NSImage?)? {
-        guard let lookup = current else { return nil }
+        if let lookup = current { return capture(lookup) }
+        // onHotkey：真按了一次快捷键，用掉下一个
+        guard !pending.isEmpty else { return nil }
+        return capture(pending.removeFirst())
+    }
+
+    private static func capture(_ lookup: Lookup) -> (NSImage, NSImage?)? {
         guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: lookup.screen) as CFURL, nil),
               let cg = CGImageSourceCreateImageAtIndex(source, 0, nil) else { fail("读不了 \(lookup.screen)") }
         let rect = CGRect(x: lookup.select[0], y: lookup.select[1], width: lookup.select[2], height: lookup.select[3])

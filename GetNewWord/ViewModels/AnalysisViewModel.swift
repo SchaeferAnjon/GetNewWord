@@ -45,6 +45,19 @@ class AnalysisViewModel: ObservableObject {
     @Published var autoSaved = false
     /// 本次保存中因"语境几乎相同"而被跳过的词（面板提示）
     @Published var skippedAsDuplicate: Set<Int> = []
+    /// 自动保存了，其实什么都没新存：认出的词都已在词库里、语境几乎一样，也没有知识片段。
+    /// 面板状态条照实写「已在词库里」，不再写「已存进」，撤销也藏起来（没东西可撤）
+    var savedNothingNew: Bool {
+        guard autoSaved, let a = analysisResult?.analysis else { return false }
+        return Self.savedNothingNew(wordCount: a.words.count, snippetCount: a.snippets.count, skipped: skippedAsDuplicate,
+                                    removedWords: removedWords, removedSnippets: removedSnippets)
+    }
+    nonisolated static func savedNothingNew(wordCount: Int, snippetCount: Int, skipped: Set<Int>,
+                                            removedWords: Set<Int>, removedSnippets: Set<Int>) -> Bool {
+        let words = (0..<wordCount).filter { !removedWords.contains($0) }
+        let snippetLeft = (0..<snippetCount).contains { !removedSnippets.contains($0) }
+        return !words.isEmpty && !snippetLeft && words.allSatisfy(skipped.contains)
+    }
     /// 用户在回执面板里单独移除的条目（不再显示，也已从库里删掉）
     @Published var removedWords: Set<Int> = []
     @Published var removedSnippets: Set<Int> = []
@@ -137,12 +150,16 @@ class AnalysisViewModel: ObservableObject {
         // 框选期间只占用 isAnalyzing 防重入；面板内容一律不动——
         // 钉住的面板得保留上一个词，用户按 Esc 放弃框选后它不能变成「识别中」
         isAnalyzing = true
+        PanelPerf.mark(.trigger, eventTime: HotkeyManager.lastPressedAt)
         if !resultWindow.isPinned { resultWindow.dismiss() }
+        let tagsTask = AnalysisService.existingTagsInBackground(container: modelContext.container)
 
         // 0. 框选（取消则静默退出，面板保持原样）；指词模式直接取鼠标下的词，没认出词就提示后退出。
         // 两种都尽量拿到「文字版」（本地 OCR 读出目标和附近几行）：有文字就走纯文字请求，比让模型看图快 2–3s
         let image: NSImage, screenshotPath: String?
-        let text: TextLookup?
+        let hoverText: TextLookup?
+        /// 框选：框里的字在后台 OCR，面板不等它先弹出来（以前等完 OCR 才弹，框完要多等 0.15–0.2 秒）
+        let regionText: Task<TextLookup?, Never>?
         if source == .hover {
             guard let (shot, path) = await analysisService.captureHoverWord() else {
                 isAnalyzing = false
@@ -150,7 +167,8 @@ class AnalysisViewModel: ObservableObject {
             }
             image = shot.image
             screenshotPath = path
-            text = TextLookup(target: shot.word, context: shot.context, language: shot.language, isWord: true, scene: .hover)
+            hoverText = TextLookup(target: shot.word, context: shot.context, language: shot.language, isWord: true, scene: .hover)
+            regionText = nil
         } else {
             guard let (img, path, sel) = await analysisService.captureRegion() else {
                 isAnalyzing = false
@@ -158,9 +176,11 @@ class AnalysisViewModel: ObservableObject {
             }
             image = img
             screenshotPath = path
-            text = await analysisService.regionText(context: img, selection: sel)
+            hoverText = nil
+            regionText = analysisService.startRegionText(context: img, selection: sel)
         }
 
+        PanelPerf.mark(.captured)
         // 框选成功，才开始新一轮：清空上一轮状态（钉住的面板此时原地刷新为骨架态）
         self.modelContext = modelContext
         self.mode = mode
@@ -188,11 +208,26 @@ class AnalysisViewModel: ObservableObject {
         let myRun = runID
         installRetryObserver()
 
+        // 1. 面板立刻弹出（骨架态），不等本地 OCR，也不再只显示小转圈
+        showResultPanel = true
+        resultWindow.show(viewModel: self, modelContext: modelContext)
+        PanelPerf.mark(.shown)
+
+        let text: TextLookup?
+        if let regionText {
+            text = await regionText.value
+            // 等 OCR 的时候用户可能已经 Esc / 点外面关了面板，或者又框了一个：这一轮作废
+            guard runID == myRun else { return }
+        } else {
+            text = hoverText
+        }
+
         categories = (try? modelContext.fetch(FetchDescriptor<Category>())) ?? []
         let categoryTree = analysisService.categoryTreeDescription(categories: categories)
-        let existingTags = analysisService.allExistingTags(context: modelContext)
+        let existingTags = await tagsTask.value
+        guard runID == myRun else { return }
 
-        // 有文字版：主分析和补全立刻在后台发出，不等面板首帧（首帧要占主线程约 0.5s）
+        // 有文字版：主分析和补全立刻在后台发出
         let textMain: Task<WordAnalysisResult, Error>?
         let textEnrich: Task<WordEnrichment, Error>?
         if let text {
@@ -208,10 +243,7 @@ class AnalysisViewModel: ObservableObject {
             textEnrich = nil
             AppLog.log("[Analysis] no text in selection, image path")
         }
-
-        // 1. 面板立刻弹出（骨架态），不再只显示小转圈
-        showResultPanel = true
-        resultWindow.show(viewModel: self, modelContext: modelContext)
+        PanelPerf.mark(.requested)
 
         // 8 秒还没结果：告诉用户是对面慢，不是软件没反应（重试通知会再覆盖这句）
         let slowTask = Task { @MainActor in
@@ -224,9 +256,7 @@ class AnalysisViewModel: ObservableObject {
         // 1.5 词库命中秒出：拿本地 OCR 读到的目标文字比对已存词条
         if let target = text?.target {
             let candidates = LocalOCR.lookupCandidates(target)
-            if !candidates.isEmpty,
-               let hit = ((try? modelContext.fetch(FetchDescriptor<WordEntry>())) ?? [])
-                   .first(where: { candidates.contains($0.word.lowercased()) }) {
+            if !candidates.isEmpty, let hit = analysisService.cachedEntry(candidates: candidates, context: modelContext) {
                 quickWord = ZhipuService.QuickWord(word: hit.word, language: hit.language.rawValue)
                 cachedHit = hit
                 enrichStarted = true
@@ -275,8 +305,7 @@ class AnalysisViewModel: ObservableObject {
                     }
                     // 词库命中：立刻直出已存词条（含现成补全，不再请求）；主分析继续核对语境
                     let langRaw = (Language(rawValue: q.language.lowercased()) ?? .other).rawValue
-                    let key = "\(q.word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())|\(langRaw)"
-                    if let hit = (try? modelContext.fetch(FetchDescriptor<WordEntry>()))?.first(where: { $0.dedupeKey == key }) {
+                    if let hit = self.analysisService.existingEntry(word: q.word, languageRaw: langRaw, context: modelContext) {
                         self.cachedHit = hit
                         self.enrichStarted = true
                         self.enrichments[0] = WordEnrichment(
@@ -310,6 +339,7 @@ class AnalysisViewModel: ObservableObject {
             }
             analyzeTask = task
             let result = enforceExclusive(try await task.value)
+            PanelPerf.mark(.result(cached: cachedHit != nil))
             guard runID == myRun else {
                 isAnalyzing = false
                 AppLog.log("[Analysis] cancelled, dropping result")
@@ -320,7 +350,7 @@ class AnalysisViewModel: ObservableObject {
             // 快速识词是否认对了（词头一致）
             var quickOK = false
             if let q = quickWord, let first = result.analysis.words.first,
-               Self.isSameHeadword(first.word, q.word) { quickOK = true }
+               Self.isSameHeadword(first.word, q.word, language: Language(rawValue: q.language.lowercased())) { quickOK = true }
             if enrichStarted && !quickOK {
                 // 快速识词认错了（或其实是知识片段）→ 丢弃预生成的补全，交回常规补全
                 enrichStarted = false
@@ -395,8 +425,10 @@ class AnalysisViewModel: ObservableObject {
             do {
                 let e = try await withTaskCancellationHandler { try await request.value } onCancel: { request.cancel() }
                 guard self.runID == myRun else { return }
+                // 和主分析回来时同一个判法：框的是 heats、词头是 heat 也算同一个词。
+                // 以前这里要一字不差，主分析先回来时补全被丢掉、又没人重补，用法和例句一直「生成中」
                 if let r = self.analysisResult,
-                   r.analysis.words.first?.word.caseInsensitiveCompare(word) != .orderedSame {
+                   !Self.isSameHeadword(r.analysis.words.first?.word ?? "", word, language: Language(rawValue: language.lowercased())) {
                     AppLog.log("[Analysis] pre-enrich '\(word)' 丢弃（实际词头 '\(r.analysis.words.first?.word ?? "-")'）")
                 } else {
                     enrichments[0] = e
@@ -426,11 +458,21 @@ class AnalysisViewModel: ObservableObject {
 
     /// 快速识词与主分析给出的词头是否算同一个词。主分析常把词还原成原形（jerking→jerk、
     /// obscured→obscure、steamed up→steam up），逐字比较会误判为"认错了"而把同一个词再念一遍。
-    /// 判据：按空格拆词后逐词比较，每对词共同前缀足够长且词尾差异不超过 5 个字符就算同一个词；
+    /// 判据：按空格拆词后逐词比较，每对词共同前缀足够长且词尾差异不超过 5 个字符就算同一个词（变音不算差别：hält → halten）；
+    /// 对不上时再用标紫的认词规则看 b 整个是不是 a 的变形（ran → run、hielt → halten）。
     /// 词数不同或词根不同（Britain/beloved）才算认错，交回主分析重读。
-    static func isSameHeadword(_ a: String, _ b: String) -> Bool {
+    /// 以前 hält 和 halten 算两个词：提前发出的补全被丢掉、再补一遍，晚几秒，还把词再念一遍
+    static func isSameHeadword(_ a: String, _ b: String, language: Language? = nil) -> Bool {
+        if prefixMatch(a, b) { return true }
+        guard let language else { return false }
+        let whole = b.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hits = WordMatcher(word: a, language: language).ranges(in: whole)
+        return hits.count == 1 && hits[0] == whole.startIndex..<whole.endIndex
+    }
+
+    private static func prefixMatch(_ a: String, _ b: String) -> Bool {
         func norm(_ s: String) -> [String] {
-            s.lowercased()
+            s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
                 .replacingOccurrences(of: "-", with: " ")
                 .split(whereSeparator: { $0.isWhitespace })
                 .map { $0.trimmingCharacters(in: .punctuationCharacters) }
@@ -687,7 +729,7 @@ class AnalysisViewModel: ObservableObject {
     /// 手动输入时的补全候选：标签库里前缀/包含匹配
     func tagSuggestions(for text: String) -> [String] {
         guard let context = modelContext else { return [] }
-        let all = analysisService.allExistingTags(context: context)
+        let all = AnalysisService.allExistingTags(context: context)
         guard !text.isEmpty else { return Array(all.prefix(6)) }
         return all.filter { $0.localizedCaseInsensitiveContains(text) }.prefix(6).map { $0 }
     }
