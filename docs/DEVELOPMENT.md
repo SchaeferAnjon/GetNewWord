@@ -44,6 +44,16 @@ Both copies register the same global shortcuts (`⇧⌘A` capture, `⌃⌘A` poi
 
 The log is `app.log` in the data folder (`tail -f` it while you test). It records each lookup, the AI request times and errors.
 
+### Membership in a development copy
+
+In membership mode the app registers the Mac with the membership server and sends lookups there (`MemberService`, the member route in `ZhipuService`). A development copy never talks to the live server, so it can't use up one of the first 100 free trials: it connects only when `GETNEWWORD_API` points at a server you run yourself, for example the membership server's code with its fake Stripe, DeepSeek and Supabase on your Mac:
+
+```sh
+GETNEWWORD_API=http://127.0.0.1:18820 "build/DerivedData/Build/Products/Debug/GetNewWord Dev.app/Contents/MacOS/GetNewWord Dev"
+```
+
+Without it the AI page shows that the copy isn't connected, and your own key works as usual. The device token is stored in the Keychain per server address, so a token from a local server is never sent to another one.
+
 ## Tests and CI
 
 `make test` builds an unsigned development copy in `build/Test` (the one from `make dev` stays as it is) and runs the unit tests in `GetNewWordTests/` inside it, with Swift Testing. They cover the parts that do not need the interface: reading the AI's answer (`ZhipuService.parseAnalysis`, truncated replies), sorting providers' errors into the error panels (`ZhipuServiceError.from`, `LookupFailure.from`), the merge rule of library sync (`CloudSyncService.pullAction`), the Anki cards (field names against the note type, media through `storeMediaFile`, restoring cards into the library) against a fake AnkiConnect, export and import, the red box of the context image, saving and merging words, and the string catalogs: every entry has English and German, and every string the code uses is in a catalog (checked against the `.stringsdata` files the build extracts).
@@ -96,7 +106,8 @@ The website's download button and the README link to `releases/latest/download/G
   - `ZhipuService`: every AI provider (`APIProvider`: Zhipu, DeepSeek, Qwen, Kimi, Doubao, OpenAI, Gemini, Claude, OpenRouter, any OpenAI-compatible service), the prompts and response parsing.
   - `AnkiService`, `AnkiInstaller`: AnkiConnect, decks and note types, one-click install of Anki and AnkiConnect.
   - `AudioService`: pronunciation (Youdao, Wiktionary recordings, Google TTS, system voice).
-  - `SupabaseAuth`, `SupabaseConfig`, `CloudSyncService`, `CloudRealtime`: optional sign-in and library sync between Macs (design in `docs/sync-design.md`, database in `supabase/`).
+  - `MemberService`: membership (device registration and free trial, status, checkout and payment polling, the Stripe customer portal, license codes, linking the sync account).
+  - `SupabaseAuth`, `SupabaseConfig`, `CloudSyncService`, `CloudRealtime`: sign-in and library sync between Macs, for members (design in `docs/sync-design.md`, database in `supabase/`: `getnewword-schema.sql` for the tables, `getnewword-sync-access.sql` for the members-only policies).
   - `ImportExportService`, `DatabaseManager`, `AppUpdater` (Sparkle).
 - `GetNewWord/Views/`: `Screenshot/` (selection overlay, look-up panel, error panels), `Settings/` (settings window, onboarding, pricing), the main window (`MainView`, `Sidebar/`, `WordList/`, `Detail/`, `Dashboard/`) and `Theme.swift` (colours, fonts, shared controls).
 - `GetNewWord/Utilities/`: global shortcuts (Carbon, no Accessibility permission needed), Keychain, permissions, `AppVariant` (installed app or development copy), interface language, log, the context image with the red box.

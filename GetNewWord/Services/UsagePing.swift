@@ -135,7 +135,7 @@ final class UsagePing {
             version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?",
             platform: "darwin",
             arch: arch,
-            plan: "own",   // 会员还没开放，现在都是自带 Key；会员开了以后按账号写 member
+            plan: AIPlan.current == .member ? "member" : "own",
             lang: lang.hasPrefix("zh") ? "zh" : lang,
             product: "getnewword"
         )

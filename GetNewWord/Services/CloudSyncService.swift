@@ -6,6 +6,8 @@
 // - 不改本地模型：用「上次同步时的内容哈希」检测本地增改，用「已知但本地不存在」检测本地删除（推墓碑）。
 // - 一轮：拉远端增量并应用（远端优先）→ 确定性去重收敛 → 应用远端墓碑 → 推本地变更。
 // - 音频 / 截图路径是本机文件，不同步也不被远端覆盖。
+// - 多台 Mac 同步只给会员：每轮之前问 Supabase 的 getnewword.sync_allowed()（四张表上的限制性 RLS 用的就是它，
+//   由会员后台签名写入，改 app 绕不过）；不让同步就不拉不推，本机词库照常用。见 supabase/getnewword-sync-access.sql。
 
 import Foundation
 import AppKit
@@ -138,10 +140,39 @@ enum CloudDate {
 
 enum CloudSyncError: LocalizedError {
     case http(Int, String)
+    /// RLS 拦了（403 / 42501）：这个账号的同步没开
+    case denied
     var errorDescription: String? {
         switch self {
         case .http(let code, let body): return String(localized: "同步服务 HTTP \(code)：\(body)")
+        case .denied: return CloudSyncService.deniedText
         }
+    }
+}
+
+/// 这个账号现在能不能多台 Mac 同步
+enum SyncAccess: Equatable {
+    /// 还没问过，或者问不到（断网）：照常试，Supabase 的 RLS 最后说了算
+    case unknown
+    case allowed
+    /// 不是会员（或会员到期）：不拉不推
+    case denied
+
+    /// getnewword.sync_allowed() 的回话 → 能不能同步。404 = Supabase 上还没加这个函数（会员限制还没上线），照旧同步
+    static func from(status: Int, body: Data) -> SyncAccess {
+        if status == 404 { return .allowed }
+        guard (200..<300).contains(status) else { return .unknown }
+        let text = String(decoding: body, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        switch text {
+        case "true": return .allowed
+        case "false": return .denied
+        default: return .unknown
+        }
+    }
+
+    /// PostgREST 的报错是不是 RLS 拦了写：403，或 body 里的错误码 42501
+    static func isRLSDenial(status: Int, body: Data) -> Bool {
+        status == 403 || String(decoding: body.prefix(300), as: UTF8.self).contains("42501")
     }
 }
 
@@ -154,6 +185,13 @@ final class CloudSyncService: ObservableObject {
     @Published private(set) var isSyncing = false
     @Published private(set) var lastSyncAt: Date?
     @Published private(set) var lastResult = ""
+    @Published private(set) var access: SyncAccess = .unknown
+    private var accessCheckedAt: Date?
+    private var accessUser: String?
+    /// 会员后台说能同步、Supabase 还没打开时，请后台再推一次（10 分钟一次）
+    private var relinkedAt: Date?
+
+    nonisolated static var deniedText: String { String(localized: "多台 Mac 同步是会员功能，本机词库不受影响。") }
 
     /// 旁路同步状态（按账号分文件）
     private struct State: Codable {
@@ -205,6 +243,13 @@ final class CloudSyncService: ObservableObject {
             NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.scheduleSync(after: 1) }
             },
+            // 成了会员、到期、刚绑好同步账号：重新问一次能不能同步
+            NotificationCenter.default.addObserver(forName: .memberStatusChanged, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    self?.accessCheckedAt = nil
+                    self?.scheduleSync(after: 1)
+                }
+            },
         ]
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
@@ -232,6 +277,12 @@ final class CloudSyncService: ObservableObject {
         if isSyncing { rerunRequested = true; return }
         isSyncing = true
         loadState(userId: session.userId)
+        guard await syncAllowed(session) else {
+            realtime.stop()
+            lastResult = Self.deniedText
+            isSyncing = false
+            return
+        }
         do {
             let pulled = try await pull(context: context)
             let pushed = try await push(context: context)
@@ -242,6 +293,14 @@ final class CloudSyncService: ObservableObject {
         } catch SupabaseAuthError.notSignedIn {
             realtime.stop()
             lastResult = String(localized: "登录已失效，请重新登录")
+        } catch CloudSyncError.denied {
+            // RLS 拦了：会员到期了，或者后台还没把这个账号打开。停同步、查一次会员状态
+            realtime.stop()
+            access = .denied
+            accessCheckedAt = Date()
+            lastResult = Self.deniedText
+            AppLog.log("[Cloud] sync denied by RLS")
+            Task { await MemberService.shared.refresh() }
         } catch {
             lastResult = String(localized: "同步失败：\(error.localizedDescription)")
             AppLog.log("[Cloud] ✗ sync: \(error)")
@@ -252,6 +311,62 @@ final class CloudSyncService: ObservableObject {
             rerunRequested = false
             scheduleSync(after: 1)
         }
+    }
+
+    // MARK: - 能不能同步（会员才有）
+
+    /// 问 Supabase 这个账号能不能同步，10 分钟内问过就用上次的。不让同步、会员后台又说这张授权是会员时：
+    /// 没绑过，或绑的就是这个账号（推送还没到 Supabase），请后台再推一次；绑的是别的账号不动，等人在「账号与同步」里点了才换
+    private func syncAllowed(_ session: SupabaseSession) async -> Bool {
+        let userId = session.userId
+        if accessUser != userId { accessUser = userId; accessCheckedAt = nil; access = .unknown }
+        if let at = accessCheckedAt, Date().timeIntervalSince(at) < 600 { return access != .denied }
+        access = await askAccess()
+        accessCheckedAt = Date()
+        if access == .denied, let link = MemberService.shared.status?.sync, link.allowed,
+           Self.shouldAskPushAgain(link: link, email: session.email),
+           (relinkedAt.map { Date().timeIntervalSince($0) > 600 } ?? true) {
+            relinkedAt = Date()
+            AppLog.log("[Cloud] member says sync allowed but Supabase not yet; asking the member server to push again")
+            await MemberService.shared.linkSync()
+            access = await askAccess()
+        }
+        if access == .denied { AppLog.log("[Cloud] sync not allowed for this account (not a member)") }
+        return access != .denied
+    }
+
+    /// 会员后台说能同步、Supabase 还不让时，要不要请后台再推：没绑过，或绑的就是这个账号
+    nonisolated static func shouldAskPushAgain(link: MemberStatus.Sync, email: String?) -> Bool {
+        !link.linked || MemberService.sameEmail(link.email, email)
+    }
+
+    private func askAccess() async -> SyncAccess {
+        do {
+            let token = try await SupabaseAuth.shared.validAccessToken()
+            var req = URLRequest(url: SupabaseConfig.url.appendingPathComponent("rest/v1/rpc/sync_allowed"))
+            req.httpMethod = "POST"
+            req.timeoutInterval = 15
+            req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+            req.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
+            req.setValue(SupabaseConfig.schema, forHTTPHeaderField: "Content-Profile")
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = Data("{}".utf8)
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
+            let result = SyncAccess.from(status: status, body: data)
+            if status == 404 { AppLog.log("[Cloud] sync_allowed() not in Supabase yet: syncing as before") }
+            else if result == .unknown { AppLog.log("[Cloud] sync_allowed HTTP \(status)") }
+            return result
+        } catch {
+            AppLog.log("[Cloud] sync_allowed failed: \((error as? URLError)?.code.rawValue.description ?? String(describing: type(of: error)))")
+            return .unknown
+        }
+    }
+
+    /// 刚登录、刚成了会员：马上重新问
+    func recheckAccess() {
+        accessCheckedAt = nil
+        scheduleSync(after: 1)
     }
 
     /// 登出：丢掉该账号的同步状态；本地数据保留
@@ -265,6 +380,9 @@ final class CloudSyncService: ObservableObject {
         stateUserId = nil
         lastSyncAt = nil
         lastResult = ""
+        access = .unknown
+        accessCheckedAt = nil
+        accessUser = nil
         await SupabaseAuth.shared.signOut()
     }
 
@@ -476,13 +594,28 @@ final class CloudSyncService: ObservableObject {
         let body = try JSONSerialization.data(withJSONObject: ["deleted_at": CloudDate.format(Date())])
         for start in stride(from: 0, to: gone.count, by: 100) {
             let chunk = Array(gone[start..<min(start + 100, gone.count)])
-            _ = try await rest("PATCH", table,
-                               query: [URLQueryItem(name: "id", value: "in.(\(chunk.joined(separator: ",")))")],
-                               body: body, prefer: "return=minimal")
+            // 要回改到的行（只要 id）：RLS 不让改时 PATCH 不报错、只是改了 0 行，不看回话就会把没推上去的删除当成推好了
+            let data = try await rest("PATCH", table,
+                                      query: [URLQueryItem(name: "id", value: "in.(\(chunk.joined(separator: ",")))"),
+                                              URLQueryItem(name: "select", value: "id")],
+                                      body: body, prefer: "return=representation")
+            if Self.updatedRows(data) == 0 {
+                // 一行都没改到：先问能不能同步。不让就是 RLS 拦了；问不到这一轮先不算推好，下一轮再推
+                switch await askAccess() {
+                case .denied: throw CloudSyncError.denied
+                case .unknown: throw CloudSyncError.http(0, "tombstones not confirmed")
+                case .allowed: break   // 云端真的没有这几行了
+                }
+            }
             for id in chunk { state.known.removeValue(forKey: prefix + id) }
             saveState()
         }
         return gone.count
+    }
+
+    /// PATCH（return=representation）回了几行；读不懂回 nil
+    nonisolated static func updatedRows(_ data: Data) -> Int? {
+        (try? JSONSerialization.jsonObject(with: data) as? [Any])?.count
     }
 
     // MARK: - 拉到的一行怎么处理
@@ -581,6 +714,7 @@ final class CloudSyncService: ObservableObject {
         let (data, resp) = try await URLSession.shared.data(for: req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
         guard (200..<300).contains(status) else {
+            if SyncAccess.isRLSDenial(status: status, body: data) { throw CloudSyncError.denied }
             throw CloudSyncError.http(status, String(decoding: data.prefix(300), as: UTF8.self))
         }
         return data

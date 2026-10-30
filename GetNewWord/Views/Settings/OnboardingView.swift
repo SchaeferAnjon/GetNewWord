@@ -12,13 +12,15 @@ struct OnboardingView: View {
     @ObservedObject private var permissions = PermissionManager.shared
     @AppStorage(TargetLanguage.key) private var target: TargetLanguage = .zhHans
     @AppStorage("apiProvider") private var provider: APIProvider = .zhipu
+    @AppStorage(AIPlan.key) private var plan: AIPlan = .member
+    @ObservedObject private var member = MemberService.shared
     @AppStorage(UsageConsent.key) private var usageConsent = ""
     @State private var step = 0
     @State private var pendingLanguage: AppLanguage?
     let onComplete: () -> Void
 
     private let steps: [(title: LocalizedStringKey, note: LocalizedStringKey)] = [
-        ("欢迎", "语言"), ("权限", "截图要用"), ("选择 AI", "必填"), ("连接 Anki", "可选"), ("匿名统计", "选一个"), ("开始使用", "")
+        ("欢迎", "语言"), ("权限", "截图要用"), ("选择 AI", "会员或自带 Key"), ("连接 Anki", "可选"), ("匿名统计", "选一个"), ("开始使用", "")
     ]
 
     var body: some View {
@@ -100,7 +102,7 @@ struct OnboardingView: View {
         switch i {
         case 0: return step > 0
         case 1: return permissions.hasScreenRecording
-        case 2: return hasKey
+        case 2: return plan == .member ? member.state.ready && member.registered : hasKey
         case 3: return AnkiInstaller.shared.connected
         case 4: return !usageConsent.isEmpty
         default: return false
@@ -159,10 +161,15 @@ struct OnboardingView: View {
                 // 两个一样的按钮，没有主按钮，回车不替人选
                 UsageConsentButtons { go(5) }
             } else {
-                Button(nextTitle) { next() }
+                Button { next() } label: {
+                    HStack(spacing: 6) {
+                        if step == 2, member.claiming { ProgressView().controlSize(.small) }
+                        Text(nextTitle)
+                    }
+                }
                     .buttonStyle(PrimaryButtonStyle())
                     .keyboardShortcut(.return, modifiers: [])
-                    .disabled(step == 2 && !hasKey)
+                    .disabled(step == 2 && (plan == .own ? !hasKey : member.claiming))
             }
         }
     }
@@ -182,7 +189,17 @@ struct OnboardingView: View {
     }
 
     private func next() {
-        if step == steps.count - 1 { finish() } else { go(step + 1) }
+        if step == steps.count - 1 { finish(); return }
+        // 选着会员点「继续」才向后台注册、领试用（选自带 Key 的不注册）。没领到的留在这一步，让人看到原因再选
+        if step == 2, plan == .member, member.isAvailable, !member.registered {
+            Task {
+                await member.claimTrial()
+                if case .trialClosed = member.state { return }
+                go(step + 1)
+            }
+            return
+        }
+        go(step + 1)
     }
 
     private func finish() {
@@ -257,20 +274,43 @@ struct OnboardingView: View {
 
     private var aiStep: some View {
         VStack(alignment: .leading, spacing: 16) {
-            header("用哪种 AI 讲解？", "填好一家就能用，之后随时在设置里换。")
+            header("用哪种 AI 讲解？", "两种都能查词，之后随时在设置里换。")
             HStack(spacing: 10) {
-                planCard(title: "免费试用", tag: "即将开放", big: "7 天", detail: "什么都不用填", selected: false, disabled: true)
-                planCard(title: "会员", tag: "即将开放", big: "免配置", detail: "不用 Key，官方 AI", selected: false, disabled: true)
-                planCard(title: "自带 Key", tag: "永久免费", big: "免费", detail: "10 家服务商可选", selected: true, disabled: false)
+                planCard(title: "会员", tag: memberTag, big: "免配置", detail: "不用 Key，装好就能查；之后每月 ¥9.9 起",
+                         selected: plan == .member) { choose(.member) }
+                planCard(title: "自带 Key", tag: "永久免费", big: "免费", detail: "填自己的 Key，10 家服务商可选",
+                         selected: plan == .own) { choose(.own) }
             }
             .fixedSize(horizontal: false, vertical: true)
-            ProviderPicker(viewModel: viewModel, selected: $provider)
+            if plan == .member {
+                MemberStatusBox()
+            } else {
+                ProviderPicker(viewModel: viewModel, selected: $provider)
+            }
         }
     }
 
+    /// 会员卡片上的小标签：还没领时写名额，领过以后照这台的情况写
+    private var memberTag: LocalizedStringKey {
+        switch member.state {
+        case .trial(let left, _): return "试用剩 \(left) 次"
+        case .trialUsedUp: return "试用已用完"
+        case .trialClosed: return "这台没领到试用"
+        case .member, .dailyLimit, .paymentFailed: return "已是会员"
+        case .ended: return "会员到期了"
+        default: return "前 100 位免费 30 次"
+        }
+    }
+
+    private func choose(_ p: AIPlan) {
+        guard plan != p else { return }
+        plan = p
+        AppLog.log("[Onboarding] plan → \(p.rawValue)")
+    }
+
     private func planCard(title: LocalizedStringKey, tag: LocalizedStringKey, big: LocalizedStringKey, detail: LocalizedStringKey,
-                          selected: Bool, disabled: Bool) -> some View {
-        ChoiceCard(selected: selected, disabled: disabled) {} content: {
+                          selected: Bool, action: @escaping () -> Void) -> some View {
+        ChoiceCard(selected: selected, action: action) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text(title).font(.system(size: 12.5, weight: .semibold))

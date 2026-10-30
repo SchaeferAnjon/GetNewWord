@@ -9,6 +9,7 @@
 //                         closeAfter：自动框时每个词框完这么多秒后像按 Esc 一样关面板（开发版打点量关面板），不写就一直开到下一个
 //                         screen 是整屏大小的图（像素 = 屏幕 point × 缩放），select 按 point 算、左上角原点
 //   GNW_DEMO_KEY=<key>    当前 AI 服务商的 Key，只在环境变量里，不写钥匙串
+//   GNW_SHOT_DIR=<目录>    收到 SIGUSR1 时把屏上自己的窗口画成 PNG 放进去（installShots）
 
 #if DEBUG
 import AppKit
@@ -89,6 +90,33 @@ enum DemoMode {
         let pixels = CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale)
         return ContextImage.make(from: cg, sourceRect: pixels, scaleX: scale, scaleY: scale,
                                  isSmallSelection: rect.width < 400 || rect.height < 120)
+    }
+
+    /// GNW_SHOT_DIR=<目录>：收到 SIGUSR1 就把屏上自己的每个窗口画成 PNG 放进这个目录（不截屏、不用屏幕录制权限）。
+    /// 文件名前缀写在目录里的 .name 文件里（没有就用 shot），后面接窗口序号。实测时给报错浮窗、会员页留图用
+    private static var shotSource: DispatchSourceSignal?
+    static func installShots() {
+        guard let path = ProcessInfo.processInfo.environment["GNW_SHOT_DIR"], !path.isEmpty, shotSource == nil else { return }
+        let directory = URL(fileURLWithPath: path, isDirectory: true)
+        signal(SIGUSR1, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
+        source.setEventHandler {
+            let prefix = (try? String(contentsOf: directory.appendingPathComponent(".name"), encoding: .utf8))?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "shot"
+            var written: [String] = []
+            for (i, window) in NSApp.windows.enumerated() where window.isVisible && window.frame.width > 120 && window.frame.height > 60 {
+                guard let view = window.contentView?.superview ?? window.contentView,
+                      let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
+                view.cacheDisplay(in: view.bounds, to: rep)
+                let url = directory.appendingPathComponent("\(prefix.isEmpty ? "shot" : prefix)-\(i).png")
+                if let png = rep.representation(using: .png, properties: [:]), (try? png.write(to: url, options: .atomic)) != nil {
+                    written.append(url.lastPathComponent)
+                }
+            }
+            AppLog.log("[Demo] shot: \(written.joined(separator: ", "))")
+        }
+        source.resume()
+        shotSource = source
     }
 
     private static func fail(_ message: String) -> Never {

@@ -95,8 +95,8 @@ class AnalysisService {
     }
 
     /// 主分析（图 → 释义/语法/语境/分类）
-    func analyze(image: NSImage, screenshotPath: String?, existingTags: [String] = [], categoryTree: String = "") async throws -> AnalysisResult {
-        let analysis = try await zhipuService.analyzeScreenshot(image, existingTags: existingTags, categoryTree: categoryTree)
+    func analyze(image: NSImage, screenshotPath: String?, existingTags: [String] = [], categoryTree: String = "", useID: UUID? = nil) async throws -> AnalysisResult {
+        let analysis = try await zhipuService.analyzeScreenshot(image, existingTags: existingTags, categoryTree: categoryTree, useID: useID)
         return AnalysisResult(screenshot: image, screenshotPath: screenshotPath, analysis: analysis)
     }
 

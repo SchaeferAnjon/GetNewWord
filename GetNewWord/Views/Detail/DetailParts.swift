@@ -43,6 +43,8 @@ final class WordActions: ObservableObject {
                 }
             } catch {
                 AppLog.log("[Detail] regenerate failed for '\(w)': \(error.localizedDescription)")
+                // 会员的试用用完、今天的次数用完这类要让人知道，不然点了「补全」什么都没发生
+                if case ZhipuServiceError.member = error { ErrorPanelController.shared.show(LookupFailure.from(error)) }
             }
             regenerating.remove(id)
         }

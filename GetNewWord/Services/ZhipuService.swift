@@ -117,6 +117,19 @@ struct ZhipuRequest: Codable, Sendable {
         self.stream = stream
     }
 
+    /// 会员通道：发到我们的后台，模型、思考由后台定（deepseek-flash、关思考），这里只给内容、输出上限和要不要 JSON
+    init(memberMessages messages: [ZhipuMessage], temperature: Double, maxTokens: Int, jsonOutput: Bool = false, stream: Bool? = nil) {
+        self.model = "deepseek-flash"
+        self.messages = messages
+        self.temperature = temperature
+        self.maxTokens = maxTokens
+        self.maxCompletionTokens = nil
+        self.reasoningEffort = nil
+        self.thinking = nil
+        self.responseFormat = jsonOutput ? .jsonObject : nil
+        self.stream = stream
+    }
+
     enum CodingKeys: String, CodingKey {
         case model, messages, temperature, thinking, stream
         case maxTokens = "max_tokens"
@@ -336,6 +349,8 @@ enum ZhipuServiceError: LocalizedError {
     case emptyResponse(finishReason: String?)
     /// 自定义服务商还没填全（地址、模型名）
     case incompleteSetup(String)
+    /// 会员通道的报错（试用用完、每天上限、欠费……），按后台的错误码说
+    case member(MemberError)
 
     /// 把服务商的 HTTP 报错归类：状态码优先，再看错误码和原话里的关键词
     static func from(status: Int, body: Data) -> ZhipuServiceError {
@@ -373,7 +388,7 @@ enum ZhipuServiceError: LocalizedError {
     }
 
     var errorDescription: String? {
-        let ai = APIProvider.current.displayName
+        let ai = AIPlan.current == .member ? ZhipuService.memberName : APIProvider.current.displayName
         switch self {
         case .apiKeyNotConfigured: return String(localized: "还没填 \(ai) 的 Key：到「设置 › AI 服务」填好再查。")
         case .imageEncodingFailed: return String(localized: "截图没能转成图片，再框一次试试。")
@@ -387,6 +402,7 @@ enum ZhipuServiceError: LocalizedError {
         case .invalidResponse: return String(localized: "\(ai) 的回应不完整，没法读。")
         case .emptyResponse(let reason): return String(localized: "\(ai) 这次什么都没回（finish_reason=\(reason ?? "-")）。")
         case .incompleteSetup(let message): return message
+        case .member(let e): return MemberText.detail(e)
         }
     }
 }
@@ -626,6 +642,23 @@ class ZhipuService: @unchecked Sendable {
         return URLSession(configuration: config)
     }()
 
+    // MARK: - 会员通道
+
+    /// 会员模式：查词发到我们的后台，不用 Key。单元测试换成假的
+    var memberMode: @Sendable () -> Bool = { AIPlan.current == .member }
+    /// 会员的凭据、用量号、剩余次数；nil = MemberService.shared。单元测试换成假的
+    var memberOverride: (any MemberRoute)?
+    /// 后台地址有没有（开发版没设 GETNEWWORD_API 时没有）
+    var memberAvailable = MemberAPI.base(environment: ProcessInfo.processInfo.environment,
+                                         isDev: AppVariant.isDev || AppVariant.isUnitTesting) != nil
+
+    static var memberName: String { String(localized: "GetNewWord 会员") }
+
+    private func memberRoute() async -> any MemberRoute {
+        if let memberOverride { return memberOverride }
+        return await MainActor.run { MemberService.shared }
+    }
+
     // MARK: - API Key 管理
 
     /// 当前提供商的 API Key
@@ -649,13 +682,13 @@ class ZhipuService: @unchecked Sendable {
         }
     }
 
-    /// 是否已配置当前提供商的 API Key
+    /// 能不能查词：会员模式看有没有后台地址，自带 Key 看当前服务商填没填 Key
     var isConfigured: Bool {
-        key(for: provider) != nil && provider.isReady
+        memberMode() ? memberAvailable : key(for: provider) != nil && provider.isReady
     }
 
-    /// 当前提供商显示名（错误提示用）
-    var currentProviderName: String { provider.displayName }
+    /// 当前用的 AI 的名字（错误提示用）
+    var currentProviderName: String { memberMode() ? Self.memberName : provider.displayName }
 
     // MARK: - 公开方法
 
@@ -664,7 +697,8 @@ class ZhipuService: @unchecked Sendable {
     ///   - image: 截图图片
     ///   - customPrompt: 自定义提示词，为 nil 时使用默认单词分析 Prompt
     /// - Returns: 分析结果
-    func analyzeScreenshot(_ image: NSImage, existingTags: [String] = [], categoryTree: String = "", customPrompt: String? = nil) async throws -> WordAnalysisResult {
+    func analyzeScreenshot(_ image: NSImage, existingTags: [String] = [], categoryTree: String = "", customPrompt: String? = nil,
+                           useID: UUID? = nil) async throws -> WordAnalysisResult {
         guard isConfigured else {
             throw ZhipuServiceError.apiKeyNotConfigured
         }
@@ -685,13 +719,13 @@ class ZhipuService: @unchecked Sendable {
 
         // 不开思考时 p50≈4.5s、p90≈10s，但服务端偶尔会拖到 20–56s 才回；30s 砍掉的多半是这种「慢但活着」的请求，
         // 重发同一张图只会再撞一次。给 50s，总时长由 overallBudget 兜。开思考可能真的慢，放宽
-        let thinkingOn = (provider.thinkingConfig?.type ?? "disabled") != "disabled"
-        let response = try await sendRequest(messages: [message], timeout: thinkingOn ? 120 : 50)
+        let thinkingOn = !memberMode() && (provider.thinkingConfig?.type ?? "disabled") != "disabled"
+        let response = try await sendRequest(messages: [message], timeout: thinkingOn ? 120 : 50, useID: useID)
         return try parseAnalysis(response)
     }
 
     /// 文字版取词（指词 / 框选都用）：已知目标文字和它周围的屏幕文字，不发图，纯文字请求比识图快得多
-    func analyzeText(_ text: TextLookup, existingTags: [String] = [], categoryTree: String = "") async throws -> WordAnalysisResult {
+    func analyzeText(_ text: TextLookup, existingTags: [String] = [], categoryTree: String = "", useID: UUID? = nil) async throws -> WordAnalysisResult {
         guard isConfigured else {
             throw ZhipuServiceError.apiKeyNotConfigured
         }
@@ -715,8 +749,8 @@ class ZhipuService: @unchecked Sendable {
             """
         }
         let prompt = buildWordAnalysisPrompt(existingTags: existingTags, categoryTree: categoryTree, scene: scene)
-        let thinkingOn = (provider.thinkingConfig?.type ?? "disabled") != "disabled"
-        let response = try await sendRequest(messages: [ZhipuMessage(role: "user", content: [.text(prompt)])], timeout: thinkingOn ? 120 : 50)
+        let thinkingOn = !memberMode() && (provider.thinkingConfig?.type ?? "disabled") != "disabled"
+        let response = try await sendRequest(messages: [ZhipuMessage(role: "user", content: [.text(prompt)])], timeout: thinkingOn ? 120 : 50, useID: useID)
         return try parseAnalysis(response)
     }
 
@@ -828,7 +862,11 @@ class ZhipuService: @unchecked Sendable {
     ///   （实测成功样本 p95=12.6s、p99=21.7s、最慢 56s），所以单次超时给宽，
     ///   由 `deadline` 兜住总时长。
     /// - deadline: 整个调用（含重试）的截止时刻，首次调用时按 `overallBudget` 生成
-    private func sendRequest(messages: [ZhipuMessage], maxTokens: Int = 8192, timeout: TimeInterval = 60, retryCount: Int = 0, deadline: Date? = nil) async throws -> ZhipuResponse {
+    private func sendRequest(messages: [ZhipuMessage], maxTokens: Int = 8192, timeout: TimeInterval = 60, useID: UUID? = nil,
+                             retryCount: Int = 0, deadline: Date? = nil) async throws -> ZhipuResponse {
+        if memberMode() {
+            return try await sendMemberRequest(messages: messages, maxTokens: maxTokens, timeout: timeout, run: useID ?? UUID())
+        }
         guard let key = apiKey, !key.isEmpty else {
             throw ZhipuServiceError.apiKeyNotConfigured
         }
@@ -910,6 +948,98 @@ class ZhipuService: @unchecked Sendable {
             }
             throw ZhipuServiceError.networkError(error)
         }
+    }
+
+    /// 会员通道：发到我们的后台，带设备令牌和这次查词的用量号（重试也用同一个号，后台只算一次）。
+    /// 令牌失效（401 bad-device）重新注册一次；用量号过了窗口（409 use-expired）换新号再发一次（会再算一次）；
+    /// 上游暂时不可用、太频繁按退避重试；试用用完、每天上限这类直接报，并让会员状态跟着更新
+    private func sendMemberRequest(messages: [ZhipuMessage], maxTokens: Int, timeout: TimeInterval, run: UUID) async throws -> ZhipuResponse {
+        let route = await memberRoute()
+        let deadline = Date().addingTimeInterval(max(overallBudget, timeout + 15))
+        let body = try JSONEncoder().encode(ZhipuRequest(memberMessages: messages, temperature: 0.3, maxTokens: maxTokens, jsonOutput: true))
+        var retries = 0, renewedToken = false, renewedUse = false
+        while true {
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 3 else {
+                AppLog.log("[Member] ✗ 总预算耗尽，放弃重试")
+                throw ZhipuServiceError.networkError(URLError(.timedOut))
+            }
+            let (built, token) = try await memberURLRequest(route, run: run, timeout: min(timeout, remaining))
+            var request = built
+            request.httpBody = body
+            let startedAt = Date()
+            AppLog.log("[Member] → POST chat body=\(body.count / 1024)KB retry=\(retries) timeout=\(Int(request.timeoutInterval))s")
+            let data: Data, http: HTTPURLResponse
+            do {
+                let (d, response) = try await session.data(for: request)
+                guard let h = response as? HTTPURLResponse else { throw ZhipuServiceError.invalidResponse }
+                (data, http) = (d, h)
+            } catch let error as ZhipuServiceError {
+                throw error
+            } catch {
+                let cancelled = error is CancellationError || (error as? URLError)?.code == .cancelled
+                AppLog.log("[Member] ✗ \(cancelled ? "cancelled" : "network \((error as? URLError)?.code.rawValue ?? 0)") after \(String(format: "%.1fs", Date().timeIntervalSince(startedAt)))")
+                if !cancelled, retries < maxRetryCount {
+                    try await backoff(retries)
+                    retries += 1
+                    continue
+                }
+                // 超时照旧说「迟迟没回应」；连不上说是我们的会员服务器连不上（不是你的 Key）
+                if cancelled || (error as? URLError)?.code == .timedOut { throw ZhipuServiceError.networkError(error) }
+                throw ZhipuServiceError.member(.network)
+            }
+            AppLog.log("[Member] ← HTTP \(http.statusCode) after \(String(format: "%.1fs", Date().timeIntervalSince(startedAt))), \(data.count / 1024)KB")
+            if (200...299).contains(http.statusCode) {
+                await route.noteResponse(headers: http.stringHeaders, error: nil)
+                do {
+                    return try jsonDecoder.decode(ZhipuResponse.self, from: data)
+                } catch {
+                    AppLog.log("[Member] ✗ decode failed: \(error) raw=\(String(data: data.prefix(300), encoding: .utf8) ?? "")")
+                    throw ZhipuServiceError.responseParsingFailed
+                }
+            }
+            let error = MemberError.from(status: http.statusCode, body: data, headers: http.allHeaderFields)
+            AppLog.log("[Member] ✗ \(http.statusCode) \(error.code)")
+            if http.statusCode == 401, error.code == "bad-device", !renewedToken, await route.renewToken(token) {
+                renewedToken = true
+                continue
+            }
+            if error.code == "use-expired", !renewedUse {
+                _ = await route.renewUse(for: run)
+                renewedUse = true
+                continue
+            }
+            if error.isRetryable, retries < maxRetryCount {
+                try await backoff(retries, after: error.retryAfter)
+                retries += 1
+                continue
+            }
+            await route.noteResponse(headers: http.stringHeaders, error: error)
+            throw ZhipuServiceError.member(error)
+        }
+    }
+
+    /// 会员通道的一个请求：地址、设备令牌、这次查词的用量号。回请求和用的令牌（令牌被拒时拿它去换）
+    private func memberURLRequest(_ route: any MemberRoute, run: UUID, timeout: TimeInterval) async throws -> (URLRequest, String) {
+        let credentials: MemberCredentials
+        do {
+            credentials = try await route.credentials()
+        } catch let error as MemberError {
+            throw ZhipuServiceError.member(error)
+        }
+        var request = URLRequest(url: credentials.chatURL)
+        request.httpMethod = "POST"
+        request.timeoutInterval = timeout
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(credentials.token)", forHTTPHeaderField: "Authorization")
+        request.setValue(await route.useID(for: run).uuidString.lowercased(), forHTTPHeaderField: "X-Use-Id")
+        return (request, credentials.token)
+    }
+
+    private func backoff(_ retry: Int, after: TimeInterval? = nil) async throws {
+        NotificationCenter.default.post(name: .zhipuRetrying, object: nil, userInfo: ["retry": retry + 1])
+        let delay = after.map { min($0, 10) } ?? Double(retryDelays[min(retry, retryDelays.count - 1)]) / 1_000_000_000
+        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
     }
 
     /// 等待退避后重试；先广播一次，面板据此把副标题换成「正在重试」
@@ -1062,7 +1192,7 @@ class ZhipuService: @unchecked Sendable {
     }
 
     /// 只认红框里的词（输出 ~15 token，2 秒级）：面板词头和发音靠它先出
-    func quickExtract(_ image: NSImage) async throws -> QuickWord {
+    func quickExtract(_ image: NSImage, useID: UUID? = nil) async throws -> QuickWord {
         guard let dataURL = ImageEncoder.toCompressedDataURL(image, maxDimension: 1000, quality: 0.75) else {
             throw ZhipuServiceError.imageEncodingFailed
         }
@@ -1075,7 +1205,7 @@ class ZhipuService: @unchecked Sendable {
         // 256：给完整 JSON 留余量（V4 会把少量内部框架计入输出预算，100 会被截断）
         // 15s 太紧：26 次超时里 12 次卡在 15.0–15.2s，而同期成功样本 p99=21.7s、最慢 56s，
         // 等于把本来会回来的请求掐死再重传整张图。给 35s，总时长由 overallBudget 兜
-        let response = try await sendRequest(messages: [message], maxTokens: 256, timeout: 35)
+        let response = try await sendRequest(messages: [message], maxTokens: 256, timeout: 35, useID: useID)
         guard let content = response.choices.first?.message.content,
               let data = extractJSON(from: content).data(using: .utf8),
               let q = try? jsonDecoder.decode(QuickWord.self, from: data) else {
@@ -1098,9 +1228,10 @@ class ZhipuService: @unchecked Sendable {
     /// 把语境整句完全拆解（主干 → 各成分 → 词形/时态 → 直译对照）。
     /// 纯文本 Markdown、SSE 流式：每到一段就回调 `onDelta`，面板把它拼在「释义」上方。
     /// 不走 `sendRequest` 的 JSON/重试逻辑：流式失败直接抛出，由调用方提示。
-    func streamGrammarBreakdown(sentence: String, word: String, language: String,
+    func streamGrammarBreakdown(sentence: String, word: String, language: String, useID: UUID? = nil,
                                 onDelta: @escaping @Sendable (String) -> Void) async throws {
-        guard let key = apiKey, !key.isEmpty else { throw ZhipuServiceError.apiKeyNotConfigured }
+        let member = memberMode()
+        if !member { guard let key = apiKey, !key.isEmpty else { throw ZhipuServiceError.apiKeyNotConfigured } }
         let prompt = """
         请把下面这句话的语法**完全拆解**，面向正在学这门语言的中文使用者。
         句子：\(sentence)
@@ -1115,29 +1246,45 @@ class ZhipuService: @unchecked Sendable {
         每节用二级标题（`## 主干` `## 成分` `## 动词与形态` `## 难点` `## 直译对照`），总长控制在 350 字以内。
         """ + Self.targetLanguageRule(fields: "全部讲解、二级标题、直译对照和通顺译文")
         let p = provider
-        let request = ZhipuRequest(
-            provider: p,
-            messages: [ZhipuMessage(role: "user", content: [.text(prompt)])],
-            temperature: 0.3,
-            maxTokens: 2048,
-            thinking: p.thinkingConfig,
-            stream: true
-        )
-        var urlRequest = buildURLRequest()
-        urlRequest.timeoutInterval = 90
-        urlRequest.httpBody = try JSONEncoder().encode(request)
-        urlRequest.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-
+        let messages = [ZhipuMessage(role: "user", content: [.text(prompt)])]
+        let body = try JSONEncoder().encode(member
+            ? ZhipuRequest(memberMessages: messages, temperature: 0.3, maxTokens: 2048, stream: true)
+            : ZhipuRequest(provider: p, messages: messages, temperature: 0.3, maxTokens: 2048, thinking: p.thinkingConfig, stream: true))
         let startedAt = Date()
-        AppLog.log("[Zhipu] → POST(stream) \(p.baseURL) model=\(p.model) grammar for '\(word)' (\(sentence.prefix(60)))")
-        let (bytes, response) = try await session.bytes(for: urlRequest)
-        guard let http = response as? HTTPURLResponse else { throw ZhipuServiceError.invalidResponse }
-        guard (200...299).contains(http.statusCode) else {
-            var body = ""
-            for try await line in bytes.lines { body += line; if body.count > 800 { break } }
-            AppLog.log("[Zhipu] ✗ stream HTTP \(http.statusCode): \(body.prefix(300))")
-            throw ZhipuServiceError.from(status: http.statusCode, body: Data(body.utf8))
+        let route: (any MemberRoute)? = member ? await memberRoute() : nil
+        let run = useID ?? UUID()
+        var renewedToken = false, renewedUse = false
+        var opened: URLSession.AsyncBytes?
+        while opened == nil {
+            var urlRequest: URLRequest
+            var token = ""
+            if let route {
+                (urlRequest, token) = try await memberURLRequest(route, run: run, timeout: 90)
+            } else {
+                urlRequest = buildURLRequest()
+                urlRequest.timeoutInterval = 90
+            }
+            urlRequest.httpBody = body
+            urlRequest.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+            AppLog.log("[Zhipu] → POST(stream) \(urlRequest.url?.absoluteString ?? "") model=\(member ? "member" : p.model) grammar for '\(word)' (\(sentence.prefix(60)))")
+            let (stream, response) = try await session.bytes(for: urlRequest)
+            guard let http = response as? HTTPURLResponse else { throw ZhipuServiceError.invalidResponse }
+            if (200...299).contains(http.statusCode) {
+                if let route { await route.noteResponse(headers: http.stringHeaders, error: nil) }
+                opened = stream
+                continue
+            }
+            var text = ""
+            for try await line in stream.lines { text += line; if text.count > 800 { break } }
+            AppLog.log("[Zhipu] ✗ stream HTTP \(http.statusCode): \(text.prefix(300))")
+            guard let route else { throw ZhipuServiceError.from(status: http.statusCode, body: Data(text.utf8)) }
+            let error = MemberError.from(status: http.statusCode, body: Data(text.utf8), headers: http.allHeaderFields)
+            if error.code == "bad-device", !renewedToken, await route.renewToken(token) { renewedToken = true; continue }
+            if error.code == "use-expired", !renewedUse { _ = await route.renewUse(for: run); renewedUse = true; continue }
+            await route.noteResponse(headers: http.stringHeaders, error: error)
+            throw ZhipuServiceError.member(error)
         }
+        guard let bytes = opened else { throw ZhipuServiceError.invalidResponse }
 
         var total = 0
         for try await line in bytes.lines {
@@ -1157,7 +1304,7 @@ class ZhipuService: @unchecked Sendable {
 
     // MARK: - 二段式：例句/助记/词根词源（纯文本请求，不带图，快）
 
-    func enrichWord(word: String, language: String, meaning: String = "", sentence: String = "") async throws -> WordEnrichment {
+    func enrichWord(word: String, language: String, meaning: String = "", sentence: String = "", useID: UUID? = nil) async throws -> WordEnrichment {
         let prompt = """
         为这个外语单词生成学习辅助内容。
         单词：\(word)（语言代码 \(language)）\(meaning.isEmpty ? "" : "\n释义：\(meaning)")\(sentence.isEmpty ? "" : "\n语境句：\(sentence)")
@@ -1172,7 +1319,7 @@ class ZhipuService: @unchecked Sendable {
         }
         例句不要重复语境句，贴近日常或驾考场景。有语境句时，usage 先讲它在语境句里的用法；它在语境句里是固定搭配的一部分（如 compound interest）就先点出这个搭配，collocations 第一条放这个搭配，别先讲和语境无关的义项。
         """ + Self.targetLanguageRule(fields: "meaning、usage、etymology，以及 collocations 和 examples 里 —— 后面的译文")
-        let response = try await sendRequest(messages: [ZhipuMessage(role: "user", content: [.text(prompt)])])
+        let response = try await sendRequest(messages: [ZhipuMessage(role: "user", content: [.text(prompt)])], useID: useID)
         guard let content = response.choices.first?.message.content,
               let data = extractJSON(from: content).data(using: .utf8),
               let enrichment = try? jsonDecoder.decode(WordEnrichment.self, from: data) else {

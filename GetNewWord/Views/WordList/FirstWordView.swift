@@ -13,6 +13,8 @@ struct FirstWordView: View {
     @ObservedObject private var permissions = PermissionManager.shared
     @AppStorage("apiProvider") private var provider: APIProvider = .zhipu
     @AppStorage(AnalysisViewModel.hoverAutoSaveKey) private var hoverAutoSave = false
+    @AppStorage(AIPlan.key) private var plan: AIPlan = .member
+    @ObservedObject private var member = MemberService.shared
     /// 第三步：框一个词
     let onTry: () -> Void
 
@@ -23,7 +25,8 @@ struct FirstWordView: View {
     private let sentence = "Die Studie zeigt, dass die Nachhaltigkeit der Lieferketten deutlich zugenommen hat."
     private let demoWord = "Nachhaltigkeit"
 
-    private var aiDone: Bool { hasKey }
+    /// 会员：领到试用或已是会员；自带 Key：填好了 Key
+    private var aiDone: Bool { plan == .member ? member.state.ready : hasKey }
     private var permDone: Bool { permissions.hasScreenRecording }
     private var ready: Bool { aiDone && permDone }
 
@@ -113,11 +116,14 @@ struct FirstWordView: View {
         VStack(spacing: 0) {
             step(1, current: !aiDone, done: aiDone,
                  title: "选一个 AI",
-                 detail: aiDone ? Text("\(provider.displayName) · 自带 Key，永久免费")
-                                : Text("讲解靠它。DeepSeek、通义、Kimi 等 10 家可选；自带 Key 永久免费。")) {
+                 detail: aiDetail) {
                 if !aiDone {
-                    Button("去选择") { openAISettings() }
-                        .buttonStyle(PrimaryButtonStyle())
+                    if plan == .member, member.isAvailable {
+                        Button("看会员方案") { PricingWindow.show() }.buttonStyle(PrimaryButtonStyle())
+                    } else {
+                        Button("去选择") { openAISettings() }
+                            .buttonStyle(PrimaryButtonStyle())
+                    }
                 }
             }
             Hairline()
@@ -151,6 +157,15 @@ struct FirstWordView: View {
         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.border, lineWidth: 0.5))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var aiDetail: Text {
+        if plan == .member {
+            let card = PlanCard.memberContent(member.state)
+            return Text(verbatim: [card.title, card.count, card.detail].compactMap { $0 }.joined(separator: " · "))
+        }
+        return aiDone ? Text("\(provider.displayName) · 自带 Key，永久免费")
+                      : Text("讲解靠它。DeepSeek、通义、Kimi 等 10 家可选；自带 Key 永久免费。")
     }
 
     /// 第三步的说明：指词快捷键默认只看释义不存，设置里打开「加入词库」后反过来
