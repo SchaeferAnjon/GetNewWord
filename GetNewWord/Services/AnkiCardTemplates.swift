@@ -185,6 +185,8 @@ details > summary::-webkit-details-marker { display: none; }
   .b .scene .ctx, .b.fill .ctx { font-size: 21px; }
   .b .q { font-size: 21px; }
   .b .sense b { font-size: 26px; }
+  /* 英文、德文的折叠标题和提示合在一行放不下：手机上只留标题（展开后每段自己有小标题） */
+  .b details.fold > summary .hint { display: none; }
 }
 """#
 
