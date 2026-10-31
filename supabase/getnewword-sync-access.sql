@@ -1,11 +1,11 @@
--- GetNewWord · 多台 Mac 同步只给会员（会员后台规格：meetcaption-server 的 docs/multi-product.md §4.9）
+-- GetNewWord · 多台 Mac 同步只给会员（会员后台规格：多产品规格 4.9 节）
 -- 会员后台用 HMAC 签名调 getnewword.set_sync_access，写「某个用户的同步开到哪天」；四张同步表加限制性 RLS，
 -- 只放行 until 还没到的用户。改 app 绕不过：读回空、写回 42501，Realtime 也按 RLS 过滤。
 -- 后台手里的密钥只能做这一件事，不碰共用项目的 JWT 密钥和 service_role。
 --
 -- 怎么执行（由维护者在 Supabase SQL Editor 里执行，先在测试项目上跑通，再在正式项目 blsbkqreuhgvksphsvaw）：
 -- 1. 先执行过 getnewword-schema.sql（四张表在 getnewword schema 里）。
--- 2. 在 Vault 里放签名密钥，和会员后台 dispatch env 的 GETNEWWORD_SYNC_HMAC 是同一个值（值不要写进这个文件）：
+-- 2. 在 Vault 里放签名密钥，和会员后台环境变量 GETNEWWORD_SYNC_HMAC 是同一个值（值不要写进这个文件）：
 --      select vault.create_secret('<GETNEWWORD_SYNC_HMAC 的值>', 'getnewword_sync_hmac', 'GetNewWord 同步资格签名');
 -- 3. 执行这整份。幂等：重复执行无副作用；限制性策略只加不改现有的 auth.uid() = user_id 策略。
 -- 4. 给已经在用同步的账号（维护者自己）开到 2099 年：见文件末尾，把邮箱换成登录用的。
