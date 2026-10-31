@@ -111,13 +111,16 @@ struct SnippetRow: CloudRow {
     var relatedWordIds: [String]
     /// Anki 知识卡的问题。云端 snippets 表要先跑 supabase/getnewword-snippet-question.sql 才有这一列：
     /// 拉取时没有这一列就是 nil；推送只在查到有这一列时才带上（见 CloudSyncService.serverHasQuestionColumn）。
-    /// 不参与内容哈希，所以云端有没有这一列，同步都不会来回改写
+    /// 查到有这一列之后才参与内容哈希：跑了 SQL 以后第一次推送会把带问题的片段补推一次，之前哈希不变，不会来回改写
     var question: String? = nil
     var updatedAt: String? = nil
     var deletedAt: String? = nil
 
-    func normalized() -> SnippetRow {
-        var r = self; r.updatedAt = nil; r.deletedAt = nil; r.question = nil; r.createdAt = CloudDate.normalize(createdAt)
+    func normalized() -> SnippetRow { normalized(keepQuestion: false) }
+
+    /// 云端 snippets 表有 question 列以后，问题才算内容；没有这一列时不算，免得没跑 SQL 时来回改写
+    func normalized(keepQuestion: Bool) -> SnippetRow {
+        var r = self; r.updatedAt = nil; r.deletedAt = nil; if !keepQuestion { r.question = nil }; r.createdAt = CloudDate.normalize(createdAt)
         r.relatedWordIds = relatedWordIds.map { $0.lowercased() }.sorted()
         return r
     }
@@ -693,11 +696,16 @@ final class CloudSyncService: ObservableObject {
     private func knownKey<T: CloudRow>(_ r: T) -> String { "\(T.table)/\(r.id.lowercased())" }
     private func markKnown<T: CloudRow>(_ r: T) { state.known[knownKey(r)] = hash(r) }
 
-    private func hash<T: CloudRow>(_ r: T) -> String { Self.contentHash(r) }
+    private func hash<T: CloudRow>(_ r: T) -> String { Self.contentHash(r, withQuestion: questionColumnKnown) }
 
     /// 规范化后的内容哈希：updated_at、deleted_at 不算，日期统一成毫秒，片段关联的词 id 不分大小写和顺序
-    static func contentHash<T: CloudRow>(_ r: T) -> String {
-        let data = (try? hashEncoder.encode(r.normalized())) ?? Data()
+    static func contentHash<T: CloudRow>(_ r: T, withQuestion: Bool = false) -> String {
+        let data: Data
+        if withQuestion, let snippet = r as? SnippetRow {
+            data = (try? hashEncoder.encode(snippet.normalized(keepQuestion: true))) ?? Data()
+        } else {
+            data = (try? hashEncoder.encode(r.normalized())) ?? Data()
+        }
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 

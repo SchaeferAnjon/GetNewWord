@@ -14,7 +14,10 @@ final class FakeAnkiCollection: @unchecked Sendable {
     private var _models: [String: Model]
     private var _notes: [Int: [String: String]] = [:]
 
-    init(models: [String: Model]) { _models = models }
+    init(models: [String: Model], notes: [Int: [String: String]] = [:]) { _models = models; _notes = notes }
+
+    /// Anki 里原本就有的一张卡（老格式的字段）
+    func seed(_ id: Int, _ fields: [String: String]) { lock.withLock { _notes[id] = fields } }
 
     var models: [String: Model] { lock.withLock { _models } }
     var notes: [Int: [String: String]] { lock.withLock { _notes } }
@@ -54,6 +57,14 @@ final class FakeAnkiCollection: @unchecked Sendable {
                 let id = note["id"] as? Int ?? 0
                 for (k, v) in note["fields"] as? [String: String] ?? [:] { _notes[id, default: [:]][k] = v }
                 return .success(NSNull())
+            case "notesInfo":
+                // Anki 对不存在的卡回一个空对象
+                let ids = call.params["notes"] as? [Int] ?? []
+                return .success(ids.map { id -> [String: Any] in
+                    guard let fields = _notes[id] else { return [:] }
+                    return ["noteId": id, "tags": [String](), "cards": [Int](),
+                            "fields": Dictionary(uniqueKeysWithValues: fields.enumerated().map { ($0.element.key, ["value": $0.element.value, "order": $0.offset]) })]
+                })
             case "multi":
                 var out: [Any] = []
                 for a in call.params["actions"] as? [[String: Any]] ?? [] {
@@ -399,7 +410,8 @@ extension AnkiServiceTests {
         #expect(word.templates["正面"]?["Back"]?.contains(de.foldUsage) == true)
         #expect(word.templates["语境填空"]?["Front"]?.contains(de.fillTag) == true)
         #expect(de.fillTag != "填空")
-        #expect(UserDefaults.standard.bool(forKey: AnkiService.refreshPendingKey) == false)
+        // 卡上的「语言」字段跟着界面语言写：已同步的卡要补写一次（只写这一个字段，见 languageChangeRewritesOnlyLanguageField）
+        #expect(UserDefaults.standard.bool(forKey: AnkiService.refreshPendingKey))
     }
 
     /// 样式、模板读不到（Anki 没回话）就不动，免得把用户的模板当成旧版本覆盖掉
@@ -415,6 +427,13 @@ extension AnkiServiceTests {
     }
 
     // MARK: - 后台重写老卡
+
+    /// 1.3.0 写进 Anki 的 syncedWords(…) 里那种词的字段：同样的文字，格式是老的
+    private func oldFormatFields(_ i: Int) -> [String: String] {
+        ["Front": "w\(i)", "Back": "n. <b style=\"color:#5E6AD2\">词\(i)</b>", "Phonetic": "", "Context": "A <span class=\"kw\">w\(i)</span> here.",
+         "ContextTranslation": "这里有<span class=\"kw\">词\(i)</span>。", "Analysis": "<div class=\"lbl lbl-usage\">用 法</div><div class=\"usage\">用法</div>",
+         "Language": "英语", "Difficulty": "B1", "Grammar": ""]
+    }
 
     private func syncedWords(_ n: Int, in context: ModelContext) throws {
         for i in 1...n {
@@ -435,6 +454,8 @@ extension AnkiServiceTests {
         context.insert(s)
         try context.save()
         let fake = FakeAnkiCollection(models: [:])
+        for i in 1...120 { fake.seed(1000 + i, oldFormatFields(i)) }
+        fake.seed(2001, ["Title": "t", "Content": "a<br>b", "Source": "s", "Domain": "d"])
         FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
         UserDefaults.standard.set(true, forKey: AnkiService.refreshPendingKey)
 
@@ -449,6 +470,7 @@ extension AnkiServiceTests {
         #expect(fields["Back"]?.hasPrefix("<div class=\"pos-group\">") == true)
         #expect(fake.notes.count == 121)
         #expect(fake.notes[2001]?["Content"] == "<ul class=\"pts\"><li>a</li><li>b</li></ul>")
+        #expect(FakeAnkiConnect.calls("notesInfo").count == 3)
         #expect(UserDefaults.standard.bool(forKey: AnkiService.refreshPendingKey) == false)
         // 没标记的时候一个请求也不发
         FakeAnkiConnect.calls = []
@@ -462,8 +484,10 @@ extension AnkiServiceTests {
         let context = try makeLibrary()
         try syncedWords(60, in: context)
         let seen = Counter()
+        let fake = FakeAnkiCollection(models: [:])
+        for i in 1...60 { fake.seed(1000 + i, oldFormatFields(i)) }
         FakeAnkiConnect.reply = { @Sendable call in
-            guard call.action == "multi" else { return Self.normalAnki(call) }
+            guard call.action == "multi" else { return fake.handle(call) }
             return seen.next() == 1 ? .success([Any]()) : .failure(.init(message: "collection is not available"))
         }
         UserDefaults.standard.set(true, forKey: AnkiService.refreshPendingKey)
@@ -517,6 +541,7 @@ extension AnkiServiceTests {
         let context = try makeLibrary()
         try syncedWords(3, in: context)
         let fake = FakeAnkiCollection(models: [wordModel: legacyWordModel()])
+        for i in 1...3 { fake.seed(1000 + i, ["Fill": ""]) }
         FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
         AnkiUpgrade.shared.approved = true
         AnkiService.FillMode.all.save()
@@ -542,9 +567,15 @@ extension AnkiServiceTests {
         await anki.setFillCard(word, on: true, context: context)
         #expect(word.ankiFill)
         #expect(fake.notes[9] == ["Fill": "1"])
+        #expect(FakeAnkiConnect.calls("unsuspend").count == 1)
         await anki.setFillCard(word, on: false, context: context)
         #expect(!word.ankiFill)
         #expect(fake.notes[9] == ["Fill": ""])
+        // Fill 变空，Anki 不会删已有的语境填空卡：暂停它们，免得复习时出现「正面是空的」
+        let suspend = try #require(FakeAnkiConnect.calls("suspend").first)
+        #expect(suspend.params["cards"] as? [Int] == [11, 12])
+        let query = try #require(FakeAnkiConnect.calls("findCards").last?.params["query"] as? String)
+        #expect(query.contains("card:语境填空") && query.contains("nid:9"))
     }
 
     // MARK: - 知识卡的问题
@@ -598,4 +629,316 @@ extension AnkiServiceTests {
 extension AnkiService.FillMode {
     /// 测试里写设置
     func save() { UserDefaults.standard.set(rawValue, forKey: AnkiService.FillMode.key) }
+}
+
+// MARK: - 复审后补的情形
+
+extension AnkiServiceTests {
+    private var wm: String { AppVariant.ankiName }
+    private var sm: String { AppVariant.ankiName + " Snippet" }
+
+    private func legacyWord() -> FakeAnkiCollection.Model {
+        .init(fields: AnkiService.baseWordFields, css: ".card { text-align: center; }",
+              templates: ["正面": ["Front": "{{Front}}{{Grammar}}{{Audio}}", "Back": "{{FrontSide}}<hr>{{Back}}{{Context}}{{Analysis}}{{Screenshot}}"]])
+    }
+
+    /// 升级中样式、模板的任何一步失败，同步照样把新卡加进 Anki（1.3.0 也是这样）
+    @Test func failedUpgradeNeverBlocksSync() async throws {
+        let anki = self.anki
+        let context = try makeLibrary()
+        let word = try sampleWord(in: context, withMedia: false)
+        let fake = FakeAnkiCollection(models: [wm: legacyWord()])
+        FakeAnkiConnect.reply = { @Sendable call in
+            ["modelTemplateAdd", "updateModelStyling", "updateModelTemplates", "modelFieldAdd"].contains(call.action)
+                ? .failure(.init(message: "unsupported action")) : fake.handle(call)
+        }
+        AnkiUpgrade.shared.approved = true
+
+        await anki.syncAllPendingWords([word], context: context)
+
+        #expect(!FakeAnkiConnect.calls("addNote").isEmpty, "升级失败不能挡住同步")
+        #expect(word.syncStatus == .synced)
+        // 字段没加成：只写笔记类型已有的字段
+        let note = try #require(FakeAnkiConnect.calls("addNote").first?.params["note"] as? [String: Any])
+        let used = Set(try #require(note["fields"] as? [String: String]).keys)
+        #expect(used.subtracting(AnkiService.baseWordFields).isEmpty)
+        // 知识卡一样
+        let snippetFake = FakeAnkiCollection(models: [sm: .init(fields: AnkiService.baseSnippetFields, css: "", templates: ["知识": ["Front": "{{Title}}", "Back": "{{Content}}"]])])
+        FakeAnkiConnect.reply = { @Sendable call in
+            call.action == "updateModelStyling" ? .failure(.init(message: "boom")) : snippetFake.handle(call)
+        }
+        try await anki.ensureSnippetModelExists()
+    }
+
+    /// 读不到笔记类型列表、建不起笔记类型，才是同步做不下去的错
+    @Test func missingModelListStillThrows() async throws {
+        let anki = self.anki
+        FakeAnkiConnect.reply = { @Sendable call in call.action == "modelNames" ? .failure(.init(message: "boom")) : Self.normalAnki(call) }
+        await #expect(throws: (any Error).self) { try await anki.ensureModelExists() }
+    }
+
+    /// 用户在 Anki 里删了「语境填空」卡片类型：平时核对不加回来（加模板会让 Anki 要求单向同步）；点过「继续」的那次启动里才加
+    @Test func deletedFillTemplateIsNotReAdded() async throws {
+        let anki = self.anki
+        let css = AnkiCardTemplates.css(.init())
+        let l = AnkiCardTemplates.Labels()
+        let model = FakeAnkiCollection.Model(fields: AnkiService.wordFields, css: css,
+                                             templates: ["正面": ["Front": AnkiCardTemplates.wordFront(l), "Back": AnkiCardTemplates.wordBack(l)]])
+        let fake = FakeAnkiCollection(models: [wm: model])
+        FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
+
+        try await anki.ensureModelExists()
+        #expect(FakeAnkiConnect.calls("modelTemplateAdd").isEmpty)
+        #expect(FakeAnkiConnect.calls("updateModelStyling").isEmpty)
+        #expect(fake.models[wm]?.templates["语境填空"] == nil)
+
+        AnkiUpgrade.shared.approved = true
+        try await anki.ensureModelExists()
+        #expect(FakeAnkiConnect.calls("modelTemplateAdd").count == 1)
+        #expect(fake.models[wm]?.templates["语境填空"] != nil)
+    }
+
+    /// 用户自己加过卡片类型（比如反向卡）：认「正面」当主模板，不把别的模板改成单词卡的
+    @Test func ownTemplatesAreNotOverwritten() async throws {
+        let anki = self.anki
+        let model = FakeAnkiCollection.Model(fields: AnkiService.baseWordFields, css: ".card{}", templates: [
+            "Card 2": ["Front": "{{Back}}", "Back": "{{Front}}"],
+            "正面": ["Front": "old front", "Back": "old back"]
+        ])
+        let fake = FakeAnkiCollection(models: [wm: model])
+        FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
+        try await anki.ensureModelExists()
+        #expect(fake.models[wm]?.templates["Card 2"]?["Front"] == "{{Back}}")
+        #expect(fake.models[wm]?.templates["正面"]?["Front"]?.contains("gnw b word front") == true)
+    }
+
+    /// 两处同时升级（点「继续」、同步前的核对）：只加一次字段、一次模板
+    @Test func concurrentUpgradesRunOneAtATime() async throws {
+        let anki = self.anki
+        let fake = FakeAnkiCollection(models: [wm: legacyWord()])
+        FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
+        AnkiUpgrade.shared.approved = true
+
+        async let a: Void = anki.ensureModelExists()
+        async let b: Void = anki.ensureModelExists()
+        async let c: Void = anki.ensureModelExists()
+        _ = try await (a, b, c)
+
+        #expect(FakeAnkiConnect.calls("modelFieldAdd").count == 1)
+        #expect(FakeAnkiConnect.calls("modelTemplateAdd").count == 1)
+        #expect(fake.models[wm]?.fields.filter { $0 == "Fill" }.count == 1)
+    }
+
+    /// 填空卡显示的是最近的一句：只有更早的句子里有这个词，不生成
+    @Test func fillCardNeedsWordInLatestSentence() throws {
+        let context = try makeLibrary()
+        let word = WordEntry(word: "go", language: .english, meaning: "v. 去", contextSentence: "She went home.", contextTranslation: "她回家了。", analysisNote: "")
+        context.insert(word)
+        let older = WordContext(sentence: "I go home.", translation: "我回家。", word: word)
+        older.createdAt = Date(timeIntervalSinceNow: -100)
+        let latest = WordContext(sentence: "She went home.", translation: "她回家了。", word: word)
+        context.insert(older); context.insert(latest)
+        try context.save()
+        #expect(!AnkiService.hasFillSentence(word))
+        #expect(!AnkiService.wantsFillCard(word, mode: .all))
+        latest.sentence = "Let's go home."
+        #expect(AnkiService.hasFillSentence(word))
+        #expect(AnkiService.wantsFillCard(word, mode: .all))
+    }
+
+    /// 设置（所有词 / 查过 3 次以上）已经定了的词，右键菜单改不了
+    @Test func settingForcesFillCard() throws {
+        let context = try makeLibrary()
+        let word = try sampleWord(in: context, withMedia: false)
+        word.lookupCount = 1
+        #expect(!AnkiService.settingForcesFillCard(word, mode: .off))
+        #expect(AnkiService.settingForcesFillCard(word, mode: .all))
+        #expect(!AnkiService.settingForcesFillCard(word, mode: .frequent))
+        word.lookupCount = 3
+        #expect(AnkiService.settingForcesFillCard(word, mode: .frequent))
+    }
+
+    /// 变形词整词标出来：stems 不是只标 stem
+    @Test func highlightCoversWholeInflection() {
+        #expect(AnkiService.hl("Her fear stems from the past.", word: "stem") == "Her fear <span class=\"kw\">stems</span> from the past.")
+        #expect(AnkiService.hl("He is running.", word: "running") == "He is <span class=\"kw\">running</span>.")
+        #expect(AnkiService.hl("She walked and walks.", word: "walk") == "She <span class=\"kw\">walked</span> and <span class=\"kw\">walks</span>.")
+    }
+
+    // MARK: 重写时保护用户改过的字段
+
+    @Test func refreshKeepsFieldsEditedInAnki() {
+        let new = ["Back": "<div class=\"pos-group\"><span class=\"pos\">n.</span> 词</div>", "Analysis": "<div class=\"lbl lbl-usage\">用法</div><div class=\"usage\">甲</div>",
+                   "Language": "Deutsch", "Fill": "1", "Question": "问？", "Context": "<div class=\"ctx\">x</div>"]
+        let current = ["Back": "n. 我自己改过的释义", "Analysis": "<div class=\"lbl lbl-usage\">用 法</div><div class=\"usage\">甲</div>",
+                       "Language": "德语", "Fill": "", "Question": "", "Context": "<div class=\"ctx\">x</div>"]
+        let (send, kept) = AnkiService.refreshableFields(new: new, current: current)
+        #expect(kept == 1)
+        #expect(send["Back"] == nil, "改过的释义留着")
+        #expect(send["Analysis"] == new["Analysis"], "只是小标题去了空格，换成新格式")
+        #expect(send["Language"] == "Deutsch" && send["Fill"] == "1", "语言名和填空开关由 App 定")
+        #expect(send["Question"] == "问？", "Anki 里是空的，写")
+        #expect(send["Context"] == nil, "早已一样，不用写")
+        // 笔记类型里没有这个字段：不写
+        #expect(AnkiService.refreshableFields(new: ["Fill": "1"], current: [:]).send.isEmpty)
+    }
+
+    @Test func refreshSendsOnlyUnchangedTextFormat() async throws {
+        let anki = self.anki
+        let context = try makeLibrary()
+        let w = WordEntry(word: "w1", language: .english, meaning: "n. 词1", contextMeaning: "词1", contextSentence: "A w1 here.", contextTranslation: "这里有词1。",
+                          analysisNote: "用法", ankiNoteId: 5, syncStatus: .synced)
+        context.insert(w)
+        try context.save()
+        let fake = FakeAnkiCollection(models: [:])
+        var old = ["Front": "w1", "Back": "n. 我改过", "Context": "A <span class=\"kw\">w1</span> here."]
+        old["Language"] = "德语"
+        fake.seed(5, old)
+        FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
+
+        #expect(await anki.refreshSyncedNotes(context: context))
+
+        #expect(fake.notes[5]?["Back"] == "n. 我改过", "用户改过的释义不动")
+        #expect(fake.notes[5]?["Language"] == w.language.displayName)
+        #expect(fake.notes[5]?["Context"] == "<div class=\"ctx\">A <span class=\"kw\">w1</span> here.</div>", "只是格式不同，换成新格式")
+    }
+
+    /// 语境填空关掉：已有的填空卡暂停，不然复习时一张张显示「正面是空的」
+    @Test func turningFillOffSuspendsCards() async throws {
+        let anki = self.anki
+        let context = try makeLibrary()
+        try syncedFillWords(2, in: context)
+        let fake = FakeAnkiCollection(models: [wm: .init(fields: AnkiService.wordFields, css: AnkiCardTemplates.css(.init()), templates: ["正面": ["Front": "", "Back": ""], "语境填空": ["Front": "", "Back": ""]])])
+        fake.seed(1001, ["Fill": "1"]); fake.seed(1002, ["Fill": ""])
+        FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
+        try await anki.ensureModelExists()
+        AnkiService.FillMode.off.save()
+
+        await anki.applyFillChoice(context: context)
+
+        #expect(fake.notes[1001]?["Fill"] == "")
+        let suspend = FakeAnkiConnect.calls("suspend")
+        #expect(suspend.count == 1)
+        let query = FakeAnkiConnect.calls("findCards").last?.params["query"] as? String ?? ""
+        #expect(query.contains("nid:1001") && !query.contains("1002"))
+        #expect(FakeAnkiConnect.calls("unsuspend").isEmpty)
+
+        AnkiService.FillMode.all.save()
+        await anki.applyFillChoice(context: context)
+        #expect(fake.notes[1001]?["Fill"] == "1" && fake.notes[1002]?["Fill"] == "1")
+        #expect(FakeAnkiConnect.calls("unsuspend").count == 1)
+    }
+
+    private func syncedFillWords(_ n: Int, in context: ModelContext) throws {
+        for i in 1...n {
+            context.insert(WordEntry(word: "w\(i)", language: .english, meaning: "n. 词\(i)", contextMeaning: "词\(i)", contextSentence: "A w\(i) here.", contextTranslation: "这里有词\(i)。",
+                                     analysisNote: "用法", ankiNoteId: 1000 + i, syncStatus: .synced))
+        }
+        try context.save()
+    }
+
+    /// Anki 没开时改了设置：记一笔，下次同步（Anki 开着）补写
+    @Test func fillChangeWhileAnkiClosedIsRetried() async throws {
+        let anki = self.anki
+        let context = try makeLibrary()
+        try syncedFillWords(2, in: context)
+        let fake = FakeAnkiCollection(models: [wm: .init(fields: AnkiService.wordFields, css: AnkiCardTemplates.css(.init()), templates: ["正面": ["Front": "", "Back": ""], "语境填空": ["Front": "", "Back": ""]])])
+        fake.seed(1001, ["Fill": ""]); fake.seed(1002, ["Fill": ""])
+        FakeAnkiConnect.reply = { @Sendable call in call.action == "version" ? .failure(.init(message: "closed")) : fake.handle(call) }
+        AnkiService.FillMode.all.save()
+
+        await anki.applyFillChoice(context: context)
+        #expect(UserDefaults.standard.bool(forKey: AnkiService.fillRefreshPendingKey))
+        #expect(fake.notes[1001]?["Fill"] == "")
+
+        FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
+        await anki.syncEverythingPending(context: context)
+        #expect(fake.notes[1001]?["Fill"] == "1")
+        #expect(!UserDefaults.standard.bool(forKey: AnkiService.fillRefreshPendingKey))
+        UserDefaults.standard.removeObject(forKey: AnkiService.fillRefreshPendingKey)
+    }
+
+    /// 只改界面语言：已同步的卡只补写「语言」字段
+    @Test func languageChangeRewritesOnlyLanguageField() async throws {
+        let anki = self.anki
+        let context = try makeLibrary()
+        let word = try sampleWord(in: context, withMedia: false)
+        word.ankiNoteId = 77
+        word.syncStatus = .synced
+        let fake = FakeAnkiCollection(models: [:])
+        var current = anki.wordTextFields(word)
+        current["Language"] = "Zzz"
+        fake.seed(77, current)
+        FakeAnkiConnect.reply = { @Sendable call in fake.handle(call) }
+
+        #expect(await anki.refreshSyncedNotes(context: context))
+        let action = try #require((FakeAnkiConnect.calls("multi").first?.params["actions"] as? [[String: Any]])?.first)
+        let fields = try #require(((action["params"] as? [String: Any])?["note"] as? [String: Any])?["fields"] as? [String: String])
+        #expect(fields == ["Language": word.language.displayName])
+    }
+
+    // MARK: 语言名
+
+    /// 卡上的「语言」按界面语言写；恢复词库时中文、英文、德文写法都认，1.3.0 写的中文名也认
+    @Test func languageFieldFollowsInterfaceAndRestores() async throws {
+        let context = try makeLibrary()
+        let word = try sampleWord(in: context, withMedia: false)
+        #expect(anki.wordTextFields(word)["Language"] == Language.english.displayName)
+        for name in ["英语", "English", "Englisch", Language.english.displayName] {
+            let restored = try await restoreLanguage(name)
+            #expect(restored == .english, "\(name)")
+        }
+        #expect(try await restoreLanguage("Deutsch") == .german)
+        #expect(try await restoreLanguage("德语") == .german)
+        #expect(try await restoreLanguage("Klingon") == .other)
+    }
+
+    private func restoreLanguage(_ name: String) async throws -> Language {
+        let target = try makeLibrary()
+        let model = wm
+        FakeAnkiConnect.reply = { @Sendable call in
+            let query = call.params["query"] as? String ?? ""
+            switch call.action {
+            case "findNotes" where query == "\"note:\(model)\"": return .success([1])
+            case "findNotes": return .success([Int]())
+            case "notesInfo":
+                let fields = ["Front": "w", "Back": "n. x", "Language": name, "Difficulty": "B1"]
+                let info: [String: Any] = ["noteId": 1, "tags": [String](), "cards": [11],
+                                           "fields": Dictionary(uniqueKeysWithValues: fields.enumerated().map { ($0.element.key, ["value": $0.element.value, "order": $0.offset]) })]
+                return .success([info])
+            default: return Self.normalAnki(call)
+            }
+        }
+        _ = await anki.restoreFromAnki(context: target)
+        return try #require(try target.fetch(FetchDescriptor<WordEntry>()).first).language
+    }
+
+    // MARK: 样式
+
+    @Test func cssRules() {
+        let l = AnkiCardTemplates.Labels()
+        let css = AnkiCardTemplates.css(l)
+        // 翻面不跳：正面不垂直居中
+        #expect(!css.contains("min-height: 52vh") && !css.contains("justify-content: center"))
+        #expect(css.contains("text-wrap: pretty"))
+        // 每个词最多 40 句配对，第 8 句和第 40 句都有顺序规则
+        #expect(css.contains(".ctxs .ctx:nth-child(8) { order: 15; }") && css.contains(".trs .ctx-tr:nth-child(40) { order: 80; }"))
+        // 折叠提示只在非中文的手机上藏起来；根节点带语言类
+        #expect(css.contains(".gnw:not(.lang-zh) details.fold > summary .hint { display: none; }"))
+        #expect(AnkiCardTemplates.wordFront(l).contains("lang-\(l.language.prefix(2))"))
+        #expect(AnkiCardTemplates.noteBack(l, hasQuestion: true).contains(l.langClass))
+        #expect(l.langClass == (l.language == "zh-Hans" ? "lang-zh" : "lang-\(l.language)"))
+    }
+
+    // MARK: 云端
+
+    @Test func cloudHashIncludesQuestionOnceColumnExists() {
+        let s = KnowledgeSnippet(title: "t", content: "c", sourceContext: "s", domain: "d", question: "q?")
+        let row = CloudSyncService.row(s)
+        var noQuestion = row; noQuestion.question = nil
+        #expect(CloudSyncService.contentHash(row) == CloudSyncService.contentHash(noQuestion))
+        #expect(CloudSyncService.contentHash(row, withQuestion: true) != CloudSyncService.contentHash(noQuestion, withQuestion: true))
+        // 没有问题的片段，跑 SQL 前后哈希一样：不会为了它们多推一次
+        #expect(CloudSyncService.contentHash(noQuestion) == CloudSyncService.contentHash(noQuestion, withQuestion: true))
+    }
 }

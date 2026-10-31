@@ -25,6 +25,9 @@ enum AnkiCardTemplates {
         let foldSource: String
         let fillTag: String
 
+        /// 根节点上的语言类：CSS 里只有中文能放下的东西靠它区分
+        var langClass: String { "lang-" + language.prefix(2) }
+
         /// bundle 默认是应用自己；测试和渲染传入某个 xx.lproj 的 bundle 看别的语言
         init(bundle: Bundle = .main) {
             let code = (bundle.bundleURL.pathExtension == "lproj" ? bundle.bundleURL.deletingPathExtension().lastPathComponent
@@ -54,6 +57,12 @@ enum AnkiCardTemplates {
         guard lines.count > 1, lines[1].hasPrefix(labelsPrefix) else { return nil }
         return lines[1].dropFirst(labelsPrefix.count).replacingOccurrences(of: " */", with: "")
     }
+
+    /// 每个词最多配对多少句：flex 的 order 要逐个写出来，超过的句子顺序会乱，所以取够大
+    static let maxPairs = 40
+    private static let pairOrderRules = (1...maxPairs).map {
+        ".ctxs .ctx:nth-child(\($0)) { order: \(2 * $0 - 1); } .trs .ctx-tr:nth-child(\($0)) { order: \(2 * $0); }"
+    }.joined(separator: "\n")
 
     private static let cssBody = #"""
 .card {
@@ -99,12 +108,7 @@ hr#answer, hr.divider { border: 0; border-top: 1px solid var(--border); margin: 
 /* 语境：Context 和 ContextTranslation 两个字段按顺序配成对（第 n 句下面是第 n 句译文） */
 .pairs { display: flex; flex-direction: column; }
 .pairs .ctxs, .pairs .trs { display: contents; }
-.ctxs .ctx:nth-child(1) { order: 1; } .trs .ctx-tr:nth-child(1) { order: 2; }
-.ctxs .ctx:nth-child(2) { order: 3; } .trs .ctx-tr:nth-child(2) { order: 4; }
-.ctxs .ctx:nth-child(3) { order: 5; } .trs .ctx-tr:nth-child(3) { order: 6; }
-.ctxs .ctx:nth-child(4) { order: 7; } .trs .ctx-tr:nth-child(4) { order: 8; }
-.ctxs .ctx:nth-child(5) { order: 9; } .trs .ctx-tr:nth-child(5) { order: 10; }
-.ctxs .ctx:nth-child(6) { order: 11; } .trs .ctx-tr:nth-child(6) { order: 12; }
+\#(pairOrderRules)
 .pairs .ctx-tr { color: var(--text2); font-size: 15px; margin: 2px 0 14px; }
 .pairs .ctx-tr:last-child { margin-bottom: 0; }
 /* 只要最近遇到的那一句 */
@@ -127,14 +131,13 @@ details > summary { list-style: none; cursor: pointer; }
 details > summary::-webkit-details-marker { display: none; }
 
 /* ===== 方向 B：句子在前 ===== */
-.b.front { min-height: 52vh; display: flex; flex-direction: column; justify-content: center; }
-.answer-side .b.front { min-height: 0; }
+/* 正面和背面同样从上往下排：翻面时原句不动，答案只在下面多出来 */
 .b .meta { margin-bottom: 14px; }
-.b .scene .ctx { font-size: 24px; line-height: 1.5; }
+.b .scene .ctx { font-size: 24px; line-height: 1.5; text-wrap: pretty; }
 .b .which { display: none; margin-top: 12px; font-size: 13px; color: var(--text3); }
 .b .scene:not(:has(.kw)) + .which { display: block; }
 .b .solo { font-size: 36px; font-weight: 600; line-height: 1.2; }
-.b .q { font-size: 24px; line-height: 1.45; font-weight: 600; }
+.b .q { font-size: 24px; line-height: 1.45; font-weight: 600; text-wrap: pretty; }
 
 /* 翻面：译文接在原句下面，再是答案 */
 .b .tr-latest { margin-top: 10px; }
@@ -185,8 +188,8 @@ details > summary::-webkit-details-marker { display: none; }
   .b .scene .ctx, .b.fill .ctx { font-size: 21px; }
   .b .q { font-size: 21px; }
   .b .sense b { font-size: 26px; }
-  /* 英文、德文的折叠标题和提示合在一行放不下：手机上只留标题（展开后每段自己有小标题） */
-  .b details.fold > summary .hint { display: none; }
+  /* 英文、德文的折叠标题和提示合在一行放不下：手机上只留标题（展开后每段自己有小标题）。中文放得下，留着 */
+  .gnw:not(.lang-zh) details.fold > summary .hint { display: none; }
 }
 """#
 
@@ -194,7 +197,7 @@ details > summary::-webkit-details-marker { display: none; }
 
     static func wordFront(_ l: Labels) -> String {
         #"""
-<div class="gnw b word front">
+<div class="gnw b word front \#(l.langClass)">
   <div class="meta">{{Language}}{{#Difficulty}} · {{Difficulty}}{{/Difficulty}}</div>
   {{#Context}}<div class="scene pairs latest"><div class="ctxs">{{Context}}</div></div>
   <div class="which">\#(l.which) {{Front}}</div>{{/Context}}
@@ -206,7 +209,7 @@ details > summary::-webkit-details-marker { display: none; }
     static func wordBack(_ l: Labels) -> String {
         #"""
 <div class="answer-side">{{FrontSide}}</div>
-<div class="gnw b back">
+<div class="gnw b back \#(l.langClass)">
   {{#ContextTranslation}}<div class="tr-latest pairs latest"><div class="trs">{{ContextTranslation}}</div></div>{{/ContextTranslation}}
   <hr id="answer">
   <div class="sense">{{Back}}</div>
@@ -224,12 +227,12 @@ details > summary::-webkit-details-marker { display: none; }
     /// hasQuestion 为假时是还没加 Question 字段的老笔记类型：正面用标题，模板里不能写 {{Question}}
     static func noteFront(_ l: Labels, hasQuestion: Bool) -> String {
         hasQuestion ? #"""
-<div class="gnw b note front">
+<div class="gnw b note front \#(l.langClass)">
   <div class="meta">{{Domain}}</div>
   <div class="q">{{#Question}}{{Question}}{{/Question}}{{^Question}}{{Title}}{{/Question}}</div>
 </div>
 """# : #"""
-<div class="gnw b note front">
+<div class="gnw b note front \#(l.langClass)">
   <div class="meta">{{Domain}}</div>
   <div class="q">{{Title}}</div>
 </div>
@@ -241,7 +244,7 @@ details > summary::-webkit-details-marker { display: none; }
         return #"""
 <div class="answer-side">{{FrontSide}}</div>
 <hr id="answer">
-<div class="gnw b back">
+<div class="gnw b back \#(l.langClass)">
 \#(topic)  <div class="content">{{Content}}</div>
   {{#Source}}<details class="fold"><summary>\#(l.foldSource)</summary><div class="body src">{{Source}}</div></details>{{/Source}}
   {{#Screenshot}}<details class="fold"><summary>\#(l.foldShot)</summary><div class="body">{{Screenshot}}</div></details>{{/Screenshot}}
@@ -253,7 +256,7 @@ details > summary::-webkit-details-marker { display: none; }
 
     static func fillFront(_ l: Labels) -> String {
         #"""
-{{#Fill}}<div class="gnw b fill front">
+{{#Fill}}<div class="gnw b fill front \#(l.langClass)">
   <div class="meta">{{Language}} · \#(l.fillTag)</div>
   <div class="pairs latest"><div class="ctxs">{{Context}}</div><div class="trs">{{ContextTranslation}}</div></div>
 </div>{{/Fill}}
@@ -262,7 +265,7 @@ details > summary::-webkit-details-marker { display: none; }
 
     static func fillBack(_ l: Labels) -> String {
         #"""
-{{#Fill}}<div class="gnw b fill back">
+{{#Fill}}<div class="gnw b fill back \#(l.langClass)">
   <div class="meta">{{Language}} · \#(l.fillTag)</div>
   <div class="pairs latest"><div class="ctxs">{{Context}}</div><div class="trs">{{ContextTranslation}}</div></div>
   <hr id="answer">

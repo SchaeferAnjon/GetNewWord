@@ -37,6 +37,20 @@ enum AnkiError: LocalizedError {
 
 // MARK: - 字段缓存
 
+/// hasFillSentence 的结果缓存：键是词加最近一句，换了句子自然失效
+final class FillSentenceCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: Bool] = [:]
+
+    func get(_ word: String, _ sentence: String) -> Bool? { lock.withLock { values[word + "\u{1}" + sentence] } }
+    func set(_ word: String, _ sentence: String, _ value: Bool) {
+        lock.withLock {
+            if values.count > 5000 { values.removeAll() }
+            values[word + "\u{1}" + sentence] = value
+        }
+    }
+}
+
 final class AnkiFieldCache: @unchecked Sendable {
     private let lock = NSLock()
     private var fields: [String: Set<String>] = [:]
@@ -71,6 +85,8 @@ final class AnkiService: @unchecked Sendable {
 
     /// 每个笔记类型现在有哪些字段（ensure 时读到的）。用户选了「以后再说」、字段还没加的时候，同步只写已有的字段
     let fieldCache = AnkiFieldCache()
+    /// 升级笔记类型（读现状再补字段、补模板）一次只做一个：核对、点「继续」、每次同步前的核对可能同时来
+    let upgradeGate = AsyncMutex()
     /// 这次启动是不是已经核对过卡片样式和字段（核对一次就够，不用每次保存都问 Anki）
     @MainActor var cardsChecked = false
 
@@ -229,8 +245,9 @@ final class AnkiService: @unchecked Sendable {
         guard !w.isEmpty, w.count >= 2 else { return text }
         var pattern = NSRegularExpression.escapedPattern(for: w)
         if w.count >= 4 {
+            // 带词尾的分支放前面：正则取第一个能匹配的分支，短的放前面 stems 只会标出 stem
             let stem = NSRegularExpression.escapedPattern(for: String(w.prefix(max(4, w.count - 2))))
-            pattern = "\(pattern)|\(stem)[\\p{L}]*"
+            pattern = "\(stem)[\\p{L}]*|\(pattern)"
         }
         guard let re = try? NSRegularExpression(pattern: "(\(pattern))", options: [.caseInsensitive]) else { return text }
         return re.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "<span class=\"kw\">$1</span>")
@@ -491,18 +508,35 @@ final class AnkiService: @unchecked Sendable {
         }
     }
 
-    /// 有没有一句里面真套着这个词的语境（填空卡要把它挖掉，没有就没得挖）
-    static func hasFillSentence(_ word: WordEntry) -> Bool { contextHTML(word).contains("class=\"kw\"") }
+    /// 填空卡只显示最近遇到的那一句：这一句里得真套着这个词（更早的句子里有也不算），没有就没得挖
+    static func latestSentence(_ word: WordEntry) -> String {
+        word.sortedContexts.last?.sentence ?? word.contextSentence
+    }
 
-    /// 这个词要不要生成语境填空卡：得有能挖的句子，再看设置和词卡右键
-    static func wantsFillCard(_ word: WordEntry, mode: FillMode = .current) -> Bool {
-        guard hasFillSentence(word) else { return false }
-        if word.ankiFill { return true }
+    private static let fillSentenceCache = FillSentenceCache()
+
+    static func hasFillSentence(_ word: WordEntry) -> Bool {
+        let sentence = latestSentence(word), text = word.word
+        // 右键菜单每次重绘都要问，每一行跑一遍正则太费：同一个词和句子只算一次
+        if let known = fillSentenceCache.get(text, sentence) { return known }
+        let result = hl(sentence, word: text).contains("class=\"kw\"")
+        fillSentenceCache.set(text, sentence, result)
+        return result
+    }
+
+    /// 设置说要不要给这个词加填空卡（不看有没有能挖的句子）
+    static func settingForcesFillCard(_ word: WordEntry, mode: FillMode = .current) -> Bool {
         switch mode {
         case .off: return false
         case .frequent: return word.lookupCount >= FillMode.frequentThreshold
         case .all: return true
         }
+    }
+
+    /// 这个词要不要生成语境填空卡：得有能挖的句子，再看设置和词卡右键
+    static func wantsFillCard(_ word: WordEntry, mode: FillMode = .current) -> Bool {
+        guard word.ankiFill || settingForcesFillCard(word, mode: mode) else { return false }
+        return hasFillSentence(word)
     }
 
     /// Context：每次遇到的句子一句一个 <div class="ctx">，词用 span.kw 标出来；最后一句是最近的
@@ -534,7 +568,7 @@ final class AnkiService: @unchecked Sendable {
             "Context": Self.contextHTML(word),
             "ContextTranslation": Self.translationHTML(word),
             "Analysis": Self.composeAnalysisHTML(word),
-            "Language": word.language.chineseName,
+            "Language": word.language.displayName,
             "Difficulty": word.difficulty.displayName,
             "Grammar": word.grammar ?? "",
             "Fill": Self.wantsFillCard(word) ? "1" : ""
@@ -811,6 +845,7 @@ final class AnkiService: @unchecked Sendable {
             }
         }
         await refreshSyncedNotesIfPending(context: context)   // 升级到 v2 以后，把已同步的老卡的字段按新拼法重写一遍
+        await refreshFillIfPending(context: context)           // 填空卡的设置改了、当时 Anki 没开：补写 Fill
         // 推完新卡后立即触发 Anki 的正常同步（增量合并；手机端复习记录一并合并，减少两端分叉窗口）
         if !words.isEmpty || !snippets.isEmpty {
             do {
@@ -824,7 +859,7 @@ final class AnkiService: @unchecked Sendable {
 
     // MARK: - 灾难恢复：从 Anki 反向导入词库
 
-    private static func stripHTML(_ s: String) -> String {
+    static func stripHTML(_ s: String) -> String {
         var t = s.replacingOccurrences(of: "<br>", with: "\n").replacingOccurrences(of: "</li>", with: "\n")
         t = t.replacingOccurrences(of: "\\[sound:[^\\]]*\\]", with: "", options: .regularExpression)
         t = t.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
@@ -873,9 +908,9 @@ final class AnkiService: @unchecked Sendable {
         return (usage, coll, ex, ety)
     }
 
-    /// 卡片上的「语言」：现在写中文名；1.2.0 的开发版按界面语言写过 English、Deutsch 这类名字，也认
+    /// 卡片上的「语言」：现在按界面语言写（中文、英文、德文界面各一种）；1.3.0 以前写的是中文名，也认
     private static func languageFromDisplay(_ name: String) -> Language {
-        Language.allCases.first { $0.chineseName == name || $0.displayName == name } ?? .other
+        Language.allCases.first { $0.knownNames.contains(name) } ?? .other
     }
 
     /// 从 Anki 反向导入：把 Anki 里 GetNewWord 的卡还原成本地词条/片段。

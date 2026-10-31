@@ -15,17 +15,31 @@ enum Language: String, Codable, CaseIterable {
     case korean = "ko"
     case other
 
-    var displayName: String {
+    var displayName: String { displayName(bundle: .main) }
+
+    /// bundle 默认是应用自己；传某个 xx.lproj 的 bundle 就得到那种语言的名字
+    func displayName(bundle: Bundle) -> String {
         switch self {
-        case .german: return String(localized: "德语")
-        case .english: return String(localized: "英语")
-        case .chinese: return String(localized: "中文")
-        case .french: return String(localized: "法语")
-        case .spanish: return String(localized: "西班牙语")
-        case .japanese: return String(localized: "日语")
-        case .korean: return String(localized: "韩语")
-        case .other: return String(localized: "其他")
+        case .german: return String(localized: "德语", bundle: bundle)
+        case .english: return String(localized: "英语", bundle: bundle)
+        case .chinese: return String(localized: "中文", bundle: bundle)
+        case .french: return String(localized: "法语", bundle: bundle)
+        case .spanish: return String(localized: "西班牙语", bundle: bundle)
+        case .japanese: return String(localized: "日语", bundle: bundle)
+        case .korean: return String(localized: "韩语", bundle: bundle)
+        case .other: return String(localized: "其他", bundle: bundle)
         }
+    }
+
+    /// Anki 卡片「语言」字段里可能出现的所有写法：中文名，以及中文、英文、德文界面下的显示名。恢复词库时靠它认
+    var knownNames: Set<String> {
+        var names: Set<String> = [chineseName, displayName]
+        for code in ["zh-Hans", "en", "de"] {
+            if let path = Bundle.main.path(forResource: code, ofType: "lproj"), let bundle = Bundle(path: path) {
+                names.insert(displayName(bundle: bundle))
+            }
+        }
+        return names
     }
 
     /// 简体中文名，不跟界面语言变：Anki 牌组和卡片上的「语言」用它（内置分类的名字也是中文）

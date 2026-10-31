@@ -62,6 +62,13 @@ struct AnkiUpgradePromptView: View {
     var onContinue: () -> Void
     var onLater: () -> Void
 
+    private func step(_ n: Int, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(verbatim: "\(n).").monospacedDigit().foregroundStyle(Theme.text2).frame(width: 14, alignment: .trailing)
+            Text(text)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
@@ -70,12 +77,16 @@ struct AnkiUpgradePromptView: View {
                 Text("升级 Anki 卡片").font(.system(size: 16, weight: .semibold))
             }
             VStack(alignment: .leading, spacing: 10) {
-                Text("新卡片要在 Anki 里给两种笔记类型各加一个字段：知识卡的「问题」，单词卡的「语境填空」。")
-                Text("加完以后 Anki 会要求下一次同步选「上传」。请先在手机上同步一次，再点「继续」；之后在电脑的 Anki 里同步时，选「上传」。")
-                    .fontWeight(.medium)
-                Text("如果你在 Anki 里自己改过这两种卡的模板，会被新模板覆盖。")
+                Text("按这个顺序做，手机上还没同步的复习记录才不会丢：").fontWeight(.medium)
+                VStack(alignment: .leading, spacing: 6) {
+                    step(1, "手机上也用 Anki 的话，先在手机上同步一次（没有手机就跳过）。")
+                    step(2, "点「继续」。")
+                    step(3, "之后电脑上的 Anki 同步时会问你上传还是下载，选「上传」。")
+                }
+                Text("新的卡片样式已经换上，你在 Anki 里自己改过的卡片模板被新样式替换了；卡片里你改过的文字不会动。")
                     .foregroundStyle(Theme.text2)
-                Text("点「以后再说」，卡片先保持现在的样子，这次启动里不再问；想升级时在 设置 → Anki 里点「升级卡片」。")
+                    .padding(.top, 4)
+                Text("点「继续」会再给知识卡和单词卡各加一个新字段，所以之后要上传一次；点「以后再说」只推迟这两个字段，之后可在 设置 › Anki 里升级。")
                     .foregroundStyle(Theme.text2)
             }
             .font(.system(size: 12.5))
@@ -118,7 +129,7 @@ struct AnkiUpgradeRow: View {
     var body: some View {
         if upgrade.structurePending {
             SettingsGroup(title: "卡片") {
-                SettingsRow(title: "有新的卡片样式可以升级", detail: "要给 Anki 加两个字段，先在手机上同步一次") {
+                SettingsRow(title: "卡片还有两个新字段没加", detail: "先在手机上同步一次，再点「升级卡片」") {
                     Button("升级卡片") { showPrompt = true }.buttonStyle(SecondaryButtonStyle())
                 }
             }

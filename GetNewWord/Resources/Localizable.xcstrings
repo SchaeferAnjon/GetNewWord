@@ -2125,6 +2125,22 @@
         }
       }
     },
+    "之后电脑上的 Anki 同步时会问你上传还是下载，选「上传」。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn Anki auf diesem Mac das nächste Mal abgleicht, fragt es, ob hochgeladen oder heruntergeladen werden soll. Wähle „Hochladen“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When Anki on this Mac syncs next, it asks whether to upload or download. Choose \"Upload\"."
+          }
+        }
+      }
+    },
     "也可用 ⌘+ / ⌘− / ⌘0 调整": {
       "localizations": {
         "de": {
@@ -3113,6 +3129,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Shows just the meaning here and the sentence translation; expand for more"
+          }
+        }
+      }
+    },
+    "先在手机上同步一次，再点「升级卡片」": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gleiche zuerst auf dem Handy ab, dann klicke auf „Karten aktualisieren“"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync on your phone first, then click \"Upgrade cards\""
           }
         }
       }
@@ -4274,29 +4306,13 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lückentext-Karte hinzufügen"
+            "value": "Lückenkarte hinzufügen"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Add a fill-in-the-context card"
-          }
-        }
-      }
-    },
-    "加完以后 Anki 会要求下一次同步选「上传」。请先在手机上同步一次，再点「继续」；之后在电脑的 Anki 里同步时，选「上传」。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Danach verlangt Anki beim nächsten Abgleich „Hochladen“. Gleiche zuerst auf dem Handy ab und klicke dann auf „Weiter“; wenn Anki auf dem Mac später fragt, wähle „Hochladen“."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "After that, Anki will ask you to choose \"Upload\" at the next sync. Sync on your phone first, then click Continue; later, when Anki on this Mac asks, choose Upload."
+            "value": "Add a fill-in card"
           }
         }
       }
@@ -4461,6 +4477,22 @@
         }
       }
     },
+    "卡片还有两个新字段没加": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zwei neue Kartenfelder fehlen noch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Two new card fields are still missing"
+          }
+        }
+      }
+    },
     "原句": {
       "localizations": {
         "de": {
@@ -4498,7 +4530,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quelltext"
+            "value": "Originaltext"
           }
         },
         "en": {
@@ -4610,13 +4642,13 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lückentext-Karte entfernen"
+            "value": "Lückenkarte entfernen"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Remove the fill-in-the-context card"
+            "value": "Remove the fill-in card"
           }
         }
       }
@@ -5714,13 +5746,13 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lückentext"
+            "value": "Lücke"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fill in the blank"
+            "value": "Fill-in"
           }
         }
       }
@@ -6073,22 +6105,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "OK"
-          }
-        }
-      }
-    },
-    "如果你在 Anki 里自己改过这两种卡的模板，会被新模板覆盖。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wenn du die Vorlagen dieser beiden Kartentypen in Anki selbst geändert hast, werden sie von den neuen Vorlagen überschrieben."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "If you edited the templates of these two card types in Anki yourself, the new templates will overwrite your changes."
           }
         }
       }
@@ -7490,7 +7506,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Das Bild von damals"
+            "value": "Bildschirm von damals"
           }
         },
         "en": {
@@ -8365,6 +8381,22 @@
         }
       }
     },
+    "手机上也用 Anki 的话，先在手机上同步一次（没有手机就跳过）。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falls du Anki auch auf dem Handy nutzt, gleiche dort zuerst einmal ab (ohne Handy überspringen)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you also use Anki on your phone, sync there once first (skip this if you have no phone)."
+          }
+        }
+      }
+    },
     "打开": {
       "localizations": {
         "de": {
@@ -8957,6 +8989,22 @@
         }
       }
     },
+    "按这个顺序做，手机上还没同步的复习记录才不会丢：": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitte in dieser Reihenfolge, damit Wiederholungen auf dem Handy, die noch nicht abgeglichen sind, nicht verloren gehen:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do these in order, so reviews on your phone that are not synced yet are not lost:"
+          }
+        }
+      }
+    },
     "按难度": {
       "localizations": {
         "de": {
@@ -9405,22 +9453,6 @@
         }
       }
     },
-    "新卡片要在 Anki 里给两种笔记类型各加一个字段：知识卡的「问题」，单词卡的「语境填空」。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die neuen Karten brauchen in Anki je ein neues Feld in den beiden Notiztypen: „Frage“ für Wissenskarten und „Lücke“ für Wortkarten."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The new cards need one new field in each of the two note types in Anki: \"Question\" for knowledge cards and \"Fill\" for word cards."
-          }
-        }
-      }
-    },
     "新建分类": {
       "localizations": {
         "de": {
@@ -9529,6 +9561,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "New versions come from GitHub Releases and install only after the signature checks out."
+          }
+        }
+      }
+    },
+    "新的卡片样式已经换上，你在 Anki 里自己改过的卡片模板被新样式替换了；卡片里你改过的文字不会动。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das neue Kartendesign ist schon aktiv und hat Kartenvorlagen ersetzt, die du in Anki selbst bearbeitet hast. Texte, die du in deinen Karten geändert hast, bleiben unverändert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The new card design is already in place and replaced any card templates you edited in Anki. Text you edited inside your cards is left alone."
           }
         }
       }
@@ -9881,22 +9929,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Monthly"
-          }
-        }
-      }
-    },
-    "有新的卡片样式可以升级": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ein neues Kartendesign ist verfügbar"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A new card design is available"
           }
         }
       }
@@ -10418,7 +10450,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wörter, die du 3-mal oder öfter nachgeschlagen hast"
+            "value": "3-mal oder öfter nachgeschlagen"
           }
         },
         "en": {
@@ -11533,18 +11565,34 @@
         }
       }
     },
-    "点「以后再说」，卡片先保持现在的样子，这次启动里不再问；想升级时在 设置 → Anki 里点「升级卡片」。": {
+    "点「继续」。": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mit „Später“ bleiben die Karten, wie sie sind, und du wirst bis zum nächsten Start nicht mehr gefragt. Zum Aktualisieren klickst du in Einstellungen → Anki auf „Karten aktualisieren“."
+            "value": "Klicke auf „Weiter“."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Choose Later to keep the cards as they are; you won't be asked again until the next launch. To upgrade, click Upgrade cards in Settings → Anki."
+            "value": "Click \"Continue\"."
+          }
+        }
+      }
+    },
+    "点「继续」会再给知识卡和单词卡各加一个新字段，所以之后要上传一次；点「以后再说」只推迟这两个字段，之后可在 设置 › Anki 里升级。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„Weiter“ fügt außerdem je ein neues Feld für Wissenskarten und Wortkarten hinzu, deshalb wird danach einmal hochgeladen. „Später“ verschiebt nur diese beiden Felder; aktualisieren kannst du jederzeit unter Einstellungen › Anki."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Continue\" also adds one new field each to knowledge cards and word cards, which is why you upload once afterwards. \"Later\" only postpones those two fields; upgrade any time from Settings › Anki."
           }
         }
       }
@@ -13229,22 +13277,6 @@
         }
       }
     },
-    "要给 Anki 加两个字段，先在手机上同步一次": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dafür kommen zwei Felder in Anki hinzu; gleiche zuerst auf dem Handy ab"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This adds two fields in Anki; sync on your phone first"
-          }
-        }
-      }
-    },
     "解绑这台电脑": {
       "localizations": {
         "de": {
@@ -13666,13 +13698,29 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lückentext-Karten"
+            "value": "Lückenkarten"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fill-in-the-context cards"
+            "value": "Fill-in cards"
+          }
+        }
+      }
+    },
+    "语境填空卡由设置决定": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lückenkarte laut Einstellung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill-in card set by your settings"
           }
         }
       }

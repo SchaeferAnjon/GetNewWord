@@ -55,6 +55,10 @@ struct AnkiCardEvidenceTests {
         let solo = makeWord("Fernweh", phonetic: "/ˈfɛʁnˌveː/", language: .german, meaning: "n. 对远方的向往", sense: nil, keyword: nil, contexts: [],
                             usage: "与 Heimweh（思乡）相对。", grammar: "das Fernweh · 无复数", difficulty: .c1, in: context)
 
+        let many = makeWord("stem", phonetic: "/stem/", language: .english, meaning: "v. 源于；遏制 ｜ n. 茎；词干", sense: "源于", keyword: "源于",
+                            contexts: (1...8).map { ("Sentence \($0): these problems stem from trust issue \($0).", "第 \($0) 句：这些问题源于信任问题 \($0)。") },
+                            usage: "stem from 表示来源。", difficulty: .b2, in: context)
+
         func wordFields(_ w: WordEntry, audio: String, shot: String) -> [String: String] {
             var f = anki.wordTextFields(w)
             f["Audio"] = audio
@@ -106,6 +110,7 @@ struct AnkiCardEvidenceTests {
                 ["id": "gehen", "kind": "word", "fields": wordFields(gehen, audio: "[sound:gnw_gehen.mp3]", shot: "")],
                 ["id": "solo", "kind": "word", "fields": wordFields(solo, audio: "[sound:gnw_solo.mp3]", shot: "")],
                 ["id": "fill", "kind": "word", "fields": nachFill],
+                ["id": "many", "kind": "word", "fields": wordFields(many, audio: "[sound:gnw_stem.mp3]", shot: "")],
                 ["id": "old", "kind": "word", "fields": oldFormat],
                 ["id": "kreis", "kind": "snippet", "fields": kreisFields],
                 ["id": "kreis-old", "kind": "snippet", "fields": kreisOld],
@@ -116,17 +121,17 @@ struct AnkiCardEvidenceTests {
 
     // MARK: - 界面离屏截图
 
+    /// 按内容高度画：先把宽度定死、竖向按内容撑开，换行的文字才不会被裁掉
     private func snapshot<V: View>(_ view: V, width: CGFloat, dark: Bool, to url: URL) throws {
-        let host = NSHostingView(rootView: view.environment(\.modelContext, try makeLibrary()))
+        let host = NSHostingView(rootView: AnyView(view.environment(\.modelContext, try makeLibrary())
+            .frame(width: width).fixedSize(horizontal: false, vertical: true)))
         host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-        let fitting = host.fittingSize
-        host.frame = NSRect(x: 0, y: 0, width: width, height: max(fitting.height, 40))
-        host.layoutSubtreeIfNeeded()
+        host.frame = NSRect(x: 0, y: 0, width: width, height: 400)
         let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: true)   // 不显示，只给 SwiftUI 一个宿主
         window.appearance = host.appearance
         window.contentView = host
         host.layoutSubtreeIfNeeded()
-        host.frame.size.height = max(host.fittingSize.height, 40)
+        host.frame.size = NSSize(width: width, height: max(host.fittingSize.height, 40))
         host.layoutSubtreeIfNeeded()
         let rep = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: rep)

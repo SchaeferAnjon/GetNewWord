@@ -15,7 +15,13 @@ final class FakeAnkiConnect: URLProtocol, @unchecked Sendable {
     /// 返回 .success(result) 当 result，.failure 当 AnkiConnect 的 error。
     /// 在 URL 加载线程上调：必须是 @Sendable，不能继承测试的 MainActor（否则 dispatch_assert_queue 崩）
     nonisolated(unsafe) static var reply: @Sendable (Call) -> Result<Any, Failure> = { _ in .success(NSNull()) }
-    nonisolated(unsafe) static var calls: [Call] = []
+    /// 请求记录。假服务在 URL 加载线程上记，测试里并发发请求时不能乱：加锁
+    private static let callsLock = NSLock()
+    nonisolated(unsafe) private static var _calls: [Call] = []
+    static var calls: [Call] {
+        get { callsLock.withLock { _calls } }
+        set { callsLock.withLock { _calls = newValue } }
+    }
 
     static func calls(_ action: String) -> [Call] { calls.filter { $0.action == action } }
 
@@ -27,7 +33,7 @@ final class FakeAnkiConnect: URLProtocol, @unchecked Sendable {
         let body = request.httpBody ?? request.httpBodyStream.map(Self.read) ?? Data()
         let json = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
         let call = Call(action: json["action"] as? String ?? "", params: json["params"] as? [String: Any] ?? [:])
-        Self.calls.append(call)
+        Self.callsLock.withLock { Self._calls.append(call) }
         let payload: [String: Any]
         switch Self.reply(call) {
         case .success(let result): payload = ["result": result, "error": NSNull()]
