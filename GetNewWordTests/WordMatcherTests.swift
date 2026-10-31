@@ -1,6 +1,7 @@
 // 查词卡片标紫：查的词每次出现都整词标出来，变形、短语也算，别的词里包含它的不算
 
 import Foundation
+import NaturalLanguage
 import SwiftUI
 import Testing
 @testable import GetNewWord
@@ -14,6 +15,20 @@ private func marked(_ word: String, _ language: Language, _ text: String, gramma
     }
     return out + text[i...]
 }
+
+/// 系统有没有德语词元（hält → halten）。GitHub 的 macOS runner 上没有，依赖它的测试在那里跳过；本机和用户的 Mac 上有
+private let hasGermanLemmas: Bool = {
+    let text = "Der Bus hält an."
+    let tagger = NLTagger(tagSchemes: [.lemma])
+    tagger.string = text
+    tagger.setLanguage(.german, range: text.startIndex..<text.endIndex)
+    var found = false
+    tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .lemma, options: [.omitWhitespace]) { tag, r in
+        if text[r] == "hält", tag?.rawValue.lowercased() == "halten" { found = true }
+        return true
+    }
+    return found
+}()
 
 struct WordMatcherEnglishTests {
     /// heats 整个词紫（以前只有 heat 紫、s 是黑的），wheat 里的 heat 不算，heater 是另一个词
@@ -92,7 +107,7 @@ struct WordMatcherEnglishTests {
 
 struct WordMatcherEuropeanTests {
     /// 德语：变音复数、强变化动词、ß 和 ss、整词比较不放宽变音（schon ≠ schön）
-    @Test func german() {
+    @Test(.enabled(if: hasGermanLemmas, "系统没有德语词元")) func german() {
         #expect(marked("Haus", .german, "Die Häuser, des Hauses, die Haustür.") == "Die [Häuser], des [Hauses], die Haustür.")
         #expect(marked("fahren", .german, "Er fährt, wir fuhren, gefahren. Die Fahrer warten.")
                 == "Er [fährt], wir [fuhren], [gefahren]. Die Fahrer warten.")
@@ -103,7 +118,7 @@ struct WordMatcherEuropeanTests {
     }
 
     /// 去掉变音才对得上、系统说是另一个词的不算：schöner 不是 schon 的变形，zählt 不是 zahlen，seit 不是 sein
-    @Test func germanUmlautIsAnotherWord() {
+    @Test(.enabled(if: hasGermanLemmas, "系统没有德语词元")) func germanUmlautIsAnotherWord() {
         #expect(marked("schon", .german, "Das ist schon ein schöner Tag, die schönen Blumen.")
                 == "Das ist [schon] ein schöner Tag, die schönen Blumen.")
         #expect(marked("zahlen", .german, "Ich zahle, er zählt bis zehn.") == "Ich [zahle], er zählt bis zehn.")
@@ -112,7 +127,7 @@ struct WordMatcherEuropeanTests {
     }
 
     /// 变化那行用「·」隔开：hält an、hielt an 各是一小句，可分动词照样认
-    @Test func germanGrammarLine() {
+    @Test(.enabled(if: hasGermanLemmas, "系统没有德语词元")) func germanGrammarLine() {
         #expect(marked("anhalten", .german, "trennbar · hält an · hielt an · hat angehalten")
                 == "trennbar · [hält] [an] · [hielt] [an] · hat [angehalten]")
         #expect(marked("aufstehen", .german, "trennbar • steht auf | stand auf / ist aufgestanden")
@@ -120,7 +135,7 @@ struct WordMatcherEuropeanTests {
     }
 
     /// 模型把可分动词写成了 halten、变化那行写着 trennbar · hält an：anhalten、句末的 an 也标；不可分的照旧
-    @Test func germanHeadwordMissingParticle() {
+    @Test(.enabled(if: hasGermanLemmas, "系统没有德语词元")) func germanHeadwordMissingParticle() {
         let g = "trennbar · hält an · hielt an · hat angehalten"
         #expect(marked("halten", .german, g, grammar: g) == "trennbar · [hält] [an] · [hielt] [an] · hat [angehalten]")
         #expect(marked("halten", .german, "Der Bus hält an der Ecke an. Anhalten, halten für.", grammar: g)
@@ -134,7 +149,7 @@ struct WordMatcherEuropeanTests {
     }
 
     /// 前缀配离它最近的那个变位，und 后面是另一个动词；换序兜底不把 zu Hause 认成 Hause zu；命令式只剩词干
-    @Test func germanNearestVerb() {
+    @Test(.enabled(if: hasGermanLemmas, "系统没有德语词元")) func germanNearestVerb() {
         #expect(marked("aufhören", .german, "Sie hörte mir zu und hörte auf.") == "Sie hörte mir zu und [hörte] [auf].")
         #expect(marked("zumachen", .german, "Sie macht Musik und hört mir zu. Mach die Tür zu!")
                 == "Sie macht Musik und hört mir zu. [Mach] die Tür [zu]!")
@@ -145,7 +160,7 @@ struct WordMatcherEuropeanTests {
     }
 
     /// 可分动词拆开时动词和前缀都标，中间当介词的 an 不标；短语换了语序也认
-    @Test func germanSeparableAndWordOrder() {
+    @Test(.enabled(if: hasGermanLemmas, "系统没有德语词元")) func germanSeparableAndWordOrder() {
         #expect(marked("anhalten", .german, "Der Bus hält an der Ecke an. Sie hat angehalten.")
                 == "Der Bus [hält] an der Ecke [an]. Sie hat [angehalten].")
         // 讲解里写成「hält … an」：省略号不断开
