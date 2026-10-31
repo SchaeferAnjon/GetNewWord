@@ -41,6 +41,8 @@ final class WordEntry {
     var ankiNoteId: Int?
     var syncStatusRaw: String
     var isArchived: Bool
+    /// 用户在词卡右键里单独要了一张语境填空卡（设置里没选「所有词」也生成）。只存在本机，不上云
+    var ankiFill: Bool = false
 
     @Relationship(deleteRule: .nullify)
     var category: Category?

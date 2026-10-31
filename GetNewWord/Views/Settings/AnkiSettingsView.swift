@@ -81,6 +81,9 @@ struct AnkiSettingsView: View {
                 }
             }
 
+            AnkiUpgradeRow()
+            AnkiFillChoiceView()
+
             if !statusMessage.isEmpty {
                 Text(statusMessage).font(.system(size: 12)).foregroundStyle(Theme.text2)
             }

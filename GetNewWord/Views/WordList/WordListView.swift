@@ -312,6 +312,11 @@ struct WordListView: View {
             Button("朗读") { AudioService.shared.speak(word.word, language: word.language) }
             Button("重新讲解") { WordActions.shared.regenerate(word, context: modelContext) }
             Button("复制") { WordActions.copy(word.word) }
+            Button(word.ankiFill ? "去掉语境填空卡" : "加一张语境填空卡") {
+                let on = !word.ankiFill, context = modelContext
+                Task { await AnkiService.shared.setFillCard(word, on: on, context: context) }
+            }
+            .disabled(!AnkiService.hasFillSentence(word))
             Menu("移到分类") {
                 ForEach(languageCategories, id: \.id) { cat in
                     if word.category?.id == cat.id {

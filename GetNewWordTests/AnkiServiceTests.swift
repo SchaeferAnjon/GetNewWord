@@ -72,6 +72,12 @@ final class AnkiServiceTests {
         FakeAnkiConnect.calls = []
         FakeAnkiConnect.reply = Self.normalAnki
         anki.session = FakeAnkiConnect.session
+        // 卡片字段缓存、升级询问、填空卡设置、待重写标记都是整个进程共用的：每个测试从头开始
+        anki.fieldCache.reset()
+        anki.cardsChecked = false
+        AnkiUpgrade.shared.resetForTesting()
+        UserDefaults.standard.removeObject(forKey: AnkiService.refreshPendingKey)
+        UserDefaults.standard.removeObject(forKey: AnkiService.FillMode.key)
     }
 
     deinit {
@@ -92,7 +98,7 @@ final class AnkiServiceTests {
         }
     }
 
-    private func sampleWord(in context: ModelContext, withMedia: Bool) throws -> WordEntry {
+    func sampleWord(in context: ModelContext, withMedia: Bool) throws -> WordEntry {
         let parent = Category(name: "语言学习")
         let english = Category(name: "英语", parent: parent)
         let word = WordEntry(word: "confluence", phonetic: "/ˈkɒnfluəns/", language: .english, meaning: "n. 汇合处；汇流",
@@ -136,13 +142,14 @@ final class AnkiServiceTests {
         #expect((note["options"] as? [String: Any])?["allowDuplicate"] as? Bool == false)
         let fields = try #require(note["fields"] as? [String: String])
         #expect(fields["Front"] == "confluence")
-        #expect(fields["Back"] == "n. <b style=\"color:#5E6AD2\">汇合处</b>；汇流")
+        #expect(fields["Back"] == "<div class=\"pos-group\"><span class=\"pos\">n.</span> <b>汇合处</b>；汇流</div>")
         #expect(fields["Context"] == "<div class=\"ctx\">The town sits at the <span class=\"kw\">confluence</span> of two rivers.</div>")
         #expect(fields["ContextTranslation"] == "<div class=\"ctx-tr\">小镇坐落在两条河的<span class=\"kw\">交汇处</span>。</div>")
         #expect(fields["Audio"] == "[sound:gnw_\(id).mp3]")
         #expect(fields["Screenshot"] == "<img src=\"gnw_img_\(id).png\">")
         #expect(fields["Difficulty"] == "C1")
-        #expect(fields["Analysis"]?.contains("<div class=\"lbl lbl-coll\">\(String(localized: "搭 配"))</div>") == true)
+        #expect(fields["Fill"] == "")
+        #expect(fields["Analysis"]?.contains("<div class=\"lbl lbl-coll\">\(String(localized: "搭配"))</div>") == true)
 
         #expect(word.ankiNoteId == 1_700_000_000_001)
         #expect(word.syncStatus == .synced)
@@ -166,8 +173,9 @@ final class AnkiServiceTests {
         #expect(used.subtracting(modelFields).isEmpty, "笔记类型里没有：\(used.subtracting(modelFields))")
         // 模板里引用的字段也都存在
         let templates = try #require(model.params["cardTemplates"] as? [[String: String]])
+        #expect(templates.map { $0["Name"] } == ["正面", "语境填空"])
         let html = templates.flatMap { [$0["Front"] ?? "", $0["Back"] ?? ""] }.joined()
-        let referenced = Set(html.matches(of: /\{\{([A-Za-z]+)\}\}/).map { String($0.1) }).subtracting(["FrontSide"])
+        let referenced = Set(html.matches(of: /\{\{[#^\/]?([A-Za-z]+)\}\}/).map { String($0.1) }).subtracting(["FrontSide"])
         #expect(referenced.subtracting(modelFields).isEmpty, "模板引用了不存在的字段：\(referenced.subtracting(modelFields))")
     }
 

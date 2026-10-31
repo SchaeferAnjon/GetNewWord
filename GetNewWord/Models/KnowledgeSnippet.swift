@@ -19,6 +19,8 @@ final class KnowledgeSnippet {
     var isArchived: Bool
     var syncStatusRaw: String
     var ankiNoteId: Int? = nil
+    /// Anki 知识卡正面的问题（整理时让 AI 顺手出的）；老片段没有，卡片正面用标题
+    var question: String? = nil
 
     @Relationship(deleteRule: .nullify)
     var category: Category?
@@ -39,6 +41,7 @@ final class KnowledgeSnippet {
         screenshotPath: String? = nil,
         tags: [String] = [],
         domain: String,
+        question: String? = nil,
         createdAt: Date = Date(),
         isArchived: Bool = false,
         syncStatus: SyncStatus = .notSynced,
@@ -52,6 +55,7 @@ final class KnowledgeSnippet {
         self.screenshotPath = screenshotPath
         self.tags = tags
         self.domain = domain
+        self.question = question
         self.createdAt = createdAt
         self.isArchived = isArchived
         self.syncStatusRaw = syncStatus.rawValue

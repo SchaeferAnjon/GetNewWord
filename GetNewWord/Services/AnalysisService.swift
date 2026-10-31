@@ -381,6 +381,7 @@ class AnalysisService {
             screenshotPath: screenshotPath,
             tags: Self.mergeTags(snippet.tags, approvedNewTags),
             domain: snippet.domain ?? "",
+            question: snippet.question?.trimmingCharacters(in: .whitespacesAndNewlines),
             category: matchedCategory
         )
 
