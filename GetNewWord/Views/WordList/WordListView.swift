@@ -312,6 +312,16 @@ struct WordListView: View {
             Button("朗读") { AudioService.shared.speak(word.word, language: word.language) }
             Button("重新讲解") { WordActions.shared.regenerate(word, context: modelContext) }
             Button("复制") { WordActions.copy(word.word) }
+            if !word.ankiFill && AnkiService.settingForcesFillCard(word) {
+                // 设置（查过 3 次以上 / 所有词）已经决定了这个词有填空卡，菜单改不了
+                Button("语境填空卡由设置决定") {}.disabled(true)
+            } else {
+                Button(word.ankiFill ? "去掉语境填空卡" : "加一张语境填空卡") {
+                    let on = !word.ankiFill, context = modelContext
+                    Task { await AnkiService.shared.setFillCard(word, on: on, context: context) }
+                }
+                .disabled(!word.ankiFill && !AnkiService.hasFillSentence(word))
+            }
             Menu("移到分类") {
                 ForEach(languageCategories, id: \.id) { cat in
                     if word.category?.id == cat.id {

@@ -35,6 +35,31 @@ enum AnkiError: LocalizedError {
     }
 }
 
+// MARK: - 字段缓存
+
+/// hasFillSentence 的结果缓存：键是词加最近一句，换了句子自然失效
+final class FillSentenceCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: Bool] = [:]
+
+    func get(_ word: String, _ sentence: String) -> Bool? { lock.withLock { values[word + "\u{1}" + sentence] } }
+    func set(_ word: String, _ sentence: String, _ value: Bool) {
+        lock.withLock {
+            if values.count > 5000 { values.removeAll() }
+            values[word + "\u{1}" + sentence] = value
+        }
+    }
+}
+
+final class AnkiFieldCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var fields: [String: Set<String>] = [:]
+
+    func get(_ model: String) -> Set<String>? { lock.withLock { fields[model] } }
+    func set(_ model: String, _ names: Set<String>) { lock.withLock { fields[model] = names } }
+    func reset() { lock.withLock { fields = [:] } }
+}
+
 // MARK: - AnkiService
 
 final class AnkiService: @unchecked Sendable {
@@ -48,7 +73,7 @@ final class AnkiService: @unchecked Sendable {
     #endif
     /// 单元测试换成假的 AnkiConnect，不碰本机真开着的 Anki
     var session = URLSession.shared
-    private let modelName = AppVariant.ankiName
+    let modelName = AppVariant.ankiName
     private let rootDeckName = AppVariant.ankiName
 
     private let jsonEncoder: JSONEncoder = {
@@ -58,12 +83,25 @@ final class AnkiService: @unchecked Sendable {
     }()
     private let jsonDecoder = JSONDecoder()
 
+    /// 每个笔记类型现在有哪些字段（ensure 时读到的）。用户选了「以后再说」、字段还没加的时候，同步只写已有的字段
+    let fieldCache = AnkiFieldCache()
+    /// 升级笔记类型（读现状再补字段、补模板）一次只做一个：核对、点「继续」、每次同步前的核对可能同时来
+    let upgradeGate = AsyncMutex()
+    /// 这次启动是不是已经核对过卡片样式和字段（核对一次就够，不用每次保存都问 Anki）
+    @MainActor var cardsChecked = false
+
     private init() {}
+
+    /// 只留下笔记类型里有的字段；还不知道笔记类型有什么字段时原样返回
+    func onlyKnownFields(_ fields: [String: String], model: String) -> [String: String] {
+        guard let known = fieldCache.get(model), !known.isEmpty else { return fields }
+        return fields.filter { known.contains($0.key) }
+    }
 
     // MARK: - 底层通信
 
     /// 发送 AnkiConnect 请求并解码响应
-    private func send<T: Codable>(action: String, params: [String: Any]? = nil, as type: T.Type) async throws -> T {
+    func send<T: Codable>(action: String, params: [String: Any]? = nil, as type: T.Type) async throws -> T {
         let request = AnkiConnectRequest(action: action, params: params)
         let body = try jsonEncoder.encode(request)
 
@@ -98,7 +136,7 @@ final class AnkiService: @unchecked Sendable {
     }
 
     /// 发送无返回值的请求（result 可能为 null）
-    private func sendVoid(action: String, params: [String: Any]? = nil) async throws {
+    func sendVoid(action: String, params: [String: Any]? = nil) async throws {
         let request = AnkiConnectRequest(action: action, params: params)
         let body = try jsonEncoder.encode(request)
 
@@ -207,8 +245,9 @@ final class AnkiService: @unchecked Sendable {
         guard !w.isEmpty, w.count >= 2 else { return text }
         var pattern = NSRegularExpression.escapedPattern(for: w)
         if w.count >= 4 {
+            // 带词尾的分支放前面：正则取第一个能匹配的分支，短的放前面 stems 只会标出 stem
             let stem = NSRegularExpression.escapedPattern(for: String(w.prefix(max(4, w.count - 2))))
-            pattern = "\(pattern)|\(stem)[\\p{L}]*"
+            pattern = "\(stem)[\\p{L}]*|\(pattern)"
         }
         guard let re = try? NSRegularExpression(pattern: "(\(pattern))", options: [.caseInsensitive]) else { return text }
         return re.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "<span class=\"kw\">$1</span>")
@@ -232,10 +271,31 @@ final class AnkiService: @unchecked Sendable {
         return out
     }
 
-    /// Back 字段：整个义项列表，当前语境义项加粗标色
+    /// Back 字段：整个义项列表，按词性一组一个 <div class="pos-group">，组之间放藏起来的 " ｜ "，这句里的义项包 <b>。
+    /// 去掉标签后文字和 word.meaning 一字不差（词性后面的空格也原样保留），恢复词库时 stripHTML 能原样还原
     static func emphasizedMeaningHTML(_ word: WordEntry) -> String {
-        guard let cm = word.contextMeaning, !cm.isEmpty, word.meaning.contains(cm) else { return word.meaning }
-        return word.meaning.replacingOccurrences(of: cm, with: "<b style=\"color:#5E6AD2\">\(cm)</b>")
+        let separator = " ｜ "
+        let groups = word.meaning.components(separatedBy: separator)
+        let sense = word.contextMeaning.flatMap { $0.isEmpty ? nil : $0 }
+        var boldAt: Int?
+        if let sense {
+            boldAt = groups.firstIndex { $0.contains(sense) }
+            if boldAt == nil, word.meaning.contains(sense) {
+                // 义项跨了词性组（写法很怪的老数据）：不分组，整段里标出来
+                return word.meaning.replacingOccurrences(of: sense, with: "<b>\(sense)</b>")
+            }
+        }
+        let html = groups.enumerated().map { i, group -> String in
+            var text = group
+            if let sense, i == boldAt, let r = text.range(of: sense) {
+                text.replaceSubrange(r, with: "<b>\(sense)</b>")
+            }
+            if let m = text.firstMatch(of: /^([A-Za-z]{1,8}\.(?:[\/&][A-Za-z]{1,8}\.)*)(\s*)/) {
+                text = "<span class=\"pos\">\(m.1)</span>\(m.2)" + text[m.range.upperBound...]
+            }
+            return "<div class=\"pos-group\">\(text)</div>"
+        }
+        return html.joined(separator: "<span class=\"sep\">\(separator)</span>")
     }
 
     /// 卡片背面「AI 解释」的四段。小标题按界面语言写（中英德）；class 里带上是哪一段（lbl-usage 等），
@@ -245,9 +305,9 @@ final class AnkiService: @unchecked Sendable {
 
         var label: String {
             switch self {
-            case .usage: return String(localized: "用 法")
-            case .coll: return String(localized: "搭 配")
-            case .ex: return String(localized: "例 句")
+            case .usage: return String(localized: "用法")
+            case .coll: return String(localized: "搭配")
+            case .ex: return String(localized: "例句")
             case .ety: return String(localized: "词根词源")
             }
         }
@@ -397,95 +457,6 @@ final class AnkiService: @unchecked Sendable {
         try await send(action: "modelNames", as: [String].self)
     }
 
-    /// 创建 GetNewWord 卡片模板（模型）
-    func createModel() async throws {
-        let frontTemplate = """
-        <div style="font-size: 24px; font-weight: bold;">{{Front}}</div>\
-        <div style="font-size: 14px; color: gray;">{{Phonetic}}</div>\
-        <div style="font-size: 14px; color: #5E6AD2;">{{Grammar}}</div>\
-        <div style="font-size: 12px; color: gray;">{{Language}} · {{Difficulty}}</div>\
-        <div>{{Audio}}</div>
-        """
-
-        let backTemplate = """
-        {{FrontSide}}\
-        <hr>\
-        <div style="font-size: 18px;">{{Back}}</div>\
-        <div style="font-size: 12px; color: gray;">{{Phonetic}}</div>\
-        <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">\
-        <div style="font-style: italic;">{{Context}}</div>\
-        <div style="color: gray; font-size: 14px;">{{ContextTranslation}}</div>\
-        </div>\
-        <div style="margin-top: 10px; padding: 10px; background: #e8f4fd; border-radius: 5px;">\
-        {{Analysis}}\
-        </div>\
-        <div style="margin-top: 10px;">{{Screenshot}}</div>
-        """
-
-        let model: [String: Any] = [
-            "modelName": modelName,
-            "inOrderFields": [
-                "Front", "Back", "Phonetic", "Context",
-                "ContextTranslation", "Analysis", "Screenshot",
-                "Language", "Difficulty", "Audio", "Grammar"
-            ],
-            "css": """
-            .card {
-                font-family: "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
-                font-size: 16px;
-                text-align: center;
-                color: #333;
-                background-color: #fff;
-                padding: 20px;
-            }
-            """,
-            "isCloze": false,
-            "cardTemplates": [
-                [
-                    "Name": "正面",
-                    "Front": frontTemplate,
-                    "Back": backTemplate
-                ]
-            ]
-        ]
-
-        try await sendVoid(action: "createModel", params: model)
-    }
-
-    /// 确保 GetNewWord 卡片模板存在
-    func ensureModelExists() async throws {
-        let existing = try await modelNames()
-        if existing.contains(modelName) {
-            // 旧版本创建的笔记类型没有 Audio 字段：补上
-            guard let fieldNames: [String] = try? await send(action: "modelFieldNames", params: ["modelName": modelName], as: [String].self), !fieldNames.isEmpty else {
-                AppLog.log("[Anki] modelFieldNames 读取失败，跳过字段检查（避免误改模板触发全量同步）")
-                return
-            }
-            if !fieldNames.contains("Grammar") {
-                try? await sendVoid(action: "modelFieldAdd", params: ["modelName": modelName, "fieldName": "Grammar", "index": fieldNames.count + (fieldNames.contains("Audio") ? 0 : 1)])
-                let templates: [String: [String: String]] = (try? await send(action: "modelTemplates", params: ["modelName": modelName], as: [String: [String: String]].self)) ?? [:]
-                if let (tName, t) = templates.first, let front = t["Front"], !front.contains("{{Grammar}}") {
-                    try? await sendVoid(action: "updateModelTemplates", params: [
-                        "model": ["name": modelName, "templates": [tName: ["Front": front + "<div style=\"color:#5E6AD2\">{{Grammar}}</div>", "Back": t["Back"] ?? ""]]]
-                    ])
-                }
-            }
-            if !fieldNames.contains("Audio") {
-                try? await sendVoid(action: "modelFieldAdd", params: ["modelName": modelName, "fieldName": "Audio", "index": fieldNames.count])
-                // 正面模板加上自动播放
-                let templates: [String: [String: String]] = (try? await send(action: "modelTemplates", params: ["modelName": modelName], as: [String: [String: String]].self)) ?? [:]
-                if let (tName, t) = templates.first, let front = t["Front"], !front.contains("{{Audio}}") {
-                    try? await sendVoid(action: "updateModelTemplates", params: [
-                        "model": ["name": modelName, "templates": [tName: ["Front": front + "<div>{{Audio}}</div>", "Back": t["Back"] ?? ""]]]
-                    ])
-                }
-            }
-        }
-        if !existing.contains(modelName) {
-            try await createModel()
-        }
-    }
-
     // MARK: - Media
 
     /// 存储媒体文件到 Anki（data 为 base64 编码字符串）
@@ -523,6 +494,102 @@ final class AnkiService: @unchecked Sendable {
         }
     }
 
+    // MARK: - 字段拼法
+
+    /// 语境填空卡的开关：设置里选「不加 / 查过 3 次以上的词 / 所有词」，词卡右键还能单独加
+    enum FillMode: String, CaseIterable, Identifiable {
+        case off, frequent, all
+        static let key = "ankiFillMode"
+        /// 「查过 3 次以上」的 3
+        static let frequentThreshold = 3
+        var id: String { rawValue }
+        static var current: FillMode {
+            FillMode(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .off
+        }
+    }
+
+    /// 填空卡只显示最近遇到的那一句：这一句里得真套着这个词（更早的句子里有也不算），没有就没得挖
+    static func latestSentence(_ word: WordEntry) -> String {
+        word.sortedContexts.last?.sentence ?? word.contextSentence
+    }
+
+    private static let fillSentenceCache = FillSentenceCache()
+
+    static func hasFillSentence(_ word: WordEntry) -> Bool {
+        let sentence = latestSentence(word), text = word.word
+        // 右键菜单每次重绘都要问，每一行跑一遍正则太费：同一个词和句子只算一次
+        if let known = fillSentenceCache.get(text, sentence) { return known }
+        let result = hl(sentence, word: text).contains("class=\"kw\"")
+        fillSentenceCache.set(text, sentence, result)
+        return result
+    }
+
+    /// 设置说要不要给这个词加填空卡（不看有没有能挖的句子）
+    static func settingForcesFillCard(_ word: WordEntry, mode: FillMode = .current) -> Bool {
+        switch mode {
+        case .off: return false
+        case .frequent: return word.lookupCount >= FillMode.frequentThreshold
+        case .all: return true
+        }
+    }
+
+    /// 这个词要不要生成语境填空卡：得有能挖的句子，再看设置和词卡右键
+    static func wantsFillCard(_ word: WordEntry, mode: FillMode = .current) -> Bool {
+        guard word.ankiFill || settingForcesFillCard(word, mode: mode) else { return false }
+        return hasFillSentence(word)
+    }
+
+    /// Context：每次遇到的句子一句一个 <div class="ctx">，词用 span.kw 标出来；最后一句是最近的
+    static func contextHTML(_ word: WordEntry) -> String {
+        let contexts = word.sortedContexts
+        if contexts.isEmpty {
+            let sentence = word.contextSentence.trimmingCharacters(in: .whitespacesAndNewlines)
+            return sentence.isEmpty ? "" : "<div class=\"ctx\">\(hl(word.contextSentence, word: word.word))</div>"
+        }
+        return contexts.map { "<div class=\"ctx\">\(hl($0.sentence, word: word.word))</div>" }.joined()
+    }
+
+    /// ContextTranslation：和 Context 一句对一句
+    static func translationHTML(_ word: WordEntry) -> String {
+        let contexts = word.sortedContexts
+        func tr(_ t: String) -> String { "<div class=\"ctx-tr\">\(hlSense(t, sense: word.contextMeaning, keyword: word.translationKeyword))</div>" }
+        if contexts.isEmpty {
+            return word.contextTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : tr(word.contextTranslation)
+        }
+        return contexts.map { tr($0.translation) }.joined()
+    }
+
+    /// 单词卡的文字字段（不含发音和截图，那两个要上传媒体文件）。Fill 只在笔记类型有这个字段时才会被留下
+    func wordTextFields(_ word: WordEntry) -> [String: String] {
+        [
+            "Front": word.word,
+            "Back": Self.emphasizedMeaningHTML(word),
+            "Phonetic": word.phonetic ?? "",
+            "Context": Self.contextHTML(word),
+            "ContextTranslation": Self.translationHTML(word),
+            "Analysis": Self.composeAnalysisHTML(word),
+            "Language": word.language.displayName,
+            "Difficulty": word.difficulty.displayName,
+            "Grammar": word.grammar ?? "",
+            "Fill": Self.wantsFillCard(word) ? "1" : ""
+        ]
+    }
+
+    /// 知识卡的文字字段。要点有两行以上就写成编号列表（<ul class="pts">）；Question 还没有（老片段、AI 没出）就不写，免得清掉 Anki 里已有的
+    func snippetTextFields(_ s: KnowledgeSnippet) -> [String: String] {
+        let lines = s.content.components(separatedBy: "\n")
+        let asList = lines.count > 1 && lines.allSatisfy { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        var fields = [
+            "Title": s.title,
+            "Content": asList ? "<ul class=\"pts\">" + lines.map { "<li>\($0)</li>" }.joined() + "</ul>"
+                              : s.content.replacingOccurrences(of: "\n", with: "<br>"),
+            "Source": s.sourceContext,
+            "Domain": s.category?.name ?? (s.domain.isEmpty ? "未分组" : s.domain)
+        ]
+        if let q = s.question?.trimmingCharacters(in: .whitespacesAndNewlines), !q.isEmpty { fields["Question"] = q }
+        return fields
+    }
+
     /// 同步单个单词到 Anki
     @MainActor
     func syncWord(_ word: WordEntry, context: ModelContext) async throws {
@@ -541,25 +608,10 @@ final class AnkiService: @unchecked Sendable {
             }
         }
 
-        // 构造字段
-        // 多语境：每次遇到的句子都放进卡片（句子 + 译文 逐条）
-        let contexts = word.sortedContexts
-        let contextHTML = contexts.map { "<div class=\"ctx\">\(Self.hl($0.sentence, word: word.word))</div>" }.joined()
-        let translationHTML = contexts.map { "<div class=\"ctx-tr\">\(Self.hlSense($0.translation, sense: word.contextMeaning, keyword: word.translationKeyword))</div>" }.joined()
-
-        var fields: [String: String] = [
-            "Front": word.word,
-            "Back": Self.emphasizedMeaningHTML(word),
-            "Phonetic": word.phonetic ?? "",
-            "Context": contextHTML.isEmpty ? Self.hl(word.contextSentence, word: word.word) : contextHTML,
-            "ContextTranslation": translationHTML.isEmpty ? Self.hlSense(word.contextTranslation, sense: word.contextMeaning, keyword: word.translationKeyword) : translationHTML,
-            "Analysis": Self.composeAnalysisHTML(word),
-            "Screenshot": "",
-            "Language": word.language.chineseName,
-            "Difficulty": word.difficulty.displayName,
-            "Audio": "",
-            "Grammar": word.grammar ?? ""
-        ]
+        // 构造字段（文字部分，和升级时后台重写老卡用同一份）
+        var fields = wordTextFields(word)
+        fields["Screenshot"] = ""
+        fields["Audio"] = ""
 
         // 发音：优先已缓存/下载的真人 mp3，没有就现下；上传到 Anki 媒体库，正面自动播放
         var audioPath = word.audioPath
@@ -591,6 +643,8 @@ final class AnkiService: @unchecked Sendable {
         // 没拿到本地音频/截图：把键去掉，updateNoteFields 不会动 Anki 卡上已有的内容
         if fields["Audio"] == "" { fields.removeValue(forKey: "Audio") }
         if fields["Screenshot"] == "" { fields.removeValue(forKey: "Screenshot") }
+        // 笔记类型还没加的字段（用户选了「以后再说」）不写，不然 AnkiConnect 整张卡都加不进去
+        fields = onlyKnownFields(fields, model: modelName)
 
         // 构造标签
         // 不再把应用内标签带进 Anki，只保留来源与语言标记
@@ -646,31 +700,7 @@ final class AnkiService: @unchecked Sendable {
 
     // MARK: - 知识片段同步
 
-    private let snippetModelName = AppVariant.ankiName + " Snippet"
-
-    /// 知识片段笔记类型：正面标题，背面内容 + 来源 + 截图
-    func ensureSnippetModelExists() async throws {
-        let existing = try await modelNames()
-        guard !existing.contains(snippetModelName) else { return }
-        let model: [String: Any] = [
-            "modelName": snippetModelName,
-            "inOrderFields": ["Title", "Content", "Source", "Domain", "Screenshot"],
-            "css": """
-            .card { font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif; font-size: 16px; color: #333; background: #fff; padding: 20px; text-align: left; }
-            .title { font-size: 22px; font-weight: 700; text-align: center; }
-            .domain { font-size: 12px; color: #888; text-align: center; margin-top: 6px; }
-            .content { margin-top: 14px; line-height: 1.5; white-space: pre-wrap; }
-            .source { margin-top: 12px; padding: 10px; background: #f3f3f3; border-radius: 6px; font-size: 13px; color: #666; font-style: italic; }
-            """,
-            "isCloze": false,
-            "cardTemplates": [[
-                "Name": "知识",
-                "Front": "<div class=\"title\">{{Title}}</div><div class=\"domain\">{{Domain}}</div>",
-                "Back": "{{FrontSide}}<hr><div class=\"content\">{{Content}}</div>{{#Source}}<div class=\"source\">{{Source}}</div>{{/Source}}<div style=\"margin-top:10px\">{{Screenshot}}</div>"
-            ]]
-        ]
-        try await sendVoid(action: "createModel", params: model)
-    }
+    let snippetModelName = AppVariant.ankiName + " Snippet"
 
     func deckNameForSnippet(_ s: KnowledgeSnippet) -> String {
         if let cat = s.category {
@@ -684,19 +714,15 @@ final class AnkiService: @unchecked Sendable {
     func syncSnippet(_ s: KnowledgeSnippet, context: ModelContext) async throws {
         let deckName = deckNameForSnippet(s)
         try? await ensureDeckExists(name: deckName)
-        var fields: [String: String] = [
-            "Title": s.title,
-            "Content": s.content.replacingOccurrences(of: "\n", with: "<br>"),
-            "Source": s.sourceContext,
-            "Domain": s.category?.name ?? (s.domain.isEmpty ? "未分组" : s.domain),
-            "Screenshot": ""
-        ]
+        var fields = snippetTextFields(s)
+        fields["Screenshot"] = ""
         if let path = s.screenshotPath, let data = FileManager.default.contents(atPath: path) {
             let filename = "gnw_snip_\(s.id.uuidString.lowercased()).png"
             if (try? await storeMedia(filename: filename, data: data.base64EncodedString())) != nil {
                 fields["Screenshot"] = "<img src=\"\(filename)\">"
             }
         }
+        fields = onlyKnownFields(fields, model: snippetModelName)
         // 优先用已存的 noteId；老数据没有就按 Title 查一次并回填
         var noteId = s.ankiNoteId
         if noteId == nil {
@@ -798,6 +824,7 @@ final class AnkiService: @unchecked Sendable {
             AppLog.log("[Anki] not running, skip auto sync")
             return
         }
+        await checkCardsOnce()                         // 卡片样式、字段：这次启动核对一次，老的升到 v2
         await pruneDeletedNotes(context: context)      // Anki 里删掉的单词卡 → 本地也删
         await pruneDeletedSnippets(context: context)   // Anki 里删掉的片段卡 → 本地也删
         // 失败过的也一起重试（失败很快；重复卡会被认领而自愈）
@@ -817,6 +844,8 @@ final class AnkiService: @unchecked Sendable {
                 AppLog.log("[Anki] ✗ snippet model: \(error)")
             }
         }
+        await refreshSyncedNotesIfPending(context: context)   // 升级到 v2 以后，把已同步的老卡的字段按新拼法重写一遍
+        await refreshFillIfPending(context: context)           // 填空卡的设置改了、当时 Anki 没开：补写 Fill
         // 推完新卡后立即触发 Anki 的正常同步（增量合并；手机端复习记录一并合并，减少两端分叉窗口）
         if !words.isEmpty || !snippets.isEmpty {
             do {
@@ -830,8 +859,8 @@ final class AnkiService: @unchecked Sendable {
 
     // MARK: - 灾难恢复：从 Anki 反向导入词库
 
-    private static func stripHTML(_ s: String) -> String {
-        var t = s.replacingOccurrences(of: "<br>", with: "\n")
+    static func stripHTML(_ s: String) -> String {
+        var t = s.replacingOccurrences(of: "<br>", with: "\n").replacingOccurrences(of: "</li>", with: "\n")
         t = t.replacingOccurrences(of: "\\[sound:[^\\]]*\\]", with: "", options: .regularExpression)
         t = t.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         t = t.replacingOccurrences(of: "&amp;", with: "&").replacingOccurrences(of: "&lt;", with: "<")
@@ -852,7 +881,7 @@ final class AnkiService: @unchecked Sendable {
     /// Analysis HTML → 用法/搭配/例句/词根词源
     static func parseAnalysisHTML(_ html: String) -> (usage: String?, coll: String?, ex: String?, ety: String?) {
         var usage: String?, coll: String?, ex: String?, ety: String?
-        // 新卡 <div class="lbl lbl-usage">Usage</div>，旧卡 <div class="lbl">用 法</div>
+        // 新卡 <div class="lbl lbl-usage">Usage</div>，1.2.0 以前的旧卡 <div class="lbl">用 法</div>
         for part in html.components(separatedBy: "<div class=\"lbl").dropFirst() {
             guard let open = part.range(of: "\">"), let r = part.range(of: "</div>", range: open.upperBound..<part.endIndex) else { continue }
             let cls = part[..<open.lowerBound].trimmingCharacters(in: .whitespaces)
@@ -879,9 +908,9 @@ final class AnkiService: @unchecked Sendable {
         return (usage, coll, ex, ety)
     }
 
-    /// 卡片上的「语言」：现在写中文名；1.2.0 的开发版按界面语言写过 English、Deutsch 这类名字，也认
+    /// 卡片上的「语言」：现在按界面语言写（中文、英文、德文界面各一种）；1.3.0 以前写的是中文名，也认
     private static func languageFromDisplay(_ name: String) -> Language {
-        Language.allCases.first { $0.chineseName == name || $0.displayName == name } ?? .other
+        Language.allCases.first { $0.knownNames.contains(name) } ?? .other
     }
 
     /// 从 Anki 反向导入：把 Anki 里 GetNewWord 的卡还原成本地词条/片段。
@@ -987,11 +1016,13 @@ final class AnkiService: @unchecked Sendable {
                 let title = Self.stripHTML(f("Title"))
                 guard !title.isEmpty, !localTitles.contains(title) else { continue }
                 localTitles.insert(title)
+                let question = Self.stripHTML(f("Question"))
                 let s = KnowledgeSnippet(
                     title: title,
                     content: Self.stripHTML(f("Content")),
                     sourceContext: Self.stripHTML(f("Source")),
                     domain: Self.stripHTML(f("Domain")),
+                    question: question.isEmpty ? nil : question,
                     syncStatus: .synced,
                     category: category(leaf: noteDeckLeaf[info.noteId], forWords: false) ?? category(leaf: Self.stripHTML(f("Domain")), forWords: false)
                 )

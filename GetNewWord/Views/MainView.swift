@@ -55,6 +55,7 @@ struct MainView: View {
         .sheet(isPresented: Binding(get: { consentReady && hasCompletedOnboarding && usageConsent.isEmpty }, set: { _ in })) {
             UsageConsentSheet()
         }
+        .background(Color.clear.modifier(AnkiUpgradeSheetModifier(enabled: consentReady && hasCompletedOnboarding && !usageConsent.isEmpty)))
         .task {
             try? await Task.sleep(for: .milliseconds(600))
             consentReady = true

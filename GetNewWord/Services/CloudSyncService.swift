@@ -109,11 +109,18 @@ struct SnippetRow: CloudRow {
     var ankiNoteId: Int?
     var categoryId: String?
     var relatedWordIds: [String]
+    /// Anki 知识卡的问题。云端 snippets 表要先跑 supabase/getnewword-snippet-question.sql 才有这一列：
+    /// 拉取时没有这一列就是 nil；推送只在查到有这一列时才带上（见 CloudSyncService.serverHasQuestionColumn）。
+    /// 查到有这一列之后才参与内容哈希：跑了 SQL 以后第一次推送会把带问题的片段补推一次，之前哈希不变，不会来回改写
+    var question: String? = nil
     var updatedAt: String? = nil
     var deletedAt: String? = nil
 
-    func normalized() -> SnippetRow {
-        var r = self; r.updatedAt = nil; r.deletedAt = nil; r.createdAt = CloudDate.normalize(createdAt)
+    func normalized() -> SnippetRow { normalized(keepQuestion: false) }
+
+    /// 云端 snippets 表有 question 列以后，问题才算内容；没有这一列时不算，免得没跑 SQL 时来回改写
+    func normalized(keepQuestion: Bool) -> SnippetRow {
+        var r = self; r.updatedAt = nil; r.deletedAt = nil; if !keepQuestion { r.question = nil }; r.createdAt = CloudDate.normalize(createdAt)
         r.relatedWordIds = relatedWordIds.map { $0.lowercased() }.sorted()
         return r
     }
@@ -488,6 +495,7 @@ final class CloudSyncService: ObservableObject {
             s.title = r.title; s.content = r.content; s.sourceContext = r.sourceContext; s.tags = r.tags; s.domain = r.domain
             s.createdAt = CloudDate.parse(r.createdAt) ?? s.createdAt; s.isArchived = r.isArchived
             s.syncStatusRaw = r.syncStatus; s.ankiNoteId = r.ankiNoteId
+            if let q = r.question, !q.isEmpty { s.question = q }
             s.category = r.categoryId.flatMap { cats[$0.lowercased()] }
             s.relatedWords = r.relatedWordIds.compactMap { words[$0.lowercased()] }
             markKnown(r); applied += 1
@@ -562,7 +570,8 @@ final class CloudSyncService: ObservableObject {
         count += try await pushTable(cats.map(Self.row))
         count += try await pushTable(words.map(Self.row))
         count += try await pushTable(ctxs.filter { $0.word != nil }.map(Self.row))
-        count += try await pushTable(snips.map(Self.row))
+        let snippetColumns = SnippetRow.columns + (await serverHasQuestionColumn() ? ",question" : "")
+        count += try await pushTable(snips.map(Self.row), columns: snippetColumns)
 
         // 本地已不存在但云端认识的记录 → 墓碑（先子后父）
         count += try await pushTombstones(table: SnippetRow.table, alive: Set(snips.map { key($0.id) }))
@@ -572,13 +581,24 @@ final class CloudSyncService: ObservableObject {
         return count
     }
 
-    private func pushTable<T: CloudRow>(_ rows: [T]) async throws -> Int {
+    /// 云端 snippets 表有没有 question 列：问一次，有就记住；没有（还没跑 SQL）或问不到，这轮推送就不带这一列。
+    /// PostgREST 的 columns 参数之外的键会被忽略，所以不带不会报错
+    private var questionColumnKnown = false
+    private func serverHasQuestionColumn() async -> Bool {
+        if questionColumnKnown { return true }
+        let q = [URLQueryItem(name: "select", value: "question"), URLQueryItem(name: "limit", value: "1")]
+        guard (try? await rest("GET", SnippetRow.table, query: q)) != nil else { return false }
+        questionColumnKnown = true
+        return true
+    }
+
+    private func pushTable<T: CloudRow>(_ rows: [T], columns: String? = nil) async throws -> Int {
         let changed = rows.filter { state.known[knownKey($0)] != hash($0) }
         guard !changed.isEmpty else { return 0 }
         for start in stride(from: 0, to: changed.count, by: pushChunk) {
             let chunk = Array(changed[start..<min(start + pushChunk, changed.count)])
             _ = try await rest("POST", T.table,
-                               query: [URLQueryItem(name: "on_conflict", value: "id"), URLQueryItem(name: "columns", value: T.columns)],
+                               query: [URLQueryItem(name: "on_conflict", value: "id"), URLQueryItem(name: "columns", value: columns ?? T.columns)],
                                body: try encoder.encode(chunk),
                                prefer: "resolution=merge-duplicates,return=minimal")
             for r in chunk { markKnown(r) }
@@ -666,7 +686,7 @@ final class CloudSyncService: ObservableObject {
         SnippetRow(id: key(s.id), title: s.title, content: s.content, sourceContext: s.sourceContext, tags: s.tags,
                    domain: s.domain, createdAt: CloudDate.format(s.createdAt), isArchived: s.isArchived,
                    syncStatus: s.syncStatusRaw, ankiNoteId: s.ankiNoteId, categoryId: s.category.map { key($0.id) },
-                   relatedWordIds: s.relatedWords.map { key($0.id) })
+                   relatedWordIds: s.relatedWords.map { key($0.id) }, question: s.question)
     }
 
     // MARK: - 工具
@@ -676,11 +696,16 @@ final class CloudSyncService: ObservableObject {
     private func knownKey<T: CloudRow>(_ r: T) -> String { "\(T.table)/\(r.id.lowercased())" }
     private func markKnown<T: CloudRow>(_ r: T) { state.known[knownKey(r)] = hash(r) }
 
-    private func hash<T: CloudRow>(_ r: T) -> String { Self.contentHash(r) }
+    private func hash<T: CloudRow>(_ r: T) -> String { Self.contentHash(r, withQuestion: questionColumnKnown) }
 
     /// 规范化后的内容哈希：updated_at、deleted_at 不算，日期统一成毫秒，片段关联的词 id 不分大小写和顺序
-    static func contentHash<T: CloudRow>(_ r: T) -> String {
-        let data = (try? hashEncoder.encode(r.normalized())) ?? Data()
+    static func contentHash<T: CloudRow>(_ r: T, withQuestion: Bool = false) -> String {
+        let data: Data
+        if withQuestion, let snippet = r as? SnippetRow {
+            data = (try? hashEncoder.encode(snippet.normalized(keepQuestion: true))) ?? Data()
+        } else {
+            data = (try? hashEncoder.encode(r.normalized())) ?? Data()
+        }
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 

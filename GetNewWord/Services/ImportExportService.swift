@@ -44,7 +44,7 @@ class ImportExportService: @unchecked Sendable {
                 ] },
                 "snippets": snippets.map { s -> [String: Any] in [
                     "title": s.title, "content": s.content, "sourceContext": s.sourceContext,
-                    "domain": s.domain, "category": s.category?.name ?? "",
+                    "question": s.question ?? "", "domain": s.domain, "category": s.category?.name ?? "",
                     "ankiNoteId": s.ankiNoteId ?? 0, "createdAt": s.createdAt.ISO8601Format()
                 ] }
             ]
@@ -134,6 +134,7 @@ class ImportExportService: @unchecked Sendable {
                 "title": snippet.title,
                 "content": snippet.content,
                 "sourceContext": snippet.sourceContext,
+                "question": snippet.question ?? "",
                 "tags": snippet.tags,
                 "domain": snippet.domain,
                 "createdAt": snippet.createdAt.ISO8601Format()
@@ -270,6 +271,7 @@ class ImportExportService: @unchecked Sendable {
             let sourceContext = dict["sourceContext"] as? String ?? ""
             let domain = dict["domain"] as? String ?? "其他"
             let tags = dict["tags"] as? [String] ?? []
+            let question = (dict["question"] as? String).flatMap { $0.isEmpty ? nil : $0 }
 
             let createdAt: Date
             if let dateStr = dict["createdAt"] as? String {
@@ -284,6 +286,7 @@ class ImportExportService: @unchecked Sendable {
                 sourceContext: sourceContext,
                 tags: tags,
                 domain: domain,
+                question: question,
                 createdAt: createdAt
             )
             context.insert(snippet)

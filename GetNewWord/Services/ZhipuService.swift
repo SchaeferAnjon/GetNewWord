@@ -301,6 +301,7 @@ extension SnippetAnalysis {
             content: c.lenient(.content, ""),
             sourceContext: c.lenient(.sourceContext, ""),
             domain: c.lenientOptional(.domain),
+            question: c.lenientOptional(.question),
             tags: c.lenient(.tags, []),
             category: c.lenientOptional(.category),
             suggestedCategory: c.lenientOptional(.suggestedCategory)
@@ -323,6 +324,8 @@ struct SnippetAnalysis: Codable, Sendable {
     let content: String
     let sourceContext: String
     let domain: String?
+    /// Anki 知识卡正面的问题；模型没给（或老提示词的结果）就是 nil，卡片正面用标题
+    let question: String?
     let tags: [String]
     let category: String?
     let suggestedCategory: String?
@@ -1090,7 +1093,7 @@ class ZhipuService: @unchecked Sendable {
 
     /// 构建单词分析 Prompt
     /// - Parameter scene: 场景说明；nil = 截图红框（默认），指词查词时换成「目标词 + OCR 语境文字」
-    private func buildWordAnalysisPrompt(existingTags: [String], categoryTree: String, scene: String? = nil) -> String {
+    func buildWordAnalysisPrompt(existingTags: [String], categoryTree: String, scene: String? = nil) -> String {
         return """
         ## 分类体系规则（重要）
         用户维护了一个固定的分类体系，每个条目必须归入体系里的一个叶子分类，避免体系越来越乱。
@@ -1134,6 +1137,8 @@ class ZhipuService: @unchecked Sendable {
              ✓ 新政策加上成本不断上涨，已经逼得不少小店关了门。
         4. 固定搭配：红框里的词和紧挨着的词组成固定搭配或术语时（如 compound interest「复利」、take off「起飞」），word 仍是红框里的词，但 contextMeaning 写它在这个搭配里的意思（如「复利的」），usage 第一句先点出这个搭配和它的意思，translationKeyword 摘译文里对应整个搭配的词（如「复利」）。translationKeyword 要摘完整的词，不要只摘一个字（「复利」而不是「复」）。
         5. snippets：仅当第一步判定为"记知识"时填写（交通规则、健身要点、医学常识、题目要点等），整理成 1 条，此时 words 必须是 []。**words 和 snippets 永远二选一，绝不能同时给**——记知识时段落里的生词也不要立词条。
+           - content：2 到 4 条要点，**一条一行**（用换行分开，不要自己加编号或圆点）
+           - question：用一个问题考这条知识，复习时先看到它、要靠回想才答得出（例："在德国开进环岛要打转向灯吗？开出去呢？"）。问题里别带出答案，一句话，不超过 40 个字，要点就是它的答案
         6. 保持简洁，不要输出多余字段。
 
         请严格以 JSON 格式返回，格式如下：
@@ -1159,6 +1164,7 @@ class ZhipuService: @unchecked Sendable {
             {
               "title": "知识标题",
               "content": "结构化知识内容",
+              "question": "用一个问题考这条知识",
               "sourceContext": "原始上下文",
               "tags": [],
               "category": "体系里已有的叶子分类名，或 null",
@@ -1168,7 +1174,7 @@ class ZhipuService: @unchecked Sendable {
         }
 
         只返回 JSON，不要有其他内容。
-        """ + Self.targetLanguageRule(fields: "meaning、contextMeaning、contextTranslation、translationKeyword、snippets 的 title 和 content")
+        """ + Self.targetLanguageRule(fields: "meaning、contextMeaning、contextTranslation、translationKeyword、snippets 的 title、content 和 question")
     }
 
     /// 目标语言不是简体中文时，追加在提示词末尾，覆盖上文「中文」的要求（上文的译文规则照样适用于目标语言）
