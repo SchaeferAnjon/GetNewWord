@@ -28,7 +28,7 @@ A word stops you in a video, a web page or a PDF. Press a shortcut and frame it:
 - **Point** <kbd>⌃</kbd> <kbd>⌘</kbd> <kbd>A</kbd>: rest the pointer on a word and press the shortcut, no framing.
 - **Meaning in context**: the sense the word has in this sentence, the translation, usage, collocations, examples and word roots, and the sentence's grammar broken down when you ask.
 - **Library**: categories, notes and stats, grouped by day, difficulty or category. Meet a word again somewhere else and both sentences are kept.
-- **Anki**: decks follow your categories; Anki and its AnkiConnect add-on install from inside the app.
+- **Anki**: one deck per language, your categories become tags; Anki and its AnkiConnect add-on install from inside the app.
 - **Translate into** Simplified or Traditional Chinese, English, German, French, Spanish, Japanese or Korean, from the main window toolbar.
 - **App language**: Simplified Chinese, English or German, in **Settings › General**.
 - **Updates itself**: it tells you when a new version is out and installs it with one click, or in the background if you switch that on.
@@ -45,7 +45,7 @@ Words looked up this way are not saved unless you switch on **Save words looked 
 
 **Settings › Anki** sets it up in three steps: install Anki for Mac (free, about 230 MB), install the AnkiConnect add-on, then **Open Anki** or **Restart Anki** until it says connected. The welcome window offers the same steps; you can skip them.
 
-After that every word you save becomes a card in the background. The front has the word, its phonetic spelling, its forms (for a noun, the article and the plural), its language and level, and plays the pronunciation; the back adds the meaning in this sentence, the sentence and its translation, usage, collocations, examples, word roots and the screenshot. The language name and the section labels follow the app language. Decks follow your categories. Anki has to be open; if it was closed, the waiting cards go out with the next word you save, or choose **⋯ › Sync Anki** in the main window (<kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>S</kbd>).
+After that every word you save becomes a card in the background. The front is the sentence you last met it in, with the word framed; the back adds the translation under the sentence, the meaning in this sentence, the word with its pronunciation, phonetic spelling and forms, and all its meanings, with usage, collocations, examples, word roots, every sentence you met it in and the screenshot folded underneath. An optional fill-in card hides the word in the sentence. The labels on the card follow the app language. Words go into one deck per language (语言学习::英语), knowledge snippets into 知识, and your categories become tags; the cards look the same as those made by Ask Free and ChatCards. Anki has to be open; if it was closed, the waiting cards go out with the next word you save, or choose **⋯ › Sync Anki** in the main window (<kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>S</kbd>).
 
 <p align="center"><img src="docs/readme/en/anki-card.png" width="380" alt="The back of an Anki card made by GetNewWord: the meaning, the sentence and its translation, usage, collocations, examples, word roots and the screenshot"></p>
 
