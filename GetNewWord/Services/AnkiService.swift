@@ -74,7 +74,8 @@ final class AnkiService: @unchecked Sendable {
     /// 单元测试换成假的 AnkiConnect，不碰本机真开着的 Anki
     var session = URLSession.shared
     let modelName = AppVariant.ankiName
-    private let rootDeckName = AppVariant.ankiName
+    /// 两个顶层牌组「语言学习」「知识」现在在 Anki 里叫什么（按 id 记，见 AnkiService+Unify）
+    let deckRoots = AnkiDeckRoots()
 
     private let jsonEncoder: JSONEncoder = {
         let e = JSONEncoder()
@@ -646,9 +647,8 @@ final class AnkiService: @unchecked Sendable {
         // 笔记类型还没加的字段（用户选了「以后再说」）不写，不然 AnkiConnect 整张卡都加不进去
         fields = onlyKnownFields(fields, model: modelName)
 
-        // 构造标签
-        // 不再把应用内标签带进 Anki，只保留来源与语言标记
-        let tags = ["GetNewWord", "lang:\(word.language.rawValue)"]
+        // 标签：来自::GetNewWord、语言，词在语言下面再分的类写成「分类::」（DESIGN.md「往 Anki 里加卡」）
+        let tags = wordTags(word)
 
         // 添加或更新笔记
         if let existingNoteId = word.ankiNoteId {
@@ -656,6 +656,7 @@ final class AnkiService: @unchecked Sendable {
             do {
                 try await updateNoteFields(noteId: existingNoteId, fields: fields)
                 try? await moveNote(existingNoteId, toDeck: deckName)
+                await reconcileTags(noteId: existingNoteId, wanted: tags)
                 word.syncStatus = .synced
             } catch {
                 word.syncStatus = .syncFailed
@@ -702,39 +703,49 @@ final class AnkiService: @unchecked Sendable {
 
     let snippetModelName = AppVariant.ankiName + " Snippet"
 
-    func deckNameForSnippet(_ s: KnowledgeSnippet) -> String {
-        if let cat = s.category {
-            if let parent = cat.parent { return "\(parent.name)::\(cat.name)" }
-            return cat.name
-        }
-        return "知识片段::其他"
-    }
+    /// 知识片段都进「知识」；分类写成「主题::」标签，不建牌组
+    func deckNameForSnippet(_ s: KnowledgeSnippet) -> String { deckRoots.knowledgeRoot }
 
+    /// 新片段写进「学习卡 · 问答」；已经在 Anki 里的老片段留在 GetNewWord Snippet，照老字段更新。都进「知识」，带主题标签
     @MainActor
     func syncSnippet(_ s: KnowledgeSnippet, context: ModelContext) async throws {
         let deckName = deckNameForSnippet(s)
-        try? await ensureDeckExists(name: deckName)
-        var fields = snippetTextFields(s)
-        fields["Screenshot"] = ""
+        try await ensureDeckExists(name: deckName)
+        var image = ""
         if let path = s.screenshotPath, let data = FileManager.default.contents(atPath: path) {
             let filename = "gnw_snip_\(s.id.uuidString.lowercased()).png"
-            if (try? await storeMedia(filename: filename, data: data.base64EncodedString())) != nil {
-                fields["Screenshot"] = "<img src=\"\(filename)\">"
+            if let stored = try? await storeMedia(filename: filename, data: data.base64EncodedString()) {
+                image = "<img src=\"\(stored.isEmpty ? filename : stored)\">"
             }
         }
-        fields = onlyKnownFields(fields, model: snippetModelName)
-        // 优先用已存的 noteId；老数据没有就按 Title 查一次并回填
+        let tags = snippetTags(s)
+        // 优先用已存的 noteId；老数据没有就按 Title（老笔记类型）或 ID（学习卡）查一次并回填
         var noteId = s.ankiNoteId
         if noteId == nil {
-            let found = (try? await findNotes(query: "\"note:\(snippetModelName)\" \"Title:\(s.title.replacingOccurrences(of: "\"", with: ""))\"")) ?? []
-            noteId = found.first
+            let clean = s.title.replacingOccurrences(of: "\"", with: "")
+            let id = Self.snippetIDPrefix + s.id.uuidString.lowercased()
+            noteId = ((try? await findNotes(query: "(\"note:\(snippetModelName)\" \"Title:\(clean)\") OR \"ID:\(id)\"")) ?? []).first
         }
         if let noteId {
+            let model = (try? await notesInfo(notes: [noteId]))?.first?.modelName
+            // 读到是「学习卡 · 问答」才按九个字段写；其余（包括读不到）都是老的 GetNewWord Snippet
+            let isStudyCard = model == StudyCard.name || model == StudyCard.otherName
+            var fields: [String: String]
+            if isStudyCard {
+                fields = studyCardFields(s, image: image)
+            } else {
+                fields = snippetTextFields(s)
+                fields["Screenshot"] = image
+                fields = onlyKnownFields(fields, model: snippetModelName)
+            }
+            if image.isEmpty { fields.removeValue(forKey: isStudyCard ? "Image" : "Screenshot") }
             try await updateNoteFields(noteId: noteId, fields: fields)
-            try? await moveNote(noteId, toDeck: deckName)   // 分组改了 → 牌组跟着搬
+            try? await moveNote(noteId, toDeck: deckName)
+            await reconcileTags(noteId: noteId, wanted: tags)
             s.ankiNoteId = noteId
         } else {
-            let newId = try await addNote(deckName: deckName, modelName: snippetModelName, fields: fields, tags: ["GetNewWord", "snippet"] + s.tags.map { $0.replacingOccurrences(of: " ", with: "_") })
+            let model = try await ensureStudyCardModel()
+            let newId = try await addNote(deckName: deckName, modelName: model, fields: studyCardFields(s, image: image), tags: tags)
             s.ankiNoteId = newId
             AppLog.log("[Anki] ✓ added snippet '\(s.title)' → \(deckName) (note \(newId))")
         }
@@ -824,7 +835,14 @@ final class AnkiService: @unchecked Sendable {
             AppLog.log("[Anki] not running, skip auto sync")
             return
         }
-        await checkCardsOnce()                         // 卡片样式、字段：这次启动核对一次，老的升到 v2
+        await checkCardsOnce()                         // 卡片样式、字段：这次启动核对一次，老的升到当前版本
+        do {
+            try await resolveDeckRoots()               // 「语言学习」「知识」按 id 找现在的名字
+            await migrateToUnifiedDecksIfNeeded(context: context)   // 升级后第一次：老卡搬进新牌组、补标签
+        } catch {
+            // 读不到牌组 id 不挡同步：先按默认名字送，下次再认
+            AppLog.log("[Anki] ✗ 顶层牌组没读到，这次按默认名字: \(error)")
+        }
         await pruneDeletedNotes(context: context)      // Anki 里删掉的单词卡 → 本地也删
         await pruneDeletedSnippets(context: context)   // Anki 里删掉的片段卡 → 本地也删
         // 失败过的也一起重试（失败很快；重复卡会被认领而自愈）
@@ -846,18 +864,23 @@ final class AnkiService: @unchecked Sendable {
         }
         await refreshSyncedNotesIfPending(context: context)   // 升级到 v2 以后，把已同步的老卡的字段按新拼法重写一遍
         await refreshFillIfPending(context: context)           // 填空卡的设置改了、当时 Anki 没开：补写 Fill
-        // 推完新卡后立即触发 Anki 的正常同步（增量合并；手机端复习记录一并合并，减少两端分叉窗口）
-        if !words.isEmpty || !snippets.isEmpty {
-            do {
-                try await sendVoid(action: "sync")
-                AppLog.log("[Anki] triggered AnkiWeb sync")
-            } catch {
-                AppLog.log("[Anki] ✗ AnkiWeb sync trigger: \(error)")
-            }
-        }
+        // 不替你同步 AnkiWeb：有界面的软件都不调 Anki 的同步（DESIGN.md「往 Anki 里加卡」），由你在 Anki 里同步
     }
 
     // MARK: - 灾难恢复：从 Anki 反向导入词库
+
+    /// 标签里的「分类::商务」「主题::驾照」：取冒号后面的名字（标签里的空格写成了 _）
+    static func tagValue(_ tags: [String], prefix: String) -> String? {
+        tags.first { $0.hasPrefix(prefix) }.map { String($0.dropFirst(prefix.count)).replacingOccurrences(of: "_", with: " ") }
+    }
+
+    /// <ol><li>…</li></ol> 里每一条的文字
+    static func listItems(_ html: String) -> [String] {
+        guard let re = try? NSRegularExpression(pattern: "<li[^>]*>(.*?)</li>", options: [.dotMatchesLineSeparators]) else { return [] }
+        return re.matches(in: html, range: NSRange(html.startIndex..., in: html)).compactMap {
+            Range($0.range(at: 1), in: html).map { stripHTML(String(html[$0])) }
+        }
+    }
 
     static func stripHTML(_ s: String) -> String {
         var t = s.replacingOccurrences(of: "<br>", with: "\n").replacingOccurrences(of: "</li>", with: "\n")
@@ -918,6 +941,7 @@ final class AnkiService: @unchecked Sendable {
     @MainActor
     func restoreFromAnki(context: ModelContext) async -> Int {
         guard await isAnkiRunning() else { return 0 }
+        try? await resolveDeckRoots()   // 「知识」现在叫什么：片段的牌组是它本身时不当分类
         let localWords = (try? context.fetch(FetchDescriptor<WordEntry>())) ?? []
         let localNoteIds = Set(localWords.compactMap { $0.ankiNoteId })
         var localKeys = Set(localWords.map { $0.dedupeKey })
@@ -994,7 +1018,8 @@ final class AnkiService: @unchecked Sendable {
                     difficulty: Difficulty(rawValue: f("Difficulty").lowercased()) ?? .b1,
                     ankiNoteId: info.noteId,
                     syncStatus: .synced,
-                    category: category(leaf: noteDeckLeaf[info.noteId], forWords: true)
+                    // 统一规范以后语言下面再分的类写在「分类::」标签里，牌组只到语言；老卡还按牌组名认
+                    category: category(leaf: Self.tagValue(info.tags, prefix: "分类::") ?? noteDeckLeaf[info.noteId], forWords: true)
                 )
                 context.insert(entry)
                 for (i, s) in sentences.enumerated() {
@@ -1024,7 +1049,38 @@ final class AnkiService: @unchecked Sendable {
                     domain: Self.stripHTML(f("Domain")),
                     question: question.isEmpty ? nil : question,
                     syncStatus: .synced,
-                    category: category(leaf: noteDeckLeaf[info.noteId], forWords: false) ?? category(leaf: Self.stripHTML(f("Domain")), forWords: false)
+                    category: category(leaf: Self.tagValue(info.tags, prefix: "主题::"), forWords: false)
+                        ?? category(leaf: noteDeckLeaf[info.noteId].flatMap { $0 == deckRoots.knowledgeRoot ? nil : $0 }, forWords: false)
+                        ?? category(leaf: Self.stripHTML(f("Domain")), forWords: false)
+                )
+                s.ankiNoteId = info.noteId
+                context.insert(s)
+                restored += 1
+            }
+        }
+        // 统一规范以后的新片段在「学习卡 · 问答」里，带「来自::GetNewWord」
+        if let ids = try? await findNotes(query: "\"tag:\(Self.fromTag)\" (\"note:\(StudyCard.name)\" OR \"note:\(StudyCard.otherName)\")"), !ids.isEmpty,
+           let infos = try? await notesInfo(notes: ids) {
+            for info in infos {
+                guard !localSnippetIds.contains(info.noteId) else { continue }
+                func f(_ k: String) -> String { info.fields[k]?.value ?? "" }
+                // 出处是「标题 · 日期」：标题在最后一个「 · 」前面
+                let source = Self.stripHTML(f("Source"))
+                let title = source.range(of: " · ", options: .backwards).map { String(source[..<$0.lowerBound]) } ?? source
+                guard !title.isEmpty, !localTitles.contains(title) else { continue }
+                localTitles.insert(title)
+                let answer = f("Answer")
+                let points = Self.listItems(answer)
+                let topic = Self.tagValue(info.tags, prefix: "主题::")
+                let question = Self.stripHTML(f("Question"))
+                let s = KnowledgeSnippet(
+                    title: title,
+                    content: points.isEmpty ? Self.stripHTML(answer) : points.joined(separator: "\n"),
+                    sourceContext: Self.stripHTML(f("Quote")),
+                    domain: topic ?? "",
+                    question: question.isEmpty ? nil : question,
+                    syncStatus: .synced,
+                    category: category(leaf: topic, forWords: false)
                 )
                 s.ankiNoteId = info.noteId
                 context.insert(s)
@@ -1040,17 +1096,18 @@ final class AnkiService: @unchecked Sendable {
 
     /// 获取单词对应的牌组路径（使用 :: 分隔层级）
     /// 牌组 = 左侧分类树路径（如 "语言学习::英语"、"知识片段::健身"）；没归类时按语言兜底
-    func deckNameForWord(_ word: WordEntry) -> String {
-        if let cat = word.category {
-            if let parent = cat.parent { return "\(parent.name)::\(cat.name)" }
-            return cat.name
-        }
-        return "语言学习::\(word.language.chineseName)"
-    }
+    /// 单词只按语言分牌组：「语言学习::德语」；语言下面再分的类写成「分类::」标签，不建牌组
+    func deckNameForWord(_ word: WordEntry) -> String { "\(deckRoots.languageRoot)::\(word.language.chineseName)" }
 
-    /// 牌组结构完全跟随应用内分类树，按需在同步时创建；这里只确保 AnkiConnect 可达
+    /// 两个顶层牌组按 id 找到现在的名字（没有就建）；语言下面的牌组同步时按需建
     func initializeDeckStructure() async throws {
-        _ = try await deckNames()
+        _ = try await deckNames()   // 连得上才往下走
+        do {
+            try await resolveDeckRoots()
+        } catch {
+            // 读不到牌组 id 不挡同步：先按默认名字送，下次再认
+            AppLog.log("[Anki] ✗ 顶层牌组没读到，这次按默认名字: \(error)")
+        }
     }
 }
 

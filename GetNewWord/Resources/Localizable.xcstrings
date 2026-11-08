@@ -8605,38 +8605,6 @@
         }
       }
     },
-    "把未同步的单词按分类树同步为 Anki 牌组（⇧⌘S）": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nicht synchronisierte Wörter entlang der Kategorien als Anki-Stapel synchronisieren (⇧⌘S)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sync unsynced words to Anki decks following the category tree (⇧⌘S)"
-          }
-        }
-      }
-    },
-    "把未同步的单词按分类树同步为 Anki 牌组（⌘⇧S）": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nicht synchronisierte Wörter nach Kategorien in Anki-Stapel übertragen (⌘⇧S)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sync unsynced words to Anki decks following your categories (⌘⇧S)"
-          }
-        }
-      }
-    },
     "把还没同步的词推到 Anki": {
       "localizations": {
         "de": {
@@ -8649,6 +8617,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Send words not yet synced to Anki"
+          }
+        }
+      }
+    },
+    "把还没进 Anki 的单词和片段送进去：单词进「语言学习」，片段进「知识」（⇧⌘S）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send words and snippets not yet in Anki: words go to \"语言学习\", snippets to \"知识\" (⇧⌘S)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wörter und Notizen, die noch nicht in Anki sind, senden: Wörter nach „语言学习“, Notizen nach „知识“ (⇧⌘S)"
+          }
+        }
+      }
+    },
+    "把还没进 Anki 的单词和片段送进去：单词进「语言学习」，片段进「知识」（⌘⇧S）": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send words and snippets not yet in Anki: words go to \"语言学习\", snippets to \"知识\" (⌘⇧S)"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wörter und Notizen, die noch nicht in Anki sind, senden: Wörter nach „语言学习“, Notizen nach „知识“ (⌘⇧S)"
           }
         }
       }

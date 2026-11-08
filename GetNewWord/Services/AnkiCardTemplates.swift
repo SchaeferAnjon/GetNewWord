@@ -9,8 +9,9 @@
 import Foundation
 
 enum AnkiCardTemplates {
-    /// CSS 第一行。升级时靠它判断卡片是不是已经是这一版
-    static let versionMarker = "/* GetNewWord card · v2 */"
+    /// CSS 第一行。升级时靠它判断卡片是不是已经是这一版。v3：放上三个软件共用的那张纸（DESIGN.md「往 Anki 里加卡」）
+    static let version = 3
+    static let versionMarker = "/* GetNewWord card · v\(version) */"
     private static let labelsPrefix = "/* labels: "
 
     /// 卡片模板里的固定文字
@@ -52,6 +53,15 @@ enum AnkiCardTemplates {
 
     /// 从 Anki 里读到的 CSS 看：是不是 v2、模板文字是哪种语言
     static func isCurrentVersion(css: String) -> Bool { css.hasPrefix(versionMarker) }
+    /// Anki 里的卡片样式是第几版；第一行不是「GetNewWord card · vN」就是 nil（1.2.0 以前的样子，或你自己改过）
+    static func version(ofCSS css: String) -> Int? {
+        let first = css.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? ""
+        let head = "/* GetNewWord card · v", tail = " */"
+        guard first.hasPrefix(head), first.hasSuffix(tail) else { return nil }
+        return Int(first.dropFirst(head.count).dropLast(tail.count))
+    }
+    /// 只往新的换：Anki 里的比这个 App 带的新（别的设备上的 GetNewWord 先更新了），不动
+    static func isNewer(css: String) -> Bool { (version(ofCSS: css) ?? 0) > version }
     static func labelLanguage(css: String) -> String? {
         let lines = css.split(separator: "\n", maxSplits: 2, omittingEmptySubsequences: false)
         guard lines.count > 1, lines[1].hasPrefix(labelsPrefix) else { return nil }
@@ -82,7 +92,7 @@ enum AnkiCardTemplates {
 
 .gnw { max-width: 620px; margin: 0 auto; }
 .gnw img { max-width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--border); }
-.meta { font-size: 12px; color: var(--text3); }
+.meta { font-size: 12px; color: var(--text2); }
 .ipa { font-family: var(--mono); font-size: 14px; color: var(--text2); }
 .gram { font-size: 14px; color: var(--text2); }
 hr#answer, hr.divider { border: 0; border-top: 1px solid var(--border); margin: 24px auto; max-width: 620px; }
@@ -184,7 +194,33 @@ details > summary::-webkit-details-marker { display: none; }
 .fill.front .ctx .kw { color: transparent !important; display: inline-block; min-width: 3em; line-height: 1.25; user-select: none; }
 .fill.front .ctx .kw::first-letter { color: var(--text3); }
 
+/* ===== 纸：三个软件的卡都在这张纸上（DESIGN.md「往 Anki 里加卡」） ===== */
+.card { --backdrop: #F2F2F4; --sheet: #FFFFFF; --band: #F8F8FA; --shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -12px rgba(0,0,0,.10);
+  padding: 40px 24px 64px; background: var(--backdrop); font-size: 17px; }
+.card.nightMode, .nightMode .card, .card.night_mode, .night_mode .card { --backdrop: #0F1012; --sheet: #1B1C1F; --band: #202125; --shadow: none; }
+.paper { max-width: 620px; margin: 0 auto; background: var(--sheet); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+/* 背面的 {{FrontSide}} 里又是一张纸：拆掉外框，和背面接成同一张 */
+.paper .answer-side > .paper { max-width: none; border: 0; border-radius: 0; box-shadow: none; background: none; overflow: visible; }
+.paper .gnw { max-width: none; padding: 28px 32px 30px; }
+.paper .answer-side .gnw.front { padding-bottom: 0; }
+.paper .gnw.back { padding-top: 0; }
+.paper .gnw.word.back, .paper .gnw.fill.back { padding-top: 0; }
+/* 问题和答案之间那条细线、纸底那条浅灰带（折叠）都通到纸边 */
+.paper hr#answer, .paper hr.divider { max-width: none; margin: 24px -32px; }
+.paper .answer-side + hr#answer { margin: 30px 0 24px; }
+.paper details.fold { margin-left: -32px; margin-right: -32px; padding: 0 32px; background: var(--band); }
+/* 和「学习卡 · 问答」一样：翻过来问题变灰、位置不动；折叠标题用次要色 */
+.paper .answer-side .q { color: var(--text2); }
+.paper details.fold > summary { font-size: 13px; color: var(--text2); }
+/* 纸底有看得见的折叠（浅灰带）时贴底；「每次遇到的句子」只有一句时是藏着的，不算 */
+.paper .gnw.back:has(> details.fold:not(.more), > details.more .ctx:nth-child(2)) { padding-bottom: 0; }
+
 @media (max-width: 520px) {
+  .card { padding: 0; background: var(--sheet); font-size: 16px; }
+  .paper { max-width: none; border: 0; border-radius: 0; box-shadow: none; }
+  .paper .gnw { padding: 20px 16px 22px; }
+  .paper hr#answer, .paper hr.divider { margin-left: -16px; margin-right: -16px; }
+  .paper details.fold { margin-left: -16px; margin-right: -16px; padding: 0 16px; }
   .b .scene .ctx, .b.fill .ctx { font-size: 21px; }
   .b .q { font-size: 21px; }
   .b .sense b { font-size: 26px; }
@@ -197,19 +233,19 @@ details > summary::-webkit-details-marker { display: none; }
 
     static func wordFront(_ l: Labels) -> String {
         #"""
-<div class="gnw b word front \#(l.langClass)">
+<div class="paper"><div class="gnw b word front \#(l.langClass)">
   <div class="meta">{{Language}}{{#Difficulty}} · {{Difficulty}}{{/Difficulty}}</div>
   {{#Context}}<div class="scene pairs latest"><div class="ctxs">{{Context}}</div></div>
   <div class="which">\#(l.which) {{Front}}</div>{{/Context}}
   {{^Context}}<div class="solo">{{Front}}</div>{{/Context}}
-</div>
+</div></div>
 """#
     }
 
     static func wordBack(_ l: Labels) -> String {
         #"""
-<div class="answer-side">{{FrontSide}}</div>
-<div class="gnw b back \#(l.langClass)">
+<div class="paper"><div class="answer-side">{{FrontSide}}</div>
+<div class="gnw b word back \#(l.langClass)">
   {{#ContextTranslation}}<div class="tr-latest pairs latest"><div class="trs">{{ContextTranslation}}</div></div>{{/ContextTranslation}}
   <hr id="answer">
   <div class="sense">{{Back}}</div>
@@ -218,7 +254,7 @@ details > summary::-webkit-details-marker { display: none; }
   {{#Analysis}}<details class="fold"><summary>\#(l.foldUsage)<span class="hint">\#(l.foldUsageHint)</span></summary><div class="body an">{{Analysis}}</div></details>{{/Analysis}}
   <details class="fold more"><summary>\#(l.foldAll)</summary><div class="body pairs"><div class="ctxs">{{Context}}</div><div class="trs">{{ContextTranslation}}</div></div></details>
   {{#Screenshot}}<details class="fold"><summary>\#(l.foldShot)</summary><div class="body">{{Screenshot}}</div></details>{{/Screenshot}}
-</div>
+</div></div>
 """#
     }
 
@@ -227,28 +263,28 @@ details > summary::-webkit-details-marker { display: none; }
     /// hasQuestion 为假时是还没加 Question 字段的老笔记类型：正面用标题，模板里不能写 {{Question}}
     static func noteFront(_ l: Labels, hasQuestion: Bool) -> String {
         hasQuestion ? #"""
-<div class="gnw b note front \#(l.langClass)">
+<div class="paper"><div class="gnw b note front \#(l.langClass)">
   <div class="meta">{{Domain}}</div>
   <div class="q">{{#Question}}{{Question}}{{/Question}}{{^Question}}{{Title}}{{/Question}}</div>
-</div>
+</div></div>
 """# : #"""
-<div class="gnw b note front \#(l.langClass)">
+<div class="paper"><div class="gnw b note front \#(l.langClass)">
   <div class="meta">{{Domain}}</div>
   <div class="q">{{Title}}</div>
-</div>
+</div></div>
 """#
     }
 
     static func noteBack(_ l: Labels, hasQuestion: Bool) -> String {
         let topic = hasQuestion ? "  {{#Question}}<div class=\"topic\">{{Title}}</div>{{/Question}}\n" : ""
         return #"""
-<div class="answer-side">{{FrontSide}}</div>
+<div class="paper"><div class="answer-side">{{FrontSide}}</div>
 <hr id="answer">
 <div class="gnw b back \#(l.langClass)">
 \#(topic)  <div class="content">{{Content}}</div>
   {{#Source}}<details class="fold"><summary>\#(l.foldSource)</summary><div class="body src">{{Source}}</div></details>{{/Source}}
   {{#Screenshot}}<details class="fold"><summary>\#(l.foldShot)</summary><div class="body">{{Screenshot}}</div></details>{{/Screenshot}}
-</div>
+</div></div>
 """#
     }
 
@@ -256,22 +292,22 @@ details > summary::-webkit-details-marker { display: none; }
 
     static func fillFront(_ l: Labels) -> String {
         #"""
-{{#Fill}}<div class="gnw b fill front \#(l.langClass)">
+{{#Fill}}<div class="paper"><div class="gnw b fill front \#(l.langClass)">
   <div class="meta">{{Language}} · \#(l.fillTag)</div>
   <div class="pairs latest"><div class="ctxs">{{Context}}</div><div class="trs">{{ContextTranslation}}</div></div>
-</div>{{/Fill}}
+</div></div>{{/Fill}}
 """#
     }
 
     static func fillBack(_ l: Labels) -> String {
         #"""
-{{#Fill}}<div class="gnw b fill back \#(l.langClass)">
+{{#Fill}}<div class="paper"><div class="gnw b fill back \#(l.langClass)">
   <div class="meta">{{Language}} · \#(l.fillTag)</div>
   <div class="pairs latest"><div class="ctxs">{{Context}}</div><div class="trs">{{ContextTranslation}}</div></div>
   <hr id="answer">
   <div class="hwline"><span class="hw" style="font-size:22px">{{Front}}</span>{{Audio}}{{#Phonetic}}<span class="ipa">{{Phonetic}}</span>{{/Phonetic}}</div>
   {{#Grammar}}<div class="gram" style="margin-top:4px">{{Grammar}}</div>{{/Grammar}}
-</div>{{/Fill}}
+</div></div>{{/Fill}}
 """#
     }
 }

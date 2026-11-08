@@ -193,6 +193,11 @@ extension AnkiService {
             wanted.append((mainName, AnkiCardTemplates.noteFront(labels, hasQuestion: q), AnkiCardTemplates.noteBack(labels, hasQuestion: q)))
         }
 
+        // 只往新的换：Anki 里的样式比这个 App 带的新（另一台设备上的 GetNewWord 先更新了），不换回去
+        if AnkiCardTemplates.isNewer(css: css) {
+            AppLog.log("[Anki] \(model) 的样式比这个版本新，不动")
+            return
+        }
         let oldVersion = !AnkiCardTemplates.isCurrentVersion(css: css)
         let otherLanguage = !oldVersion && AnkiCardTemplates.labelLanguage(css: css) != labels.language
         let missingTemplate = wanted.contains { templates[$0.name] == nil }

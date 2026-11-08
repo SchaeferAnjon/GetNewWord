@@ -227,7 +227,7 @@ struct CategorySidebar: View {
             if isSyncingAnki {
                 ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 24, height: 24)
             } else if ankiOnline == true {
-                DetailIconButton(symbol: "arrow.triangle.2.circlepath", help: "把未同步的单词按分类树同步为 Anki 牌组（⇧⌘S）") {
+                DetailIconButton(symbol: "arrow.triangle.2.circlepath", help: "把还没进 Anki 的单词和片段送进去：单词进「语言学习」，片段进「知识」（⇧⌘S）") {
                     onSyncAnki()
                 }
                 .scaleEffect(0.9)

@@ -85,6 +85,8 @@ struct AnkiConnectResponse<T: Codable>: Codable {
 /// Anki 笔记信息，对应 notesInfo 接口返回的单条数据
 struct AnkiNoteInfo: Codable {
     let noteId: Int
+    /// 笔记类型：老片段在 GetNewWord Snippet，新片段在「学习卡 · 问答」
+    var modelName: String? = nil
     let fields: [String: AnkiFieldValue]
     let tags: [String]
     let cards: [Int]

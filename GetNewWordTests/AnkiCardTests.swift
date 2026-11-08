@@ -133,7 +133,16 @@ extension AnkiServiceTests {
         #expect(AnkiCardTemplates.fillFront(l).hasPrefix("{{#Fill}}") && AnkiCardTemplates.fillFront(l).hasSuffix("{{/Fill}}"))
 
         let css = AnkiCardTemplates.css(l)
-        #expect(css.hasPrefix("/* GetNewWord card · v2 */\n/* labels: "))
+        #expect(css.hasPrefix("/* GetNewWord card · v3 */\n/* labels: "))
+        #expect(AnkiCardTemplates.version(ofCSS: css) == 3)
+        #expect(!AnkiCardTemplates.isNewer(css: css))
+        #expect(AnkiCardTemplates.isNewer(css: "/* GetNewWord card · v4 */\n.card {}"))
+        #expect(!AnkiCardTemplates.isNewer(css: "/* GetNewWord card · v2 */\n.card {}"))
+        // 单词卡、填空卡、老知识卡都放在同一张纸上
+        for html in [AnkiCardTemplates.wordFront(l), AnkiCardTemplates.wordBack(l), AnkiCardTemplates.noteFront(l, hasQuestion: true),
+                     AnkiCardTemplates.noteBack(l, hasQuestion: true), AnkiCardTemplates.fillFront(l), AnkiCardTemplates.fillBack(l)] {
+            #expect(html.contains("<div class=\"paper\">"))
+        }
         #expect(AnkiCardTemplates.isCurrentVersion(css: css))
         #expect(AnkiCardTemplates.labelLanguage(css: css) == l.language)
         #expect(css.contains(".nightMode") && css.contains(".night_mode"))
@@ -590,11 +599,19 @@ extension AnkiServiceTests {
         context.insert(s)
         try await anki.syncSnippet(s, context: context)
 
+        // 新片段写进三个软件共用的「学习卡 · 问答」，进「知识」，主题写成标签
         let note = try #require(FakeAnkiConnect.calls("addNote").first?.params["note"] as? [String: Any])
-        #expect(note["modelName"] as? String == snippetModel)
+        #expect(note["modelName"] as? String == StudyCard.name)
+        #expect(note["deckName"] as? String == "知识")
+        #expect((note["tags"] as? [String])?.contains("来自::GetNewWord") == true)
+        #expect((note["tags"] as? [String])?.contains("主题::交通") == true)
         let fields = try #require(note["fields"] as? [String: String])
+        #expect(Set(fields.keys) == Set(StudyCard.fields))
         #expect(fields["Question"] == "进环岛要打灯吗？")
-        #expect(fields["Content"] == "<ul class=\"pts\"><li>不打灯</li><li>出时打灯</li></ul>")
+        #expect(fields["Answer"] == "<ol><li>不打灯</li><li>出时打灯</li></ol>")
+        #expect(fields["Quote"] == "s")
+        #expect(fields["Label"] == "GetNewWord · 交通")
+        #expect(fields["ID"] == "gnw-snip-" + s.id.uuidString.lowercased())
     }
 
     /// AI 回的片段带不带 question 都能解析；没给就是 nil（卡片正面用标题）

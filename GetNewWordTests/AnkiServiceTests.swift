@@ -104,6 +104,29 @@ final class AnkiServiceTests {
         }
     }
 
+    /// 统一规范 B：单词只按语言分牌组，语言下面再分的类写成「分类::」标签；片段的分类写成「主题::」
+    @Test func wordsGoByLanguageAndSubcategoriesBecomeTags() throws {
+        let context = try makeLibrary()
+        let word = try sampleWord(in: context, withMedia: false)
+        #expect(anki.deckNameForWord(word) == "语言学习::英语")
+        #expect(anki.wordTags(word) == ["GetNewWord", "来自::GetNewWord", "lang:en"], "分类就是语言本身时不加分类标签")
+        let business = Category(name: "商务 英语", parent: word.category)
+        context.insert(business)
+        word.category = business
+        #expect(anki.deckNameForWord(word) == "语言学习::英语", "子分类不再建牌组")
+        #expect(anki.wordTags(word).last == "分类::商务_英语")
+
+        let root = Category(name: "知识片段")
+        let traffic = Category(name: "交通规则", parent: root)
+        context.insert(root); context.insert(traffic)
+        let s = KnowledgeSnippet(title: "环岛", content: "x", sourceContext: "", domain: "交通", category: traffic)
+        context.insert(s)
+        #expect(anki.deckNameForSnippet(s) == "知识")
+        #expect(anki.snippetTags(s).contains("主题::交通规则"))
+        #expect(AnkiService.tagValue(["lang:en", "主题::交通_规则"], prefix: "主题::") == "交通 规则")
+        #expect(AnkiService.listItems("<ol><li>不打灯</li><li><b>出</b>时打灯</li></ol>") == ["不打灯", "出时打灯"])
+    }
+
     func sampleWord(in context: ModelContext, withMedia: Bool) throws -> WordEntry {
         let parent = Category(name: "语言学习")
         let english = Category(name: "英语", parent: parent)
@@ -144,7 +167,7 @@ final class AnkiServiceTests {
         let note = try #require(add.params["note"] as? [String: Any])
         #expect(note["deckName"] as? String == "语言学习::英语")
         #expect(note["modelName"] as? String == AppVariant.ankiName)
-        #expect(note["tags"] as? [String] == ["GetNewWord", "lang:en"])
+        #expect(note["tags"] as? [String] == ["GetNewWord", "来自::GetNewWord", "lang:en"])
         #expect((note["options"] as? [String: Any])?["allowDuplicate"] as? Bool == false)
         let fields = try #require(note["fields"] as? [String: String])
         #expect(fields["Front"] == "confluence")
