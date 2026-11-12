@@ -218,7 +218,7 @@ extension AnkiService {
         }
         // 样式换新版，或界面语言变了（卡上的「语言」字段跟着界面语言写）：已同步的卡的字段要跟上
         if oldVersion || otherLanguage { UserDefaults.standard.set(true, forKey: Self.refreshPendingKey) }
-        AppLog.log("[Anki] \(model) 的样式和模板已更新到 v2（\(labels.language)）")
+        AppLog.log("[Anki] \(model) 的样式和模板已更新到 v\(AnkiCardTemplates.version)（\(labels.language)）")
     }
 
     // MARK: - 用户点了「继续」

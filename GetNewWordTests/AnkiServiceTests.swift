@@ -104,6 +104,47 @@ final class AnkiServiceTests {
         }
     }
 
+    /// 升级后搬一次：本地还记着、Anki 里已经删掉的卡（notesInfo 回空对象）跳过，其余照搬，删掉空了的老分类牌组
+    /// （1.4.0 在 Mac mini 的真词库上遇到：整批解码失败，片段一张都没搬）
+    @Test func migrationSkipsNotesDeletedInAnki() async throws {
+        UserDefaults.standard.removeObject(forKey: AnkiService.unifyMigratedKey)
+        defer { UserDefaults.standard.removeObject(forKey: AnkiService.unifyMigratedKey) }
+        let context = try makeLibrary()
+        let root = Category(name: "知识片段")
+        let fitness = Category(name: "健身", parent: root)
+        context.insert(root); context.insert(fitness)
+        let kept = KnowledgeSnippet(title: "还在", content: "x", sourceContext: "", domain: "", syncStatus: .synced, category: fitness)
+        kept.ankiNoteId = 777
+        let gone = KnowledgeSnippet(title: "删了", content: "y", sourceContext: "", domain: "", syncStatus: .synced, category: fitness)
+        gone.ankiNoteId = 999
+        context.insert(kept); context.insert(gone)
+        try context.save()
+        let decks = Locked<[String]>(["知识", "知识片段", "知识片段::健身"])
+        FakeAnkiConnect.reply = { @Sendable call in
+            switch call.action {
+            case "deckNames": return .success(decks.value)
+            case "createDeck": return .success(1)
+            case "notesInfo":
+                let ids = call.params["notes"] as? [Int] ?? []
+                return .success(ids.map { $0 == 777 ? ["noteId": 777, "cards": [7770], "tags": ["GetNewWord"], "fields": [String: Any]()] as [String: Any] : [:] })
+            case "findCards": return .success([Int]())
+            case "deleteDecks":
+                let gone = call.params["decks"] as? [String] ?? []
+                decks.value.removeAll { gone.contains($0) }
+                return .success(NSNull())
+            default: return AnkiServiceTests.normalAnki(call)
+            }
+        }
+        await anki.migrateToUnifiedDecksIfNeeded(context: context)
+        let move = try #require(FakeAnkiConnect.calls("changeDeck").first)
+        #expect(move.params["cards"] as? [Int] == [7770])
+        #expect(move.params["deck"] as? String == "知识")
+        let added = FakeAnkiConnect.calls("addTags").compactMap { $0.params["notes"] as? [Int] }
+        #expect(added == [[777]], "只给还在的卡补标签")
+        #expect(decks.value == ["知识"], "空了的老分类牌组删掉")
+        #expect(UserDefaults.standard.bool(forKey: AnkiService.unifyMigratedKey))
+    }
+
     /// 统一规范 B：单词只按语言分牌组，语言下面再分的类写成「分类::」标签；片段的分类写成「主题::」
     @Test func wordsGoByLanguageAndSubcategoriesBecomeTags() throws {
         let context = try makeLibrary()
@@ -404,5 +445,16 @@ final class AnkiServiceTests {
         #expect(AnkiService.hlSense("逼得不少小店关了门", sense: "驱使；迫使", keyword: "逼得") == "<span class=\"kw\">逼得</span>不少小店关了门")
         #expect(AnkiService.hlSense("他们被迫离开", sense: "驱使；迫使") == "他们被迫离开")
         #expect(AnkiService.hlSense("小镇在交汇处", sense: "汇合处，交汇处") == "小镇在<span class=\"kw\">交汇处</span>")
+    }
+}
+
+/// 测试里假服务（URL 加载线程）和测试本身都要读写的一个值
+final class Locked<T>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _value: T
+    init(_ value: T) { _value = value }
+    var value: T {
+        get { lock.withLock { _value } }
+        set { lock.withLock { _value = newValue } }
     }
 }

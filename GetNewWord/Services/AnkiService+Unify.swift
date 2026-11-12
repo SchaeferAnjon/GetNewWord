@@ -179,10 +179,12 @@ extension AnkiService {
             for (deck, notes) in groups {
                 try await ensureDeckExists(name: deck)
                 for chunk in stride(from: 0, to: notes.count, by: 200).map({ Array(notes[$0..<min($0 + 200, notes.count)]) }) {
-                    let infos = try await notesInfo(notes: chunk.map(\.noteId))
-                    let cards = infos.flatMap(\.cards)
+                    // 本地还记着、Anki 里已经删掉的卡，notesInfo 回一个空对象：跳过它（删卡的事由 pruneDeletedNotes 管）
+                    let infos = try await send(action: "notesInfo", params: ["notes": chunk.map(\.noteId)], as: [NoteCardsLite].self)
+                    let cards = infos.compactMap(\.cards).flatMap { $0 }
                     if !cards.isEmpty { try await sendVoid(action: "changeDeck", params: ["cards": cards, "deck": deck]) }
-                    for note in chunk { await reconcileTags(noteId: note.noteId, wanted: note.tags) }
+                    let alive = Set(infos.compactMap(\.noteId))
+                    for note in chunk where alive.contains(note.noteId) { await reconcileTags(noteId: note.noteId, wanted: note.tags) }
                 }
             }
             let targets = Set(groups.keys)
@@ -200,6 +202,12 @@ extension AnkiService {
             AppLog.log("[Anki] ✗ 统一牌组没搬完，下次再来: \(error)")
         }
     }
+}
+
+/// notesInfo 里搬牌组用得上的两样；Anki 里已经删掉的卡回空对象，两样都是 nil
+struct NoteCardsLite: Codable {
+    let noteId: Int?
+    let cards: [Int]?
 }
 
 private extension String {
