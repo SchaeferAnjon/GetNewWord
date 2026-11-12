@@ -7,6 +7,8 @@
 //
 //   GNW_DEMO_KEY=<DeepSeek API key> node scripts/readme-shots.mjs        # both languages
 //   GNW_DEMO_KEY=… node scripts/readme-shots.mjs --lang en --no-build
+//   GNW_DEMO_KEY=… node scripts/readme-shots.mjs --only card   # only anki-card.png: frames just the card's word, no window captures
+//                                                             (works while you use the Mac: a click elsewhere closes the panel)
 //
 // How it works: it builds a Debug copy named GetNewWord with its own bundle id (com.getnewword.app.readme.dev:
 // its own data folder, settings and Anki deck, nothing shared with GetNewWord or GetNewWord Dev), renders the demo
@@ -34,6 +36,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_DIR || '/opt/homebrew/lib/no
 
 const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i > 0 ? process.argv[i + 1] : def; };
 const langs = arg('lang', 'zh,en').split(',');
+const only = arg('only', '');
+if (only && only !== 'card') { console.error('--only takes card'); process.exit(2); }
 const key = process.env.GNW_DEMO_KEY;
 if (!key) { console.error('Set GNW_DEMO_KEY to a DeepSeek API key: the copy uses it for the lookups and never stores it.'); process.exit(1); }
 
@@ -320,6 +324,8 @@ try {
     }
     await page.close();
     lookups.sort((a, b) => a.n - b.n);
+    // --only card: just the word whose card goes into the README
+    if (only === 'card') lookups.splice(0, lookups.length, lookups[cfg.panel - 1]);
     const plan = path.join(dir, 'plan.json');
     fs.writeFileSync(plan, JSON.stringify({ pause: 14, lookups: lookups.map((l) => ({ screen: l.screen, select: [l.x, l.y, l.w, l.h].map((v) => Math.round(v * 10) / 10) })) }));
 
@@ -349,6 +355,7 @@ try {
         if (failed) throw new Error(`lookup ${i} failed: ${failed[0]}`);
         return log.includes(`[Demo] ${i}/${lookups.length} done`);
       }, 120000);
+      if (only === 'card') { console.log(`  ${i}. ${lookups[i - 1].word}`); continue; }
       await sleep(6000);
       const panel = windowsOf(appChild.pid).find((w) => w.layer === 3 && w.w >= 300);
       if (!panel) throw new Error(`no panel after lookup ${i}`);
@@ -356,12 +363,14 @@ try {
       console.log(`  ${i}. ${lookups[i - 1].word}`);
     }
     await waitFor('the end of the demo', () => appLog().includes('[Demo] all done'), 60000);
+    // The card is sent to Anki in the background after the word is saved: with --only card nothing else waits for it
+    if (only === 'card') await waitFor('the card in Anki', () => appLog().includes('[Anki] ✓ added'), 120000);
     await quit(appChild);
-    const sel = lookups[cfg.panel - 1];
-    composeLookup(sel.screen, sel, path.join(dir, `panel-${cfg.panel}.png`), screen.scale, screen, path.join(outDir, 'lookup.png'));
+    const sel = only === 'card' ? lookups[0] : lookups[cfg.panel - 1];
+    if (!only) composeLookup(sel.screen, sel, path.join(dir, `panel-${cfg.panel}.png`), screen.scale, screen, path.join(outDir, 'lookup.png'));
 
     // 4. The word book, opened afresh (it selects the newest word), in light and dark.
-    for (const look of ['light', 'dark']) {
+    for (const look of only ? [] : ['light', 'dark']) {
       defaults('write', 'appearance', '-string', look);
       appChild = launch({}, path.join(dir, 'app.out'));
       const win = await mainWindow(appChild);

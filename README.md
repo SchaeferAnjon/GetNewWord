@@ -47,7 +47,7 @@ Words looked up this way are not saved unless you switch on **Save words looked 
 
 After that every word you save becomes a card in the background. The front is the sentence you last met it in, with the word framed; the back adds the translation under the sentence, the meaning in this sentence, the word with its pronunciation, phonetic spelling and forms, and all its meanings, with usage, collocations, examples, word roots, every sentence you met it in and the screenshot folded underneath. An optional fill-in card hides the word in the sentence. The labels on the card follow the app language. Words go into one deck per language (语言学习::英语), knowledge snippets into 知识, and your categories become tags; the cards look the same as those made by Ask Free and ChatCards. Anki has to be open; if it was closed, the waiting cards go out with the next word you save, or choose **⋯ › Sync Anki** in the main window (<kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>S</kbd>).
 
-<p align="center"><img src="docs/readme/en/anki-card.png" width="380" alt="The back of an Anki card made by GetNewWord: the meaning, the sentence and its translation, usage, collocations, examples, word roots and the screenshot"></p>
+<p align="center"><img src="docs/readme/en/anki-card.png" width="380" alt="The back of an Anki card made by GetNewWord: the sentence with the word framed and its translation, the meaning in this sentence, the word with its pronunciation and all its meanings, then folds for usage and examples and for the screenshot"></p>
 
 ## Screenshots
 
