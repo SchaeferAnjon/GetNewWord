@@ -186,11 +186,15 @@ private struct AppearanceThumb: View {
 struct TranslateSettingsPage: View {
     @AppStorage(TargetLanguage.key) private var target: TargetLanguage = .zhHans
     @AppStorage(LookupPanelStyle.key) private var panelStyle: LookupPanelStyle = .classic
+    @AppStorage(LookupPanelOpacity.key) private var panelOpacity: Double = 1.0
+    /// 拖动中的临时值（百分数），松手才写入（和字号一样，不在拖动中每一下都写 UserDefaults）。
+    /// 用整数百分比当刻度：0.3...1.0 按 0.05 走，浮点算出来只有 13 格，拖到头只到 95%
+    @State private var opacityDraft: Double = 100
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("查到的词和整句译成哪种语言。").font(.system(size: 13)).foregroundStyle(Theme.text2)
-            TranslateIllustration(target: target, style: panelStyle)
+            TranslateIllustration(target: target, style: panelStyle, opacity: opacityDraft / 100)
             VStack(alignment: .leading, spacing: 6) {
                 Text("翻译成").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.text2)
                 TargetLanguageGrid(target: $target)
@@ -219,6 +223,17 @@ struct TranslateSettingsPage: View {
                 .fixedSize(horizontal: false, vertical: true)
                 Text("下次查词时生效。").font(.system(size: 12)).foregroundStyle(Theme.text3)
             }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("面板透明度").font(.system(size: 12, weight: .medium)).foregroundStyle(Theme.text2)
+                HStack(spacing: 10) {
+                    Slider(value: $opacityDraft, in: LookupPanelOpacity.range.lowerBound * 100...LookupPanelOpacity.range.upperBound * 100, step: 5) { editing in
+                        if !editing { panelOpacity = opacityDraft / 100 }   // 松手才生效
+                    }
+                    Text(String(format: "%.0f%%", opacityDraft)).font(.system(size: 12).monospacedDigit()).frame(width: 40, alignment: .trailing)
+                }
+                Text("调低了能透过面板看到后面的字幕和网页。钉住的面板松手就变。").font(.system(size: 12)).foregroundStyle(Theme.text3)
+            }
+            .onAppear { opacityDraft = (LookupPanelOpacity.current * 100).rounded() }
         }
     }
 }
@@ -526,7 +541,7 @@ private struct UsageGroup: View {
             }
             .padding(.horizontal, 12).padding(.vertical, 9)
             Hairline()
-            SettingsRow(title: "重新看引导", detail: "从欢迎页再走一遍：界面语言、权限、AI、Anki、匿名统计和快捷键", icon: "arrow.counterclockwise") {
+            SettingsRow(title: "重新看引导", detail: "从欢迎页再走一遍：界面语言、权限、AI、Anki 和快捷键", icon: "arrow.counterclockwise") {
                 Button("重新看引导") { restartOnboarding() }.buttonStyle(SecondaryButtonStyle())
             }
         }
@@ -563,7 +578,6 @@ private struct UsageGroup: View {
 /// 查词时什么会发出去、发给谁（改了数据去向要同步改这里和官网隐私政策）
 private struct PrivacyGroup: View {
     @AppStorage("apiProvider") private var provider: APIProvider = .zhipu
-    @AppStorage(UsageConsent.key) private var usageConsent = ""
     @AppStorage(AIPlan.key) private var plan: AIPlan = .member
 
     var body: some View {
@@ -574,18 +588,13 @@ private struct PrivacyGroup: View {
                 SettingsRow(title: "只在取词时截屏", detail: "截下框住的那一块（指词查词是光标附近），发给你选的 AI 服务商讲解，现在是 \(provider.displayName)。能认出字时只发附近几行文字，不发图。", icon: "camera.viewfinder")
             }
             Hairline()
-            SettingsRow(title: "会员的设备标识", detail: "用会员时，这台 Mac 向我们的服务器注册一次，用来发免费试用、记剩几次：发的是硬件编号的哈希，不是硬件编号本身。自带 Key 不注册。", icon: "desktopcomputer")
+            SettingsRow(title: "会员的设备标识", detail: "用会员时，这台 Mac 向我们的服务器注册一次，用来认出你买的会员、记今天用了几次：发的是硬件编号的哈希，不是硬件编号本身。自带 Key 不注册。", icon: "desktopcomputer")
             Hairline()
             SettingsRow(title: "词库存在这台 Mac 上", detail: "单词、语境和截图都在本机。登录同步时只同步词条和语境文字，截图和发音文件不上传。", icon: "internaldrive")
             Hairline()
             SettingsRow(title: "朗读", detail: "发音从有道词典下载，找不到时用 Wikimedia Commons 和 Google 的朗读，只发这个词。", icon: "speaker.wave.2")
             Hairline()
-            SettingsRow(title: "匿名使用统计", detail: "我们会给前 100 位用户免费额度，所以需要统计有多少人在用。统计是匿名的。开着时每天发一次：随机编号、版本号、系统和芯片、用会员还是自带 Key、界面语言。不发查的词、词库、截图和 Key；关着什么都不发。", icon: "chart.bar") {
-                Toggle("", isOn: Binding(get: { usageConsent == UsageConsent.yes.rawValue }, set: { UsageConsent.answer($0) }))
-                    .toggleStyle(.square).labelsHidden()
-            }
-            Hairline()
-            SettingsRow(title: "登录同步账号后", detail: "登录时报一次「登录」，之后每天报一次「打开」，记在同步用的账号下；不登录不报。", icon: "person.crop.circle")
+            SettingsRow(title: "不做使用统计", detail: "不数人数、不报打开次数，登录同步账号也不报。", icon: "chart.bar.xaxis")
             Hairline()
             SettingsRow(title: "隐私政策", detail: "官网上写得更全", icon: "hand.raised") {
                 Button("打开") { NSWorkspace.shared.open(AppLinks.privacy) }.buttonStyle(SecondaryButtonStyle())

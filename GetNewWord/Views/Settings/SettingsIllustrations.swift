@@ -186,12 +186,15 @@ private struct LectureMiniCard: View {
 struct TranslateIllustration: View {
     let target: TargetLanguage
     var style: LookupPanelStyle = .classic
+    /// 设置里拖透明度时，图里的弹窗跟着变淡
+    var opacity: Double = 1
     var body: some View {
         // 三种卡高矮不一，台子按最高的经典卡片定死，换样式时页面不跳
         Stage(height: 164) {
             HStack(alignment: .center, spacing: -16) {
                 SentenceCard(highlighted: true).offset(y: -12)
                 popup
+                    .opacity(opacity)
                     .id("\(target.rawValue)-\(style.rawValue)")
                     .transition(.opacity.combined(with: .offset(y: 4)))
                     .offset(y: 8)

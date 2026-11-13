@@ -1,7 +1,7 @@
 // PricingView.swift
 // GetNewWord
 //
-// 方案和价格（design/settings-v2 A2，照 Typefree）：免费试用 / 会员 / 自带 Key 三栏，下面授权码和常见问题。
+// 方案和价格（design/settings-v2 A2，照 Typefree）：会员 / 自带 Key 两栏，下面授权码和常见问题。不送免费试用（2026-11-13 用户定）。
 // 会员一栏：月付、年付（刷卡自动续费），人民币另有微信一次买 1 个月 / 1 年（不自动续费）；点了在浏览器里付款，
 // 这里每 3 秒问一次后台，付完马上变成会员。已经是会员的显示到期日、今天剩几次和「管理订阅」（Stripe 客户门户）。
 // 单独一个窗口（PricingWindow）：设置侧栏的方案卡、主窗口侧栏、查词报错浮窗都从这里打开。
@@ -34,6 +34,8 @@ enum PricingWindow {
         w.title = String(localized: "方案和价格")
         w.center()
         w.makeKeyAndOrderFront(nil)
+        // 一打开不让授权码输入框抢焦点（套着一圈蓝框）；要输时点进去
+        DispatchQueue.main.async { w.makeFirstResponder(nil) }
         window = w
         closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: w, queue: .main) { _ in
             Task { @MainActor in
@@ -74,7 +76,6 @@ struct PricingView: View {
                     hero.padding(.top, 36).padding(.bottom, 18)
                     banner
                     HStack(alignment: .top, spacing: 14) {
-                        trialColumn
                         memberColumn
                         ownColumn
                     }
@@ -112,7 +113,7 @@ struct PricingView: View {
         }
     }
 
-    /// 付款中、刚付完、出错：三栏上面一条
+    /// 付款中、刚付完、出错：两栏上面一条
     @ViewBuilder private var banner: some View {
         if member.justPaid {
             bannerRow(icon: "checkmark.circle.fill", color: Theme.ok, text: paidText) {
@@ -157,33 +158,6 @@ struct PricingView: View {
         .background(Theme.elevated, in: RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.border, lineWidth: 0.5))
         .padding(.bottom, 14)
-    }
-
-    // MARK: - 免费试用
-
-    private var trialColumn: some View {
-        column(title: "免费试用", tag: "前 100 位新用户", price: "30 次", unit: "· 不过期", subtitle: "装好就能用，什么都不用填",
-               features: ["截图取词、指词查词、语法拆解全能用", "不用注册，不用登录", "框一次词算一次，讲解和补全都在里面", "用完可以订阅，或填自己的 Key"]) {
-            if plan == .own, member.isAvailable {
-                Button("换成会员用法") { switchToMember() }.buttonStyle(SecondaryButtonStyle())
-            } else {
-                Button(trialButtonTitle) {}.buttonStyle(SecondaryButtonStyle()).disabled(true)
-            }
-        }
-    }
-
-    private var trialButtonTitle: String {
-        switch state {
-        case .unavailable: return String(localized: "开发版没连会员服务器")
-        case .notClaimed: return String(localized: "第一次查词时领取")
-        case .connecting: return String(localized: "正在领取…")
-        case .offline: return String(localized: "连不上会员服务器")
-        case .trial(let left, _): return String(localized: "试用中 · 剩 \(left) 次")
-        case .trialUsedUp: return String(localized: "试用已用完")
-        case .trialClosed(let miss): return miss == .full ? String(localized: "名额已发完，这台没领到") : String(localized: "这台没领到试用")
-        case .member, .dailyLimit: return String(localized: "已是会员")
-        case .paymentFailed, .ended: return (status?.trial.left ?? 0) > 0 ? String(localized: "试用剩 \(status?.trial.left ?? 0) 次") : String(localized: "试用已用完")
-        }
     }
 
     // MARK: - 会员
@@ -246,6 +220,10 @@ struct PricingView: View {
                     (period == "month" ? Text("· 每月，自动续费") : Text("· 每年，自动续费")).font(.system(size: 12)).foregroundStyle(Theme.text2)
                 }
                 (period == "year" ? Text("年付约等于 10 个月的钱") : Text("不用申请任何 Key，买了就能用")).font(.system(size: 12)).foregroundStyle(Theme.text2)
+                // 以前领过试用、还没用完的：照实写剩几次
+                if case .trial(let left, _) = state {
+                    Text("以前领的试用还剩 \(left) 次").font(.system(size: 12)).foregroundStyle(Theme.text2)
+                }
             }
             if state == .paymentFailed {
                 // 续费没扣成（Stripe 还在重试）：再开一单后台也不收，换一张卡就恢复
@@ -417,7 +395,7 @@ struct PricingView: View {
                     Spacer(minLength: 0)
                     if !s.trialOnly {
                         Button("解绑这台电脑") { unbind() }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.text2)
-                            .help("这台退回自己的免费试用（剩几次就几次），授权码留给别的电脑用")
+                            .help("这台退回没开通的状态，授权码留给别的电脑用")
                     }
                 }
             }
@@ -436,7 +414,7 @@ struct PricingView: View {
             Grid(horizontalSpacing: 28, verticalSpacing: 0) {
                 GridRow(alignment: .top) {
                     faqItem("一次查词怎么算？", "框一个词或指一个词算一次：讲解、例句补全、拆语法都在这一次里，自动重试不另算。词库里点「补全」另算一次。")
-                    faqItem("免费试用有多少？", "前 100 位新用户每人 30 次，不过期，不用注册。名额发完就没有了，这一栏会照实写。")
+                    faqItem("有免费的吗？", "软件本身永久免费：填自己的 AI Key 就能用，不限次数。会员不送免费次数，买的是不用配置的 AI 讲解。")
                 }
                 GridRow(alignment: .top) {
                     faqItem("怎么付钱、怎么取消？", "刷卡（人民币或美元）按月或按年自动续费，随时在「管理订阅」里取消，用到当期结束。人民币还能用微信一次买 1 个月或 1 年，不自动续费，快到期时提醒你续买。")
@@ -498,11 +476,6 @@ struct PricingView: View {
     }
 
     // MARK: - 动作
-
-    private func switchToMember() {
-        plan = .member
-        Task { await member.refresh() }
-    }
 
     private func buy(mode: String) {
         actionError = nil

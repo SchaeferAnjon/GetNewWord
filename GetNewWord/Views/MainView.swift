@@ -17,9 +17,8 @@ struct MainView: View {
     @Environment(\.openWindow) private var openWindow
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @AppStorage(UsageConsent.key) private var usageConsent = ""
-    /// 主窗口出来一会儿再问匿名统计，不和窗口一起弹
-    @State private var consentReady = false
+    /// 主窗口出来一会儿再弹 Anki 升级的询问，不和窗口一起弹
+    @State private var sheetReady = false
 
     // MARK: - 导航状态
     // 关掉主窗口只是把窗口藏起来（Window 场景），这些状态留着，从菜单栏再打开还是关之前那一页、那个词
@@ -51,14 +50,10 @@ struct MainView: View {
             }
         }
         .overlay(alignment: .top) { AnalysisErrorOverlay() }
-        // 匿名使用统计没回答过（老用户更新后、引导里没答那一步的）：走完引导后问一次，答了才关（UsageConsentViews.swift）
-        .sheet(isPresented: Binding(get: { consentReady && hasCompletedOnboarding && usageConsent.isEmpty }, set: { _ in })) {
-            UsageConsentSheet()
-        }
-        .background(Color.clear.modifier(AnkiUpgradeSheetModifier(enabled: consentReady && hasCompletedOnboarding && !usageConsent.isEmpty)))
+        .background(Color.clear.modifier(AnkiUpgradeSheetModifier(enabled: sheetReady && hasCompletedOnboarding)))
         .task {
             try? await Task.sleep(for: .milliseconds(600))
-            consentReady = true
+            sheetReady = true
         }
         .onAppear {
             MainWindowOpener.openWindow = openWindow
@@ -293,8 +288,6 @@ struct MainView: View {
         ImportExportService.shared.autoBackup(context: modelContext)
         // 登录共用账号后：词库与云端双向同步（未登录空转）
         CloudSyncService.shared.start(context: modelContext)
-        // 后台看板：已登录则报今天的「打开」（回到前台由 SupabaseAuth 自己监听）
-        SupabaseAuth.shared.trackDailyOpen()
         // 截图取词要用的权限：启动就申请，不等第一次按快捷键（新用户走引导页的权限步骤）
         if UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") {
             Task { @MainActor in

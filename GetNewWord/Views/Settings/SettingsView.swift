@@ -94,6 +94,8 @@ struct SettingsView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                // 不接键盘焦点：不然一打开设置，第一项「通用」就套着一圈蓝色焦点框
+                .focusable(false)
             }
             Spacer()
             PlanCard()

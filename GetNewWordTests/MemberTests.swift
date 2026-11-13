@@ -73,27 +73,24 @@ struct MemberStatusTests {
         #expect(throws: MemberError.self) { try MemberStatus.registration(from: Data(#"{"trial":"closed"}"#.utf8)) }
     }
 
-    /// 后台 2026-10-29 加的 trialResult、limitBy、resetAt：读得到；旧后台没有也照样读
+    /// 后台 2026-10-29 加的 limitBy、resetAt：读得到；旧后台没有也照样读
     @Test func decodesLimitFields() throws {
         let s = try status(#"{"plan":"trial","trial":{"granted":false,"total":0,"used":0,"left":0},"canUse":false,"reason":"daily-limit","limitBy":"cost","resetAt":1793318400000,"trialResult":"ip-limit"}"#)
-        #expect(s.limitBy == "cost" && s.resetAt == 1_793_318_400_000 && s.trialResult == "ip-limit")
+        #expect(s.limitBy == "cost" && s.resetAt == 1_793_318_400_000)
         let old = try status(statusJSON)
-        #expect(old.limitBy == nil && old.resetAt == nil && old.trialResult == nil)
+        #expect(old.limitBy == nil && old.resetAt == nil)
     }
 
-    /// 状态里的 trialResult 比本机记的准（本机的可能是重新注册后的 existing）；成本上限过了重置时刻就不算
-    @Test func statesUseServerTrialResultAndCostCap() {
-        var s = makeStatus(plan: "none", granted: false, reason: "trial-closed")
-        s.trialResult = "closed"
-        #expect(MemberState.of(s, available: true, failed: false, trialResult: "existing") == .trialClosed(.full))
+    /// 成本上限过了重置时刻就不算
+    @Test func statesUseCostCap() {
         var c = makeStatus(plan: "trial", left: 10)
         c.reason = "daily-limit"
         c.canUse = false
         c.limitBy = "cost"
         c.resetAt = Date().addingTimeInterval(600).timeIntervalSince1970 * 1000
-        #expect(MemberState.of(c, available: true, failed: false, trialResult: nil).blockCode == "daily-limit")
+        #expect(MemberState.of(c, available: true, failed: false).blockCode == "daily-limit")
         c.resetAt = Date().addingTimeInterval(-60).timeIntervalSince1970 * 1000
-        #expect(MemberState.of(c, available: true, failed: false, trialResult: nil) == .trial(left: 10, total: 30))
+        #expect(MemberState.of(c, available: true, failed: false) == .trial(left: 10, total: 30))
     }
 
     @Test func newErrorCodesHaveTitles() {
@@ -104,24 +101,22 @@ struct MemberStatusTests {
 
     @Test func states() {
         let later = Date().addingTimeInterval(20 * 86_400)
-        func state(_ s: MemberStatus?, trialResult: String? = nil, available: Bool = true, failed: Bool = false, registered: Bool = true) -> MemberState {
-            MemberState.of(s, available: available, failed: failed, trialResult: trialResult, registered: registered)
+        func state(_ s: MemberStatus?, available: Bool = true, failed: Bool = false, registered: Bool = true) -> MemberState {
+            MemberState.of(s, available: available, failed: failed, registered: registered)
         }
         #expect(state(nil, available: false) == .unavailable)
         #expect(state(nil) == .connecting)
         #expect(state(nil, failed: true) == .offline)
-        // 还没注册：第一次查词时领，连不上过也一样（到时候再领）
+        // 还没注册：第一次查词时注册，连不上过也一样（到时候再注册）
         #expect(state(nil, registered: false) == .notClaimed)
         #expect(state(nil, failed: true, registered: false) == .notClaimed)
         #expect(MemberState.notClaimed.ready && !MemberState.notClaimed.blocked)
         #expect(state(makeStatus(plan: "trial", left: 27)) == .trial(left: 27, total: 30))
         #expect(state(makeStatus(plan: "none", reason: "trial-used-up")) == .trialUsedUp)
-        // 没领到试用：名额发完、注册那天同网络 / 全站当天满了、说不准（重新注册过）各说各的
-        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "closed") == .trialClosed(.full))
-        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "ip-limit") == .trialClosed(.network))
-        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "daily-limit") == .trialClosed(.dayFull))
-        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed")) == .trialClosed(.unknown))
-        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed"), trialResult: "existing") == .trialClosed(.unknown))
+        // 不送试用：注册过、没买的就是还没开通会员，拦下
+        #expect(state(makeStatus(plan: "none", granted: false, reason: "trial-closed")) == .notMember)
+        #expect(state(makeStatus(plan: "none", granted: false, reason: nil)) == .notMember)
+        #expect(MemberState.notMember.blocked && MemberState.notMember.blockCode == "trial-closed")
         #expect(state(makeStatus(plan: "none", reason: "sub-ended")) == .ended)
         #expect(state(makeStatus(plan: "none", reason: "payment-failed")) == .paymentFailed)
         let member = state(makeStatus(plan: "member", until: later, autoRenew: true, todayLeft: 188, subscription: "active"))
@@ -150,14 +145,14 @@ struct MemberStatusTests {
         let periodEnd = Date().addingTimeInterval(30 * 86_400)
         var s = makeStatus(plan: "member", until: periodEnd.addingTimeInterval(86_400), autoRenew: true, todayLeft: 200, subscription: "active")
         s.subscription?.periodEnd = periodEnd.timeIntervalSince1970 * 1000
-        guard case .member(let until, _, _, _, _, _) = MemberState.of(s, available: true, failed: false, trialResult: nil) else {
+        guard case .member(let until, _, _, _, _, _) = MemberState.of(s, available: true, failed: false) else {
             Issue.record("应为会员")
             return
         }
         #expect(abs((until ?? .distantPast).timeIntervalSince(periodEnd)) < 1)
         // 不自动续费（一次买、点了到期取消）写用到哪天
         s.autoRenew = false
-        guard case .member(let until2, _, _, _, _, _) = MemberState.of(s, available: true, failed: false, trialResult: nil) else { return }
+        guard case .member(let until2, _, _, _, _, _) = MemberState.of(s, available: true, failed: false) else { return }
         #expect(abs((until2 ?? .distantPast).timeIntervalSince(periodEnd.addingTimeInterval(86_400))) < 1)
     }
 
@@ -167,9 +162,13 @@ struct MemberStatusTests {
         let trial = PlanCard.memberContent(.trial(left: 27, total: 30))
         #expect(trial.count?.contains("27") == true && !trial.warn)
         #expect(PlanCard.memberContent(.trialUsedUp).warn)
-        #expect(PlanCard.memberContent(.trialClosed(.full)).warn)
-        #expect(PlanCard.memberContent(.trialClosed(.network)).detail != PlanCard.memberContent(.trialClosed(.full)).detail)
-        #expect(!PlanCard.memberContent(.notClaimed).warn && PlanCard.memberContent(.notClaimed).count == nil)
+        #expect(PlanCard.memberContent(.notMember).warn)
+        #expect(PlanCard.memberContent(.notClaimed).warn && PlanCard.memberContent(.notClaimed).count == nil)
+        // 不送试用：卡片上不再写「免费试用」「前 100 位」
+        for st in [MemberState.notClaimed, .notMember] {
+            let c = PlanCard.memberContent(st)
+            #expect(!c.title.contains("免费") && !c.detail.contains("100") && !c.detail.contains("免费"))
+        }
         #expect(PlanCard.memberContent(.paymentFailed).warn)
         #expect(PlanCard.memberContent(.ended).warn)
         #expect(PlanCard.memberContent(.dailyLimit(reset: later)).warn)
@@ -369,8 +368,8 @@ struct MemberServiceTests {
         return m
     }
 
-    /// 没注册过的：查状态、启动、回到前台都不注册（不替还没用会员的人占名额）；领试用时才注册一次
-    @Test func registersOnlyWhenClaimed() async throws {
+    /// 没注册过的：查状态、启动、回到前台都不注册（不替还没用会员的人注册）；真要用会员时才注册一次
+    @Test func registersOnlyWhenNeeded() async throws {
         server.on("POST", "/v1/getnewword/device", .init(status: 200, body: registration()))
         server.on("GET", "/v1/getnewword/status", .init(status: 200, body: trialStatus(left: 30)))
         let m = make()
@@ -380,7 +379,7 @@ struct MemberServiceTests {
         #expect(server.requests.isEmpty)
         #expect(m.state == .notClaimed && !m.registered)
 
-        await m.claimTrial()
+        _ = try await m.ensureDevice()
         #expect(server.paths == ["POST /v1/getnewword/device"])
         let register = server.requests[0]
         #expect(register.value(forHTTPHeaderField: "Authorization") == nil)
@@ -388,7 +387,7 @@ struct MemberServiceTests {
         #expect(body["device"] == String(repeating: "ab", count: 32))
         #expect(body["platform"] == "darwin")
         #expect(["arm64", "x64"].contains(body["arch"]))
-        #expect(m.registered && m.trialResult == "granted")
+        #expect(m.registered)
         #expect(m.state == .trial(left: 30, total: 30))
 
         // 注册过以后：查状态带令牌，不再注册；60 秒内回到前台不再问
@@ -398,7 +397,7 @@ struct MemberServiceTests {
         #expect(server.requests[1].timeoutInterval == 20)
         await m.refresh(maxAge: 60)
         #expect(server.requests.count == 2)
-        await m.claimTrial()
+        _ = try await m.ensureDevice()
         #expect(server.paths.filter { $0.hasSuffix("/device") }.count == 1)
         defaults.removePersistentDomain(forName: suite)
     }
@@ -426,20 +425,16 @@ struct MemberServiceTests {
         defaults.removePersistentDomain(forName: suite)
     }
 
-    /// 没领到试用时，原因按第一次注册的结果说；令牌丢了重新注册（后台回 existing）也不忘
-    @Test func trialMissSurvivesReRegistering() async throws {
+    /// 不送试用：新设备注册后台回 closed，就是还没开通会员；报错说「还没开通会员」，不提名额
+    @Test func newDeviceIsNotMember() async throws {
         server.on("POST", "/v1/getnewword/device",
-                  .init(status: 200, body: #"{"token":"gwd_one","trial":"ip-limit","trialUses":{"granted":false,"total":0,"used":0,"left":0},"plan":"none","canUse":false,"reason":"trial-closed"}"#),
-                  .init(status: 200, body: #"{"token":"gwd_two","trial":"existing","trialUses":{"granted":false,"total":0,"used":0,"left":0},"plan":"none","canUse":false,"reason":"trial-closed"}"#))
+                  .init(status: 200, body: #"{"token":"gwd_one","trial":"closed","trialUses":{"granted":false,"total":0,"used":0,"left":0},"plan":"none","canUse":false,"reason":"trial-closed"}"#))
         let m = make()
-        await m.claimTrial()
-        #expect(m.state == .trialClosed(.network))
-        #expect(await m.renewToken("gwd_one"))
-        #expect(m.trialResult == "ip-limit")
-        #expect(m.state == .trialClosed(.network))
+        _ = try await m.ensureDevice()
+        #expect(m.state == .notMember)
         let e = m.explain(MemberError(code: "trial-closed", message: "免费试用名额已经发完了。", status: 402))
-        #expect(e.miss == .network)
-        #expect(MemberText.detail(e) != MemberText.detail(MemberError(code: "trial-closed", miss: .full)))
+        #expect(MemberText.title(e) == String(localized: "还没开通会员"))
+        #expect(!MemberText.detail(e).contains("100"))
         defaults.removePersistentDomain(forName: suite)
     }
 
@@ -544,18 +539,6 @@ struct MemberServiceTests {
         try await m.buy(plan: "year", currency: "cny", mode: "sub")
         #expect(m.justPaid && m.isMember)
         #expect(opened.isEmpty && m.purchase == nil)
-        defaults.removePersistentDomain(forName: suite)
-    }
-
-    /// 后台 /status 带了 trialResult：按后台记的原因说，本机没记下（比如钥匙串清过、重装）也说得出
-    @Test func serverTrialResultExplainsMiss() async throws {
-        server.on("GET", "/v1/getnewword/status",
-                  .init(status: 200, body: #"{"plan":"none","trial":{"granted":false,"total":0,"used":0,"left":0},"canUse":false,"reason":"trial-closed","trialResult":"closed"}"#))
-        let m = make(token: "gwd_one")
-        await m.refresh()
-        #expect(m.trialResult == nil)
-        #expect(m.state == .trialClosed(.full))
-        #expect(m.explain(MemberError(code: "trial-closed", status: 402)).miss == .full)
         defaults.removePersistentDomain(forName: suite)
     }
 

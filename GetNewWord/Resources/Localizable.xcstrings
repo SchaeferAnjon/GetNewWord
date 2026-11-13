@@ -1789,22 +1789,6 @@
         }
       }
     },
-    "不同意也能用全部功能。以后随时可以在 设置 → 更新与关于 → 匿名使用统计 里改。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Alle Funktionen gehen auch ohne Zustimmung. Du kannst das jederzeit unter Einstellungen → Updates & Info → Anonyme Nutzungsstatistik ändern."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Every feature works even if you don’t agree. You can change this any time in Settings → Updates & about → Anonymous usage statistics."
-          }
-        }
-      }
-    },
     "不支持的文件格式": {
       "localizations": {
         "de": {
@@ -2393,22 +2377,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pick from the official model list"
-          }
-        }
-      }
-    },
-    "从欢迎页再走一遍：界面语言、权限、AI、Anki、匿名统计和快捷键": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Noch einmal ab der Begrüßung: Sprache, Berechtigungen, KI, Anki, anonyme Statistik und Kürzel"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Go through it again from the welcome page: language, permissions, AI, Anki, anonymous stats and shortcuts"
           }
         }
       }
@@ -3277,22 +3245,6 @@
         }
       }
     },
-    "免费名额已经发完了": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die kostenlosen Testzugänge sind vergeben"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The free trials have all been given out"
-          }
-        }
-      }
-    },
     "免费的 30 次用完了": {
       "localizations": {
         "de": {
@@ -3337,22 +3289,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Free trial"
-          }
-        }
-      }
-    },
-    "免费试用有多少？": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wie viel umfasst der kostenlose Test?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "How much is the free trial?"
           }
         }
       }
@@ -4189,102 +4125,6 @@
         }
       }
     },
-    "前 100 位免费 30 次": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die ersten 100: 30 gratis"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "First 100 get 30 free"
-          }
-        }
-      }
-    },
-    "前 100 位新用户": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die ersten 100 neuen Nutzer"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "First 100 new users"
-          }
-        }
-      }
-    },
-    "前 100 位新用户 30 次，第一次查词时领取": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die ersten 100 neuen Nutzer bekommen 30; beim ersten Nachschlagen abgeholt"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "First 100 new users get 30; claimed on your first lookup"
-          }
-        }
-      }
-    },
-    "前 100 位新用户每人 30 次，不过期，不用注册。名额发完就没有了，这一栏会照实写。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die ersten 100 neuen Nutzer bekommen je 30 Abfragen. Sie verfallen nie und brauchen keine Registrierung. Sind alle vergeben, gibt es keine mehr, und diese Seite sagt das."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The first 100 new users get 30 lookups each. They never expire and need no sign-up. Once they're all given out, there are no more, and this page says so."
-          }
-        }
-      }
-    },
-    "前 100 位新用户的免费次数已经发完，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die kostenlosen Abfragen für die ersten 100 neuen Nutzer sind vergeben, dieser Mac hat keine bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The free lookups for the first 100 new users are all given out, and this Mac didn't get any. Subscribe, or add your own AI key to use it for free."
-          }
-        }
-      }
-    },
-    "前 100 位的名额发完了；可订阅或换自带 Key": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die ersten 100 Testzugänge sind vergeben; abonnieren oder eigenen Key nutzen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The first 100 trials are gone; subscribe or use your own key"
-          }
-        }
-      }
-    },
     "剩 %lld 次": {
       "localizations": {
         "de": {
@@ -4345,38 +4185,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "It resets at midnight UTC; just press again then."
-          }
-        }
-      }
-    },
-    "匿名使用统计": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anonyme Nutzungsstatistik"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anonymous usage statistics"
-          }
-        }
-      }
-    },
-    "匿名统计": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anonyme Statistik"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anonymous stats"
           }
         }
       }
@@ -5053,22 +4861,6 @@
         }
       }
     },
-    "同意后，GetNewWord 每天会发给我们一次：": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wenn du zustimmst, schickt uns GetNewWord einmal am Tag:"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Once a day, if you agree, GetNewWord sends us:"
-          }
-        }
-      }
-    },
     "同步": {
       "localizations": {
         "de": {
@@ -5321,22 +5113,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Name (e.g. Traffic rules)"
-          }
-        }
-      }
-    },
-    "名额已发完，这台没领到": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Alle vergeben; dieser Mac hat keinen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All given out; this Mac got none"
           }
         }
       }
@@ -6185,22 +5961,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Learning"
-          }
-        }
-      }
-    },
-    "学习统计": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lernstatistik"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Learning stats"
           }
         }
       }
@@ -7101,38 +6861,6 @@
         }
       }
     },
-    "已选：不用了": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gewählt: Nein, danke"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chosen: No thanks"
-          }
-        }
-      }
-    },
-    "已选：同意": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gewählt: Zustimmen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chosen: Agree"
-          }
-        }
-      }
-    },
     "已钉住": {
       "localizations": {
         "de": {
@@ -7161,22 +6889,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pinned: clicking outside won't close it (Esc or ✕ closes)"
-          }
-        }
-      }
-    },
-    "帮我们知道有多少人在用 GetNewWord？": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hilfst du uns zu erfahren, wie viele Menschen GetNewWord nutzen?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Help us know how many people use GetNewWord?"
           }
         }
       }
@@ -7897,38 +7609,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Imported %lld entries"
-          }
-        }
-      }
-    },
-    "我们会给前 100 位用户免费额度，所以需要统计有多少人在用。统计是匿名的。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die ersten 100 Nutzer bekommen ein kostenloses Kontingent, deshalb müssen wir zählen, wie viele die App nutzen. Die Zählung ist anonym."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "We give the first 100 users free credit, so we need to count how many people use the app. The count is anonymous."
-          }
-        }
-      }
-    },
-    "我们会给前 100 位用户免费额度，所以需要统计有多少人在用。统计是匿名的。开着时每天发一次：随机编号、版本号、系统和芯片、用会员还是自带 Key、界面语言。不发查的词、词库、截图和 Key；关着什么都不发。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die ersten 100 Nutzer bekommen ein kostenloses Kontingent, deshalb müssen wir zählen, wie viele die App nutzen. Die Zählung ist anonym. Wenn eingeschaltet, sendet die App einmal am Tag: eine zufällige ID, die Version, System und Chip, Mitgliedschaft oder eigener Key und die Sprache der Oberfläche. Nachgeschlagene Wörter, Wortschatz, Screenshots und Keys werden nie gesendet; ausgeschaltet wird nichts gesendet."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "We give the first 100 users free credit, so we need to count how many people use the app. The count is anonymous. When on, the app sends once a day: a random ID, the version, the system and chip, membership or your own key, and the interface language. It never sends the words you look up, your library, screenshots or keys; when off, nothing is sent."
           }
         }
       }
@@ -11037,22 +10717,6 @@
         }
       }
     },
-    "正在领取…": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wird abgerufen …"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Claiming…"
-          }
-        }
-      }
-    },
     "正文（支持 Markdown）": {
       "localizations": {
         "de": {
@@ -11341,22 +11005,6 @@
         }
       }
     },
-    "没领到免费试用": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kein kostenloser Test für diesen Mac"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No free trial for this Mac"
-          }
-        }
-      }
-    },
     "法语": {
       "localizations": {
         "de": {
@@ -11369,38 +11017,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "French"
-          }
-        }
-      }
-    },
-    "注册时没领到；可订阅或换自带 Key": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bei der Anmeldung keine bekommen; abonnieren oder eigenen Key nutzen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "None given when it registered; subscribe or use your own key"
-          }
-        }
-      }
-    },
-    "注册那天同一个网络里领的人太多，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Am Tag der Anmeldung haben zu viele im selben Netzwerk kostenlose Abfragen abgeholt, dieser Mac hat keine bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Too many Macs on the same network claimed free lookups the day this Mac registered, so it didn't get any. Subscribe, or add your own AI key to use it for free."
           }
         }
       }
@@ -11433,22 +11049,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "That day's free share ran out; subscribe or use your own key"
-          }
-        }
-      }
-    },
-    "注册那天领的人太多，当天的份数发完了，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Am Tag der Anmeldung waren die kostenlosen Abfragen für diesen Tag schon vergeben, dieser Mac hat keine bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "So many people claimed free lookups the day this Mac registered that the day's share ran out, so it didn't get any. Subscribe, or add your own AI key to use it for free."
           }
         }
       }
@@ -11853,22 +11453,6 @@
         }
       }
     },
-    "用会员时，这台 Mac 向我们的服务器注册一次，用来发免费试用、记剩几次：发的是硬件编号的哈希，不是硬件编号本身。自带 Key 不注册。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mit Mitgliedschaft meldet sich dieser Mac einmal bei unserem Server an, um den kostenlosen Test zu bekommen und die Abfragen zu zählen. Gesendet wird ein Hash der Hardware-ID, nicht die ID selbst. Mit eigenem Key wird nichts angemeldet."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With membership, this Mac registers once with our server to get the free trial and keep count of lookups. It sends a hash of the hardware ID, not the ID itself. With your own key nothing is registered."
-          }
-        }
-      }
-    },
     "用会员还是自带 Key，界面是什么语言": {
       "localizations": {
         "de": {
@@ -12169,22 +11753,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your sign-in expired. Please sign in again."
-          }
-        }
-      }
-    },
-    "登录时报一次「登录」，之后每天报一次「打开」，记在同步用的账号下；不登录不报。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meldet beim Anmelden einmal „angemeldet“ und danach einmal am Tag „geöffnet“, unter deinem Sync-Konto. Ohne Anmeldung wird nichts gemeldet."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reports “signed in” once when you sign in and “opened” once a day after that, under your sync account. Nothing is reported without signing in."
           }
         }
       }
@@ -12509,22 +12077,6 @@
         }
       }
     },
-    "第一次查词时领取": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Beim ersten Nachschlagen abgeholt"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Claimed on your first lookup"
-          }
-        }
-      }
-    },
     "第一次遇到 %@": {
       "localizations": {
         "de": {
@@ -12777,22 +12329,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Stats"
-          }
-        }
-      }
-    },
-    "统计仪表盘": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Statistik-Übersicht"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stats dashboard"
           }
         }
       }
@@ -13613,22 +13149,6 @@
         }
       }
     },
-    "试用中 · 剩 %lld 次": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Im Test · noch %lld"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "On trial · %lld left"
-          }
-        }
-      }
-    },
     "试用剩 %lld 次": {
       "localizations": {
         "de": {
@@ -14429,38 +13949,6 @@
         }
       }
     },
-    "这台 Mac 没领到免费次数": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dieser Mac hat keine Gratis-Abfragen bekommen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Mac got no free lookups"
-          }
-        }
-      }
-    },
-    "这台 Mac 注册时没领到免费次数。订阅会员，或者填自己的 AI Key 免费用。": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dieser Mac hat bei der Anmeldung keine kostenlosen Abfragen bekommen. Schließ ein Abo ab oder nutze es mit eigenem KI-Key kostenlos."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Mac didn't get free lookups when it registered. Subscribe, or add your own AI key to use it for free."
-          }
-        }
-      }
-    },
     "这台 Mac 的授权码": {
       "localizations": {
         "de": {
@@ -14489,38 +13977,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "This Mac re-registered too many times"
-          }
-        }
-      }
-    },
-    "这台没领到试用": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kein Test für diesen Mac"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No trial for this Mac"
-          }
-        }
-      }
-    },
-    "这台退回自己的免费试用（剩几次就几次），授权码留给别的电脑用": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dieser Mac kehrt zu seinem eigenen kostenlosen Test zurück (mit dem, was übrig ist), und der Code wird für einen anderen Computer frei"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Mac goes back to its own free trial (whatever is left of it), freeing the code for another computer"
           }
         }
       }
@@ -15913,6 +15369,310 @@
           "stringUnit": {
             "state": "translated",
             "value": ", no need to select"
+          }
+        }
+      }
+    },
+    "不用 Key，订阅后就能查；每月 ¥9.9 起": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Key nötig: abonnieren und loslegen; ab 9,90 ¥ im Monat"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No key needed: subscribe and start looking up; from ¥9.9 a month"
+          }
+        }
+      }
+    },
+    "订阅": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe"
+          }
+        }
+      }
+    },
+    "面板透明度": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deckkraft des Fensters"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Panel opacity"
+          }
+        }
+      }
+    },
+    "调低了能透过面板看到后面的字幕和网页。钉住的面板松手就变。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niedriger eingestellt sieht man Untertitel und Seiten hinter dem Fenster. Ein angeheftetes Fenster ändert sich beim Loslassen des Reglers."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lower it to see subtitles and pages behind the panel. A pinned panel changes when you let go of the slider."
+          }
+        }
+      }
+    },
+    "从欢迎页再走一遍：界面语言、权限、AI、Anki 和快捷键": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Begrüßung noch einmal durchgehen: Sprache, Berechtigungen, KI, Anki und Kurzbefehle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Walk through the welcome screens again: language, permissions, AI, Anki and shortcuts"
+          }
+        }
+      }
+    },
+    "用会员时，这台 Mac 向我们的服务器注册一次，用来认出你买的会员、记今天用了几次：发的是硬件编号的哈希，不是硬件编号本身。自带 Key 不注册。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Mitgliedschaft meldet sich dieser Mac einmal bei unserem Server an, damit er deine Mitgliedschaft erkennt und die heutigen Abfragen zählt. Gesendet wird ein Hash der Hardware-ID, nicht die ID selbst. Mit eigenem Key wird nichts angemeldet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With a membership, this Mac registers once with our server so it can recognise your membership and count today's uses. It sends a hash of the hardware ID, not the ID itself. With your own key nothing is registered."
+          }
+        }
+      }
+    },
+    "不做使用统计": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Nutzungsstatistik"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No usage statistics"
+          }
+        }
+      }
+    },
+    "不数人数、不报打开次数，登录同步账号也不报。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wir zählen keine Nutzer und melden keine App-Starts, auch nicht, wenn du dich zum Synchronisieren anmeldest."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We don't count users or report app launches, not even when you sign in to sync."
+          }
+        }
+      }
+    },
+    "订阅会员就能查词；也可以填自己的 AI Key，永久免费。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit einem Abo kannst du Wörter nachschlagen – oder du trägst deinen eigenen KI-Key ein und nutzt es dauerhaft kostenlos."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe to look up words, or enter your own AI key and use it free forever."
+          }
+        }
+      }
+    },
+    "还没开通会员": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch keine Mitgliedschaft"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No membership yet"
+          }
+        }
+      }
+    },
+    "还没开通；点这里订阅，或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch nicht aktiv; hier klicken zum Abonnieren oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not active yet; click to subscribe, or use your own key"
+          }
+        }
+      }
+    },
+    "试用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trial"
+          }
+        }
+      }
+    },
+    "以前领的 %lld 次，用完可订阅或换自带 Key": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Abfragen von früher; danach abonnieren oder eigenen Key nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld uses from earlier; afterwards subscribe or use your own key"
+          }
+        }
+      }
+    },
+    "以前领的试用还剩 %lld 次": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch %lld Testabfragen von früher übrig"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld trial uses left from earlier"
+          }
+        }
+      }
+    },
+    "这台退回没开通的状态，授权码留给别的电脑用": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Mac hat dann keine Mitgliedschaft mehr, der Lizenzcode wird für einen anderen Computer frei"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Mac goes back to no membership and the licence code is freed for another computer"
+          }
+        }
+      }
+    },
+    "有免费的吗？": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gibt es eine kostenlose Variante?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Is there a free option?"
+          }
+        }
+      }
+    },
+    "软件本身永久免费：填自己的 AI Key 就能用，不限次数。会员不送免费次数，买的是不用配置的 AI 讲解。": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App selbst ist dauerhaft kostenlos: Trag deinen eigenen KI-Key ein und nutze sie unbegrenzt. Die Mitgliedschaft enthält keine Gratis-Abfragen; du zahlst für KI-Erklärungen ohne Einrichtung."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app itself is free forever: enter your own AI key and use it without limits. Membership has no free uses; you pay for AI explanations that need no setup."
+          }
+        }
+      }
+    },
+    "学习统计": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lernstatistik"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Learning stats"
+          }
+        }
+      }
+    },
+    "统计仪表盘": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statistik-Übersicht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stats dashboard"
           }
         }
       }

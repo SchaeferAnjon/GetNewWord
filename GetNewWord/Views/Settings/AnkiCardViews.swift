@@ -105,7 +105,7 @@ struct AnkiUpgradePromptView: View {
 
 /// 主窗口上挂着：同步发现要加字段时弹出询问。主窗口没开就等到开了再弹，不抢用户正在看的东西
 struct AnkiUpgradeSheetModifier: ViewModifier {
-    /// 引导没走完、匿名统计的询问还在的时候不弹，免得两个窗口叠在一起
+    /// 引导没走完的时候不弹，免得两个窗口叠在一起
     var enabled: Bool
     @ObservedObject private var upgrade = AnkiUpgrade.shared
     @Environment(\.modelContext) private var modelContext

@@ -206,7 +206,7 @@ struct ChoiceCard<Content: View>: View {
 
 // MARK: - 方案卡（设置侧栏底部、主窗口侧栏底部）
 
-/// 现在用的是哪种、还剩多少：会员（试用剩几次、今天剩几次、到期日、欠费）或自带 Key。点开是方案和价格
+/// 现在用的是哪种、还剩多少：会员（今天剩几次、到期日、欠费；以前领的试用剩几次）或自带 Key。点开是方案和价格
 struct PlanCard: View {
     @AppStorage("apiProvider") private var provider: APIProvider = .zhipu
     @AppStorage(AIPlan.key) private var plan: AIPlan = .member
@@ -259,25 +259,16 @@ struct PlanCard: View {
         switch state {
         case .unavailable:
             return (String(localized: "会员"), String(localized: "开发版没连会员服务器"), nil, true)
-        case .notClaimed:
-            return (String(localized: "免费试用"), String(localized: "前 100 位新用户 30 次，第一次查词时领取"), nil, false)
+        case .notClaimed, .notMember:
+            return (String(localized: "会员"), String(localized: "还没开通；点这里订阅，或换自带 Key"), nil, true)
         case .connecting:
             return (String(localized: "会员"), String(localized: "正在连接会员服务器…"), nil, false)
         case .offline:
             return (String(localized: "会员"), String(localized: "连不上会员服务器，联网后自动重试"), nil, true)
         case .trial(let left, let total):
-            return (String(localized: "免费试用"), String(localized: "共 \(total) 次，用完可订阅或换自带 Key"), String(localized: "剩 \(left) 次"), false)
+            return (String(localized: "试用"), String(localized: "以前领的 \(total) 次，用完可订阅或换自带 Key"), String(localized: "剩 \(left) 次"), false)
         case .trialUsedUp:
             return (String(localized: "试用用完了"), String(localized: "订阅会员接着用，或换自带 Key"), nil, true)
-        case .trialClosed(let miss):
-            let why: String
-            switch miss {
-            case .full: why = String(localized: "前 100 位的名额发完了；可订阅或换自带 Key")
-            case .network: why = String(localized: "注册那天同一网络领的人太多；可订阅或换自带 Key")
-            case .dayFull: why = String(localized: "注册那天当天的份数发完了；可订阅或换自带 Key")
-            case .unknown: why = String(localized: "注册时没领到；可订阅或换自带 Key")
-            }
-            return (String(localized: "没领到免费试用"), why, nil, true)
         case .member(let until, let autoRenew, let expiring, let pastDue, let left, _):
             if pastDue { return (String(localized: "续费没扣成"), String(localized: "打开「管理订阅」换一张卡"), nil, true) }
             let count = left.map { String(localized: "今天剩 \($0)") }

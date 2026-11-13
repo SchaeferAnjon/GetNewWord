@@ -40,24 +40,17 @@ final class SupabaseAuth: NSObject, ObservableObject {
     static let callbackScheme = "getnewword"
     static let redirectURL = "getnewword://auth-callback"
     private static let keychainKey = "supabase_session"
-    /// 上次上报「打开」的时间（按本地自然日去重，发送失败会清掉）
-    private static let lastOpenEventKey = "analyticsLastOpenEvent"
 
     @Published private(set) var session: SupabaseSession?
     @Published private(set) var isSigningIn = false
 
     private var webSession: ASWebAuthenticationSession?
     private var refreshTask: Task<SupabaseSession, Error>?
-    private var activeObserver: NSObjectProtocol?
 
     private override init() {
         super.init()
         if let raw = KeychainManager.shared.load(key: Self.keychainKey), let data = raw.data(using: .utf8) {
             session = try? JSONDecoder().decode(SupabaseSession.self, from: data)
-        }
-        // 回到前台报「打开」；启动那次由 MainView 启动时调 trackDailyOpen()
-        activeObserver = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-            Task { @MainActor in SupabaseAuth.shared.trackDailyOpen() }
         }
     }
 
@@ -101,8 +94,6 @@ final class SupabaseAuth: NSObject, ObservableObject {
         let s = try await tokenRequest(grantType: "pkce", body: ["auth_code": code, "code_verifier": verifier])
         store(s)
         AppLog.log("[Auth] signed in (user \(s.userId.prefix(8))…)")   // 日志会被附进反馈邮件：不记邮箱
-        // 只有这里算新登录；启动时从 Keychain 恢复会话不走这条路
-        Task { await trackEvent("登录") }
     }
 
     func signOut() async {
@@ -164,43 +155,6 @@ final class SupabaseAuth: NSObject, ObservableObject {
         return SupabaseSession(accessToken: t.access_token, refreshToken: t.refresh_token,
                                expiresAt: Date().addingTimeInterval(t.expires_in),
                                userId: t.user.id, email: t.user.email)
-    }
-
-    // MARK: - 事件上报（后台看板读 analytics.events）
-
-    /// 已登录时每个本地自然日最多报一次「打开」。先记日期防止启动和回到前台重复发，失败再清掉，下次回到前台重试
-    func trackDailyOpen() {
-        guard session != nil else { return }
-        if let last = UserDefaults.standard.object(forKey: Self.lastOpenEventKey) as? Date, Calendar.current.isDateInToday(last) { return }
-        UserDefaults.standard.set(Date(), forKey: Self.lastOpenEventKey)
-        Task {
-            if await !trackEvent("打开") { UserDefaults.standard.removeObject(forKey: Self.lastOpenEventKey) }
-        }
-    }
-
-    /// 调共用库的 public.track_event（user_id 服务端取 auth.uid()）。发了就不管：失败只记日志
-    @discardableResult
-    private func trackEvent(_ name: String) async -> Bool {
-        do {
-            let token = try await validAccessToken()
-            var req = URLRequest(url: SupabaseConfig.url.appendingPathComponent("rest/v1/rpc/track_event"))
-            req.httpMethod = "POST"
-            req.timeoutInterval = 15
-            req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
-            req.setValue("Bearer " + token, forHTTPHeaderField: "Authorization")
-            req.setValue("public", forHTTPHeaderField: "Content-Profile")   // RPC 在 public，不在 getnewword
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.httpBody = try JSONSerialization.data(withJSONObject: ["p_product": "GetNewWord", "p_name": name])
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
-            guard (200..<300).contains(status) else {
-                throw SupabaseAuthError.http(status, String(decoding: data.prefix(300), as: UTF8.self))
-            }
-            return true
-        } catch {
-            AppLog.log("[Auth] track_event \(name) failed: \(error)")
-            return false
-        }
     }
 
     private func store(_ s: SupabaseSession?) {

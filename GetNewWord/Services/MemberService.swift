@@ -1,12 +1,13 @@
 // MemberService.swift
 // GetNewWord
 //
-// 会员（后台接口见会员后台的多产品规格）：不用注册账号，按这台 Mac 领免费试用
-// （前 100 位新用户各 30 次查词）；之后订阅（月付、年付，刷卡自动续费），人民币另可一次买 1 个月 / 1 年（微信等，不自动续费）。
+// 会员（后台接口见会员后台的多产品规格）：不用注册账号，按这台 Mac 认会员；不送免费试用（2026-11-13 用户定），
+// 订阅（月付、年付，刷卡自动续费），人民币另可一次买 1 个月 / 1 年（微信等，不自动续费）。
+// 以前领过试用、还没用完的，照后台的数显示剩几次。
 // 授权码能在另一台 Mac 上激活（一张最多 2 台）。会员模式下查词的 AI 请求发到我们的后台（OpenAI 兼容，带 X-Use-Id：
 // 一次查词一个号），密钥只在服务器上。
 // 这里只管和后台说话、记住设备令牌和最近一次状态；查词怎么发请求在 ZhipuService，界面在 PricingView、PlanCard。
-// 后台地址：正式版 https://api.us-cloud.uk；开发版和单元测试只在设了 GETNEWWORD_API 时才连（开发版不占线上前 100 名的名额）。
+// 后台地址：正式版 https://api.us-cloud.uk；开发版和单元测试只在设了 GETNEWWORD_API 时才连。
 
 import Foundation
 import AppKit
@@ -109,8 +110,6 @@ struct MemberStatus: Codable, Equatable, Sendable {
     var limitBy: String?
     /// reason 是 daily-limit 时的重置时刻（毫秒，下一个 UTC 0 点）
     var resetAt: Double?
-    /// 这台注册时领试用的结果（后台记的）：granted / closed / ip-limit / daily-limit / none。旧后台没有
-    var trialResult: String?
     var prices: Prices?
     var passPrices: Prices?
     var sync: Sync?
@@ -139,7 +138,6 @@ struct MemberStatus: Codable, Equatable, Sendable {
         reason = opt(.reason)
         limitBy = opt(.limitBy)
         resetAt = opt(.resetAt)
-        trialResult = opt(.trialResult)
         prices = opt(.prices)
         passPrices = opt(.passPrices)
         sync = opt(.sync)
@@ -171,8 +169,7 @@ struct MemberError: LocalizedError, Equatable, Sendable {
     var status = 0
     var resetAt: Date?
     var retryAfter: Double?
-    /// 下面三个是显示前按这台的状态补上的（MemberService.explain）：没领到试用的原因、一次买用到哪天、每天的上限是成本上限（次数其实还有）
-    var miss: TrialMiss?
+    /// 下面两个是显示前按这台的状态补上的（MemberService.explain）：一次买用到哪天、每天的上限是成本上限（次数其实还有）
     var until: Date?
     var costCap = false
 
@@ -216,7 +213,7 @@ enum MemberText {
     static func title(_ e: MemberError) -> String {
         switch e.code {
         case "trial-used-up": return String(localized: "免费的 30 次用完了")
-        case "trial-closed": return e.miss == .full ? String(localized: "免费名额已经发完了") : String(localized: "这台 Mac 没领到免费次数")
+        case "trial-closed": return String(localized: "还没开通会员")
         case "sub-ended": return String(localized: "会员到期了")
         case "payment-failed": return String(localized: "续费没扣成")
         case "daily-limit": return e.costCap ? String(localized: "今天的用量到上限了") : String(localized: "今天的次数用完了")
@@ -245,13 +242,7 @@ enum MemberText {
     static func detail(_ e: MemberError) -> String {
         switch e.code {
         case "trial-used-up": return String(localized: "订阅会员接着用；也可以填自己的 AI Key，永久免费。")
-        case "trial-closed":
-            switch e.miss {
-            case .full: return String(localized: "前 100 位新用户的免费次数已经发完，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。")
-            case .network: return String(localized: "注册那天同一个网络里领的人太多，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。")
-            case .dayFull: return String(localized: "注册那天领的人太多，当天的份数发完了，这台 Mac 没领到。订阅会员，或者填自己的 AI Key 免费用。")
-            default: return String(localized: "这台 Mac 注册时没领到免费次数。订阅会员，或者填自己的 AI Key 免费用。")
-            }
+        case "trial-closed": return String(localized: "订阅会员就能查词；也可以填自己的 AI Key，永久免费。")
         case "sub-ended": return String(localized: "续订或再买一段就能接着查；也可以填自己的 AI Key 免费用。")
         case "payment-failed": return String(localized: "上一期的续费没扣成。打开「管理订阅」换一张卡，换好马上恢复。")
         case "daily-limit":
@@ -300,31 +291,10 @@ enum MemberText {
 
 // MARK: - 现在是哪种状态（侧栏卡片、会员页用）
 
-/// 没领到试用的原因：注册那次后台回的 trial（closed / ip-limit / daily-limit）
-enum TrialMiss: Equatable, Sendable {
-    /// 前 100 位的名额发完了
-    case full
-    /// 注册那天同一网络领的人太多（ip-limit）
-    case network
-    /// 注册那天全站当天的份数发完了（daily-limit）
-    case dayFull
-    /// 说不准：比如重新注册过，后台只回「老设备」
-    case unknown
-
-    static func of(_ trialResult: String?) -> TrialMiss {
-        switch trialResult {
-        case "closed": return .full
-        case "ip-limit": return .network
-        case "daily-limit": return .dayFull
-        default: return .unknown
-        }
-    }
-}
-
 enum MemberState: Equatable {
     /// 开发版没设后台地址
     case unavailable
-    /// 会员用法、还没向后台注册：第一次用会员查词、在引导里选着会员点「继续」、点订阅或输授权码时才注册领试用
+    /// 会员用法、还没向后台注册：第一次用会员查词、点订阅或输授权码时才注册
     case notClaimed
     /// 还没有状态，正在连
     case connecting
@@ -332,15 +302,15 @@ enum MemberState: Equatable {
     case offline
     case trial(left: Int, total: Int)
     case trialUsedUp
-    /// 没领到试用
-    case trialClosed(TrialMiss)
+    /// 注册过、还没开通会员（不送试用；后台回 trial-closed）
+    case notMember
     case member(until: Date?, autoRenew: Bool, expiring: Bool, pastDue: Bool, todayLeft: Int?, limit: Int?)
     case dailyLimit(reset: Date?)
     case paymentFailed
     case ended
 
-    /// registered：这台已经向后台注册过（或正在注册）。trialResult：本机记下的注册结果，后台 /status 带了 trialResult 时用后台的
-    static func of(_ status: MemberStatus?, available: Bool, failed: Bool, trialResult: String?, registered: Bool = true, now: Date = Date()) -> MemberState {
+    /// registered：这台已经向后台注册过（或正在注册）
+    static func of(_ status: MemberStatus?, available: Bool, failed: Bool, registered: Bool = true, now: Date = Date()) -> MemberState {
         guard available else { return .unavailable }
         guard let s = status else { return !registered ? .notClaimed : failed ? .offline : .connecting }
         // 每天的上限：会员 200 次用完，或这张授权今天的用量到上限（试用也会有，limitBy = cost）。过了重置时刻的不算
@@ -356,12 +326,12 @@ enum MemberState: Equatable {
         switch s.reason {
         case "payment-failed": return .paymentFailed
         case "sub-ended": return .ended
-        case "trial-closed": return .trialClosed(.of(s.trialResult ?? trialResult))
-        default: return s.trial.granted ? .trialUsedUp : .trialClosed(.of(s.trialResult ?? trialResult))
+        case "trial-closed": return .notMember
+        default: return s.trial.granted ? .trialUsedUp : .notMember
         }
     }
 
-    /// 能直接查词：还没领（第一次查词时领）、试用中、会员（含续费没扣成的宽限）
+    /// 能直接查词：还没注册（第一次查词时注册，后台说了算）、以前领的试用还有、会员（含续费没扣成的宽限）
     var ready: Bool {
         switch self {
         case .notClaimed, .trial, .member: return true
@@ -372,7 +342,7 @@ enum MemberState: Equatable {
     /// 现在能不能查词（后台最后说了算，这里只用来决定先不先拦下）
     var blocked: Bool {
         switch self {
-        case .trialUsedUp, .trialClosed, .dailyLimit, .paymentFailed, .ended, .unavailable: return true
+        case .trialUsedUp, .notMember, .dailyLimit, .paymentFailed, .ended, .unavailable: return true
         default: return false
         }
     }
@@ -381,7 +351,7 @@ enum MemberState: Equatable {
     var blockCode: String? {
         switch self {
         case .trialUsedUp: return "trial-used-up"
-        case .trialClosed: return "trial-closed"
+        case .notMember: return "trial-closed"
         case .dailyLimit: return "daily-limit"
         case .paymentFailed: return "payment-failed"
         case .ended: return "sub-ended"
@@ -394,7 +364,7 @@ enum MemberState: Equatable {
 // MARK: - 设备标识
 
 enum MemberDevice {
-    /// sha256("getnewword:" + 硬件 UUID) 的十六进制：同一台 Mac 重装还是同一台，换不出新的试用；后台只存它的哈希
+    /// sha256("getnewword:" + 硬件 UUID) 的十六进制：同一台 Mac 重装还是同一台；后台只存它的哈希
     nonisolated static func fingerprint(hardwareUUID: String) -> String {
         SHA256.hash(data: Data("getnewword:\(hardwareUUID)".utf8)).map { String(format: "%02x", $0) }.joined()
     }
@@ -509,8 +479,6 @@ final class MemberService: ObservableObject, MemberRoute {
     @Published private(set) var lastError: MemberError?
     /// 正在等付款（每 3 秒问一次）
     @Published private(set) var purchase: Purchase?
-    /// 注册时的试用结果：granted / existing / closed / ip-limit / daily-limit
-    @Published private(set) var trialResult: String?
     /// 刚付完款（会员页显示「付款成功」）
     @Published var justPaid = false
     /// 这台向后台注册过（钥匙串里有设备令牌）
@@ -525,7 +493,7 @@ final class MemberService: ObservableObject, MemberRoute {
     let api: URL?
     var isAvailable: Bool { api != nil }
     var state: MemberState {
-        MemberState.of(status, available: isAvailable, failed: lastError != nil, trialResult: trialResult, registered: registered || claiming)
+        MemberState.of(status, available: isAvailable, failed: lastError != nil, registered: registered || claiming)
     }
     var isMember: Bool { status?.isMember == true }
 
@@ -561,7 +529,6 @@ final class MemberService: ObservableObject, MemberRoute {
     private struct Cache: Codable {
         var api: String
         var status: MemberStatus?
-        var trialResult: String?
     }
 
     init(api: URL?, defaults: UserDefaults, tokens: MemberTokenStore? = nil,
@@ -580,7 +547,6 @@ final class MemberService: ObservableObject, MemberRoute {
         if let api, let data = defaults.data(forKey: Self.cacheKey),
            let cache = try? JSONDecoder().decode(Cache.self, from: data), cache.api == api.absoluteString {
             status = cache.status
-            trialResult = cache.trialResult
         }
     }
 
@@ -607,8 +573,8 @@ final class MemberService: ObservableObject, MemberRoute {
 
     // MARK: 设备注册、状态
 
-    /// 注册这台、领试用，存下设备令牌；注册过直接返回令牌。同时来的几次合成一次。
-    /// 只在人真要用会员时调：第一次用会员查词、引导里选会员点「继续」、点订阅、输授权码
+    /// 注册这台，存下设备令牌；注册过直接返回令牌。同时来的几次合成一次。
+    /// 只在人真要用会员时调：第一次用会员查词、点订阅、输授权码
     func ensureDevice() async throws -> String {
         if let token = tokens.load() { return token }
         if let task = registering { return try await task.value }
@@ -618,12 +584,10 @@ final class MemberService: ObservableObject, MemberRoute {
             ], auth: false)
             let r = try MemberStatus.registration(from: data)
             self.storeToken(r.token)
-            // 重新注册（令牌丢了）后台只回 existing：留着第一次注册的结果，没领到试用时才说得出原因
-            if r.trial != "existing" || self.trialResult == nil { self.trialResult = r.trial }
             self.lastError = nil
             self.checkedAt = Date()
             self.apply(r.status)
-            AppLog.log("[Member] registered: trial \(r.trial), plan \(r.status.plan), left \(r.status.trial.left)")
+            AppLog.log("[Member] registered: plan \(r.status.plan), trial left \(r.status.trial.left)")
             return r.token
         }
         registering = task
@@ -635,20 +599,9 @@ final class MemberService: ObservableObject, MemberRoute {
         return try await task.value
     }
 
-    /// 引导里选着会员点「继续」：注册、领试用。连不上只记下来（第一次查词时再领）
-    func claimTrial() async {
-        guard api != nil, !registered else { return }
-        do {
-            _ = try await ensureDevice()
-        } catch {
-            lastError = error as? MemberError ?? .network
-            AppLog.log("[Member] claim trial failed: \(lastError?.code ?? "?")")
-        }
-    }
-
     /// 向后台要最新状态（别的电脑用掉了、退款、到期只有后台知道）。连不上就留着旧的。
     /// maxAge：有状态且上次查过不到这么久就不再查（回到前台、打开会员页时用，别每次切窗口都打后台）
-    /// 没注册过的不查：查状态要先注册设备，不替还没用会员的人占试用名额
+    /// 没注册过的不查：查状态要先注册设备，不替还没用会员的人注册
     func refresh(maxAge: TimeInterval = 0) async {
         guard api != nil, registered else { return }
         if let task = refreshing { return await task.value }
@@ -671,7 +624,7 @@ final class MemberService: ObservableObject, MemberRoute {
     private func apply(_ s: MemberStatus) {
         let before = status
         status = s
-        if let api, let data = try? JSONEncoder().encode(Cache(api: api.absoluteString, status: s, trialResult: trialResult)) {
+        if let api, let data = try? JSONEncoder().encode(Cache(api: api.absoluteString, status: s)) {
             defaults.set(data, forKey: Self.cacheKey)
         }
         if before?.plan != s.plan || before?.sync != s.sync {
@@ -680,11 +633,10 @@ final class MemberService: ObservableObject, MemberRoute {
         if s.isMember { linkSyncIfNeeded() }
     }
 
-    /// 报错给人看之前，按这台的状态补上说清楚原因要的东西（没领到试用的原因、一次买用到哪天、是不是成本上限）
+    /// 报错给人看之前，按这台的状态补上说清楚原因要的东西（一次买用到哪天、是不是成本上限）
     func explain(_ e: MemberError) -> MemberError {
         var e = e
         switch e.code {
-        case "trial-closed": e.miss = .of(status?.trialResult ?? trialResult)
         case "pass-active": e.until = MemberStatus.date(status?.memberUntil)
         // 后台每天的上限有两种：200 次用完、或这张授权当天的成本到顶。/status 的 limitBy 写了是哪种；
         // 还没问到（刚被 429 拦下）时：试用没有每天的次数，一定是成本；会员按今天还剩不剩次数猜

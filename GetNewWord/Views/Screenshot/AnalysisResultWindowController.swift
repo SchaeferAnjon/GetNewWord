@@ -16,9 +16,31 @@ final class KeyableBorderlessPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// 查词面板的透明度（设置 › 翻译与学习 › 查词面板）：整块面板连文字一起变淡，1 是不透明
+enum LookupPanelOpacity {
+    static let key = "lookupPanelOpacity"
+    static let range: ClosedRange<Double> = 0.3...1.0
+    static var current: Double {
+        let v = UserDefaults.standard.object(forKey: key) as? Double ?? 1
+        return min(max(v, range.lowerBound), range.upperBound)
+    }
+}
+
 @MainActor
 class AnalysisResultWindowController {
     var panel: NSPanel?
+    /// 设置里改了透明度，开着的面板（钉住的）立刻跟着变
+    private var opacityObserver: NSObjectProtocol?
+
+    init() {
+        opacityObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let panel = self?.panel else { return }
+                let a = CGFloat(LookupPanelOpacity.current)
+                if panel.alphaValue != a { panel.alphaValue = a }
+            }
+        }
+    }
     private var viewModel: AnalysisViewModel?
     private var modelContext: ModelContext?
 
@@ -98,6 +120,7 @@ class AnalysisResultWindowController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
+        panel.alphaValue = CGFloat(LookupPanelOpacity.current)
         panel.isMovableByWindowBackground = true
         panel.minSize = Self.minSize
         panel.animationBehavior = .utilityWindow
